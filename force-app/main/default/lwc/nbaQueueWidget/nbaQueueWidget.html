@@ -1,0 +1,355 @@
+<template>
+    <template if:false={queueItem}>
+        <div class="nba-widget-card">
+            <div class="nba-widget-header">
+                <div class="nba-widget-title">Next Best Action</div>
+            </div>
+            <div class="nba-widget-body" style="text-align:center; padding: 40px 0;">
+                <span style="font-size:2.5rem; color:#4bca81;">✔️</span>
+                <div style="font-size:1.2rem; font-weight:600; margin-top:12px;">You’re all caught up!</div>
+                <div style="color:#888; margin-top:6px;">No pending actions at this time.</div>
+            </div>
+        </div>
+    </template>
+    <template if:true={queueItem}>
+        <div class="nba-widget-card">
+            <div class="nba-widget-header">
+                <div class="nba-widget-title">Next Best Action</div>
+                <button class="nba-widget-refresh-btn" onclick={handleManualRefresh} title="Refresh Queue">
+                    <span class="nba-widget-refresh-icon">🔄</span>
+                </button>
+            </div>
+            <div class="nba-widget-body">
+                <div class="nba-widget-row nba-widget-main-row">
+                    <span class="nba-widget-icon">📞</span>
+                    <span class="nba-widget-main-text">
+                        {actionText}
+                        <a href="javascript:void(0);" class="nba-widget-link" onclick={handleRecordClick}> {recordName}</a>
+                    </span>
+                </div>
+                
+                <!-- Priority Score Display - Hidden -->
+                <!-- <template if:true={showPriorityScore}>
+                    <div class="nba-widget-row nba-widget-priority-row">
+                        <div class="nba-widget-priority-score">
+                            <span class="nba-widget-priority-label">Priority Score:</span>
+                            <span class="nba-widget-priority-value {priorityScoreClass}">{priorityScoreDisplay}</span>
+                            <template if:true={hasMultipliers}>
+                                <span class="nba-widget-priority-original">(was {originalScoreDisplay})</span>
+                                <span class="nba-widget-priority-multipliers">• {multiplierText}</span>
+                            </template>
+                        </div>
+                    </div>
+                </template> -->
+                
+                <div class="nba-widget-row">
+                    <template if:true={queueItem.Opportunity__c}>
+                        <span class="nba-widget-badge nba-widget-badge-opportunity">{opportunityStage}</span>
+                    </template>
+                </div>
+
+                <template if:true={queueItem.Opportunity__c}>
+                    <div class="nba-widget-row nba-widget-source-row">
+                        <span class="nba-widget-source-label">Source:</span>
+                        <span class="nba-widget-source-value">{opportunitySource}</span>
+                    </div>
+                </template>
+                <div class="nba-widget-row nba-widget-badges-row">
+                    <template if:true={employeeCount}>
+                        <span class="nba-widget-badge">{employeeCount} employees</span>
+                    </template>
+                    <template if:true={companyAgeMonths}>
+                        <span class="nba-widget-badge">{companyAgeMonths} months old</span>
+                    </template>
+                    <template if:true={useCaseTimeTracking}>
+                        <span class="nba-widget-badge">Time tracking</span>
+                    </template>
+                    <template if:true={useCaseScheduling}>
+                        <span class="nba-widget-badge">Scheduling</span>
+                    </template>
+                    <template if:true={useCasePayroll}>
+                        <span class="nba-widget-badge">Payroll</span>
+                    </template>
+                </div>
+                <template if:true={queueItem.Opportunity__c}>
+                    <div class="nba-widget-tabs">
+                        <button value="details" onclick={handleTabChange} class={detailsTabClass}>Opportunity details</button>
+                        <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
+                        <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
+                    </div>
+                </template>
+                <template if:false={queueItem.Opportunity__c}>
+                    <div class="nba-widget-tabs">
+                        <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
+                        <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
+                    </div>
+                </template>
+                <template if:true={isDetailsTab}>
+                    <div class="nba-widget-details">
+                        <template if:true={queueItem.Opportunity__c}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Payroll Buyer Stage</span>
+                                <span class="nba-widget-detail-value">{opportunityPayrollBuyerStage}</span>
+                            </div>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Implementation Status</span>
+                                <span class="nba-widget-detail-value">{opportunityImplementationStatus}</span>
+                            </div>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Payroll Provider</span>
+                                <span class="nba-widget-detail-value">{currentPayroll}</span>
+                            </div>
+                        </template>
+                        <template if:false={queueItem.Opportunity__c}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Account</span>
+                                <span class="nba-widget-detail-value">{accountNameDisplay}</span>
+                            </div>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Employee Count</span>
+                                <span class="nba-widget-detail-value">{employeeCountDisplay}</span>
+                            </div>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Company Age</span>
+                                <span class="nba-widget-detail-value">{companyAgeDisplay}</span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+                <template if:true={isContactTab}>
+                    <div class="nba-widget-contact">
+                        <template if:true={displayContactPerson}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Best Person to Call</span>
+                                <span class="nba-widget-detail-value">
+                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={handleContactClick} data-contact-id={displayContactId}>
+                                        {displayContactPerson}
+                                    </a>
+                                </span>
+                            </div>
+
+                            <template if:true={displayContactEmail}>
+                                <div class="nba-widget-detail-row">
+                                    <span class="nba-widget-detail-label">Contact Email</span>
+                                    <span class="nba-widget-detail-value">{displayContactEmail}</span>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:true={displayContactPhone}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Best Number to Call</span>
+                                <span class="nba-widget-detail-value">
+                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={handlePhoneClick} data-phone={displayContactPhone}>
+                                        {displayContactPhone}
+                                    </a>
+                                </span>
+                            </div>
+                        </template>
+
+                        <template if:false={displayContactPerson}>
+                            <template if:false={displayContactPhone}>
+                                <div class="nba-widget-contact-placeholder">No contact information available for this record.</div>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+                <template if:true={isProductTab}>
+                    <div class="nba-widget-product">
+                        <template if:true={hasProductUsage}>
+                            <div class="nba-widget-product-grid">
+                                <template if:true={queueItem.Break_Preferences_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">⏰</span>
+                                        <span class="nba-widget-product-label">Break Preferences</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Department_Management_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">🏢</span>
+                                        <span class="nba-widget-product-label">Department Management</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Geofencing_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📍</span>
+                                        <span class="nba-widget-product-label">Geofencing</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Hiring_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">👥</span>
+                                        <span class="nba-widget-product-label">Hiring</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Hrdocs_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📋</span>
+                                        <span class="nba-widget-product-label">HR Docs</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Manager_Log_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📝</span>
+                                        <span class="nba-widget-product-label">Manager Log</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Messaging_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">💬</span>
+                                        <span class="nba-widget-product-label">Messaging</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Mobile_Time_Tracking_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📱</span>
+                                        <span class="nba-widget-product-label">Mobile Time Tracking</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Oam_Activity__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">🔧</span>
+                                        <span class="nba-widget-product-label">OAM Activity</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Overtime_Preferences_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">⏰</span>
+                                        <span class="nba-widget-product-label">Overtime Preferences</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Scheduling_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📅</span>
+                                        <span class="nba-widget-product-label">Scheduling</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Shift_Notes_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📝</span>
+                                        <span class="nba-widget-product-label">Shift Notes</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Shift_Trades_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">🔄</span>
+                                        <span class="nba-widget-product-label">Shift Trades</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Time_Offs_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">🏖️</span>
+                                        <span class="nba-widget-product-label">Time Offs</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Time_Tracking_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">⏱️</span>
+                                        <span class="nba-widget-product-label">Time Tracking</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:false={hasProductUsage}>
+                            <div class="nba-widget-product-placeholder">No product usage data available for this record.</div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+            <div class="nba-widget-footer">
+                <button class="nba-widget-skip" data-id={queueItem.Id} onclick={handleDismissAction}>Skip</button>
+                <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>Accept</button>
+            </div>
+        </div>
+    </template>
+    <template if:true={showDismissModal}>
+        <div class="slds-backdrop slds-backdrop_open call-disposition-backdrop"></div>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open call-disposition-modal">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <h2 class="slds-text-heading_medium">Dismiss Reason</h2>
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                        title="Close"
+                        onclick={closeDismissModal}>
+                        <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                    </button>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <lightning-textarea
+                        label="Reason for Dismissal"
+                        value={dismissReason}
+                        onchange={handleDismissReasonChange}
+                        placeholder="Enter reason...">
+                    </lightning-textarea>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        variant="neutral"
+                        label="Cancel"
+                        title="Cancel"
+                        onclick={closeDismissModal}>
+                    </lightning-button>
+                    <lightning-button
+                        variant="brand"
+                        label="Submit"
+                        title="Submit"
+                        class="slds-m-left_x-small"
+                        onclick={submitDismissReason}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+    </template>
+
+    <template if:true={showCallDispositionModal}>
+        <div class="slds-backdrop slds-backdrop_open call-disposition-backdrop"></div>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open call-disposition-modal">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <h2 class="slds-text-heading_medium">Call Disposition</h2>
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                        title="Close"
+                        onclick={closeCallDispositionModal}>
+                        <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
+                    </button>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <div class="slds-form-element slds-m-bottom_medium">
+                        <label class="slds-form-element__label">Phone Number</label>
+                        <div class="slds-form-element__control">
+                            <span class="slds-text-body_regular">{currentPhoneNumber}</span>
+                        </div>
+                    </div>
+                    <lightning-combobox
+                        label="Call Disposition"
+                        value={callDisposition}
+                        options={callDispositionOptions}
+                        onchange={handleCallDispositionChange}
+                        required>
+                    </lightning-combobox>
+                    <lightning-textarea
+                        label="Call Notes"
+                        value={callNotes}
+                        onchange={handleCallNotesChange}
+                        placeholder="Enter call notes..."
+                        class="slds-m-top_medium">
+                    </lightning-textarea>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button
+                        variant="neutral"
+                        label="Cancel"
+                        title="Cancel"
+                        onclick={closeCallDispositionModal}>
+                    </lightning-button>
+                    <lightning-button
+                        variant="brand"
+                        label="Save"
+                        title="Save"
+                        class="slds-m-left_x-small"
+                        onclick={handleCallDispositionSave}>
+                    </lightning-button>
+                </footer>
+            </div>
+        </section>
+    </template>
+</template>

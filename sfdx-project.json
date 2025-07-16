@@ -1,0 +1,13 @@
+{
+  "packageDirectories": [
+    {
+      "path": "force-app",
+      "default": true
+    }
+  ],
+  "name": "NBA Queue Project",
+  "namespace": "",
+  "sfdcLoginUrl": "https://test.salesforce.com",
+  "sourceApiVersion": "58.0",
+  "defaultusername": "joinhomebase--uat"
+}

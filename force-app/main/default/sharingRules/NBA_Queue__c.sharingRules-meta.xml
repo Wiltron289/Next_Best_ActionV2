@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SharingRules xmlns="http://soap.sforce.com/2006/04/metadata">
+    <sharingCriteriaRules>
+        <fullName>NBA_Queue_Sales_Rep_Rule</fullName>
+        <criteriaItems>
+            <field>Sales_Rep__c</field>
+            <operation>notEqual</operation>
+            <value></value>
+        </criteriaItems>
+        <label>NBA Queue Sales Rep Rule</label>
+        <accessLevel>Read</accessLevel>
+        <sharedTo>
+            <allInternalUsers/>
+        </sharedTo>
+    </sharingCriteriaRules>
+</SharingRules> 

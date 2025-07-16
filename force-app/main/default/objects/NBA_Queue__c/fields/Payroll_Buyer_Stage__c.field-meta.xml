@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Payroll_Buyer_Stage__c</fullName>
+    <externalId>false</externalId>
+    <label>Payroll Buyer Stage</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Pre-SS Flow</fullName>
+                <default>false</default>
+                <label>Pre-SS Flow</label>
+            </value>
+            <value>
+                <fullName>SS Pre-Dashboard</fullName>
+                <default>false</default>
+                <label>SS Pre-Dashboard</label>
+            </value>
+            <value>
+                <fullName>Reached Dashboard</fullName>
+                <default>false</default>
+                <label>Reached Dashboard</label>
+            </value>
+            <value>
+                <fullName>Ready for Implementation</fullName>
+                <default>false</default>
+                <label>Ready for Implementation</label>
+            </value>
+            <value>
+                <fullName>Ready to Run</fullName>
+                <default>false</default>
+                <label>Ready to Run</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

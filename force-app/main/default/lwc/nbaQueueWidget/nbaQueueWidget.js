@@ -1,0 +1,1077 @@
+import { LightningElement, api, track, wire } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
+import { publish, MessageContext } from 'lightning/messageService';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { loadStyle } from 'lightning/platformResourceLoader';
+import PlusJakartaSans from '@salesforce/resourceUrl/PlusJakartaSans';
+import getNextQueueItem from '@salesforce/apex/NBAQueueManager.getNextQueueItem';
+import getNextQueueItemWithDetails from '@salesforce/apex/NBAQueueManager.getNextQueueItemWithDetails';
+import markAsViewed from '@salesforce/apex/NBAQueueManager.markAsViewed';
+import acceptAction from '@salesforce/apex/NBAQueueManager.acceptAction';
+import dismissAction from '@salesforce/apex/NBAQueueManager.dismissAction';
+import updateCallDisposition from '@salesforce/apex/NBAQueueManager.updateCallDisposition';
+import getOpportunityPrimaryContact from '@salesforce/apex/NBAQueueManager.getOpportunityPrimaryContact';
+import getAccountPhoneNumber from '@salesforce/apex/NBAQueueManager.getAccountPhoneNumber';
+import userId from '@salesforce/user/Id';
+
+export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
+    @api panelHeight = 400;
+    @track queueItem = null;
+    @track isLoading = false;
+    @track showCallDispositionModal = false;
+    @track showDismissModal = false;
+    @track selectedItem = null;
+    @track currentTaskId = null;
+    @track callDisposition = '';
+    @track callNotes = '';
+    @track dismissReason = '';
+    @track currentPhoneNumber = '';
+    @track activeTab = 'details';
+    @track opportunityPrimaryContact = null;
+    @track lastRefreshTime = null;
+    @track fontLoaded = false;
+    
+    @wire(MessageContext) messageContext;
+
+    currentUserId = userId;
+    refreshTimer = null;
+    refreshInterval = 30000; // 30 seconds
+
+    async connectedCallback() {
+        // Load the Plus Jakarta Sans font first
+        await this.loadFonts();
+        
+        this.loadQueueItem();
+        this.startAutoRefresh();
+        if (window.sforce && window.sforce.opencti) {
+            window.sforce.opencti.enableClickToDial({
+                callback: (response) => {
+                    if (response.success) {
+                        console.log('Click-to-dial enabled for NBA Queue Widget');
+                    }
+                }
+            });
+            window.sforce.opencti.onClickToDial({
+                listener: this.handleCTIClickToDial.bind(this)
+            });
+        }
+    }
+
+    async loadFonts() {
+        try {
+            await loadStyle(this, PlusJakartaSans + '/PlusJakartaSans.css');
+            this.fontLoaded = true;
+            console.log('Plus Jakarta Sans font loaded successfully');
+        } catch (error) {
+            console.error('Error loading Plus Jakarta Sans font:', error);
+            // Fallback to system fonts if loading fails
+        }
+    }
+
+    handleManualRefresh() {
+        console.log('Manual refresh triggered by user');
+        this.showToast('Info', 'Refreshing queue...', 'info');
+        this.loadQueueItem().catch(error => {
+            console.error('Manual refresh failed:', error);
+            this.showToast('Error', 'Failed to refresh queue', 'error');
+        });
+    }
+
+    async loadQueueItem() {
+        console.log('=== NBA Queue Widget Debug ===');
+        console.log('Current User ID:', this.currentUserId);
+        
+        // Update last refresh time
+        this.lastRefreshTime = new Date();
+        
+        try {
+            const result = await getNextQueueItemWithDetails({ userId: this.currentUserId });
+            console.log('Queue item data received:', result);
+            
+            if (result && result.queueItem) {
+                // Store priority score details
+                this.originalScore = result.originalScore;
+                this.adjustedScore = result.adjustedScore;
+                this.webUsageMultiplier = result.webUsageMultiplier;
+                this.bestTimeMultiplier = result.bestTimeMultiplier;
+                this.webUsageApplied = result.webUsageApplied;
+                this.bestTimeApplied = result.bestTimeApplied;
+                
+                console.log('Priority Score Details:', {
+                    original: this.originalScore,
+                    adjusted: this.adjustedScore,
+                    webUsageApplied: this.webUsageApplied,
+                    bestTimeApplied: this.bestTimeApplied
+                });
+                
+            this.queueItem = {
+                    ...result.queueItem,
+                    formattedDueDate: this.formatDate(result.queueItem.Due_Date__c),
+                    formattedCloseDate: this.formatDate(result.queueItem.Close_Date__c),
+                    formattedLastCallDate: this.formatDateTime(result.queueItem.Last_Call_Date__c),
+                    actionIcon: this.getActionIcon(result.queueItem.Action_Type__c),
+                    isPayrollAction: this.isPayrollAction(result.queueItem.Action_Type__c),
+                    featuresList: this.formatFeatureUsage(result.queueItem.Feature_Usage__c),
+                    isExpanded: false,
+                    expandIcon: 'utility:chevronright',
+                    expandText: 'Show'
+                };
+                
+                // Set default tab based on whether there's an Opportunity
+                if (result.queueItem.Opportunity__c) {
+                    this.activeTab = 'details';
+                } else {
+                    this.activeTab = 'contact';
+                }
+                
+                // Mark the record as viewed (first time only)
+                try {
+                    await markAsViewed({ queueItemId: result.queueItem.Id });
+                    console.log('Record marked as viewed');
+                } catch (error) {
+                    console.error('Error marking record as viewed:', error);
+                }
+                
+                // Load opportunity primary contact if needed
+                console.log('Checking if should load opportunity primary contact...');
+                console.log('Opportunity ID:', result.queueItem.Opportunity__c);
+                console.log('Should use NBA Queue contact:', this.shouldUseNBAQueueContact);
+                
+                if (result.queueItem.Opportunity__c && !this.shouldUseNBAQueueContact) {
+                    try {
+                        console.log('Loading opportunity primary contact for ID:', result.queueItem.Opportunity__c);
+                        const contactData = await getOpportunityPrimaryContact({ opportunityId: result.queueItem.Opportunity__c });
+                        this.opportunityPrimaryContact = contactData;
+                        console.log('Opportunity primary contact loaded:', contactData);
+                    } catch (error) {
+                        console.error('Error loading opportunity primary contact:', error);
+                        this.opportunityPrimaryContact = null;
+                    }
+                } else {
+                    console.log('Not loading opportunity primary contact - setting to null');
+                    this.opportunityPrimaryContact = null;
+                }
+                
+                console.log('Queue item processed successfully');
+            } else {
+                console.log('No queue items found for user');
+                this.queueItem = null;
+                this.originalScore = null;
+                this.adjustedScore = null;
+                this.webUsageMultiplier = null;
+                this.bestTimeMultiplier = null;
+                this.webUsageApplied = false;
+                this.bestTimeApplied = false;
+            }
+        } catch (error) {
+            console.error('Error loading queue item:', error);
+            console.error('Error details:', JSON.stringify(error, null, 2));
+            this.showToast('Error', 'Failed to load queue item', 'error');
+            this.queueItem = null;
+        }
+    }
+
+    isPayrollAction(actionType) {
+        return actionType === 'Payroll Opportunity Call' || actionType === 'Payroll Prospecting Call';
+    }
+
+    formatFeatureUsage(features) {
+        if (!features) return '';
+        return features.split(';').join(', ');
+    }
+
+    formatDateTime(dateTimeValue) {
+        if (!dateTimeValue) return '';
+        const date = new Date(dateTimeValue);
+        return date.toLocaleString();
+    }
+
+
+
+    disconnectedCallback() {
+        this.stopAutoRefresh();
+    }
+
+    startAutoRefresh() {
+        console.log('Starting auto-refresh timer - will refresh every 30 seconds');
+        this.refreshTimer = setInterval(() => {
+            if (!this.isLoading && !this.showCallDispositionModal) {
+                console.log('Auto-refresh triggered - checking for updated queue items...');
+                this.loadQueueItem().catch(error => {
+                    console.error('Auto-refresh failed: ', error);
+                });
+            } else {
+                console.log('Auto-refresh skipped - component is loading or modal is open');
+            }
+        }, this.refreshInterval);
+    }
+
+    stopAutoRefresh() {
+        if (this.refreshTimer) {
+            clearInterval(this.refreshTimer);
+            this.refreshTimer = null;
+        }
+    }
+
+    get hasItems() {
+        return this.queueItem && this.queueItem.Id;
+    }
+
+    get containerStyle() {
+        return `--panel-height: ${this.panelHeight}px;`;
+    }
+
+    get callDispositionOptions() {
+        return [
+            { label: 'Connected - DM', value: 'Connected - DM' },
+            { label: 'Connected - GK', value: 'Connected - GK' },
+            { label: 'Attempted - Left Voicemail', value: 'Attempted - Left Voicemail' },
+            { label: 'Attempted - No Voicemail', value: 'Attempted - No Voicemail' },
+            { label: 'Not Interested', value: 'Not Interested' }
+        ];
+    }
+
+    handleAcceptAction(event) {
+        const itemId = event.currentTarget?.dataset?.id || (event.target && event.target.dataset && event.target.dataset.id);
+        if (itemId && (!this.queueItem || this.queueItem.Id !== itemId)) {
+            // If the queueItem is not the one being acted on, fetch it (future-proofing for lists)
+            // For now, just use the current queueItem
+        }
+        this.selectedItem = this.queueItem;
+        this.executeAcceptAction();
+    }
+
+    handleDismissAction(event) {
+        console.log('Dismiss action triggered');
+        this.showDismissModal = true;
+        this.dismissReason = '';
+        console.log('showDismissModal set to:', this.showDismissModal);
+        
+        // Ensure modal shows up by forcing a re-render
+        setTimeout(() => {
+            const card = this.template.querySelector('.nba-widget-card');
+            if (card) {
+                card.classList.add('modal-open');
+            }
+        }, 10);
+    }
+    closeDismissModal() {
+        console.log('Closing dismiss modal');
+        this.showDismissModal = false;
+        this.dismissReason = '';
+        // Remove the modal-open class
+        const card = this.template.querySelector('.nba-widget-card');
+        if (card) {
+            card.classList.remove('modal-open');
+        }
+    }
+    handleDismissReasonChange(event) {
+        this.dismissReason = event.target.value;
+    }
+    submitDismissReason() {
+        // Validate that dismissal reason is provided
+        if (!this.dismissReason || this.dismissReason.trim() === '') {
+            this.showToast('Error', 'Please enter a reason for dismissal', 'error');
+            return;
+        }
+        
+        this.selectedItem = this.queueItem;
+        this.executeDismissActionWithReason();
+        this.showDismissModal = false;
+    }
+    executeDismissActionWithReason() {
+        this.isLoading = true;
+        dismissAction({ queueItemId: this.selectedItem.Id, dismissalReason: this.dismissReason })
+            .then(() => {
+                this.showToast('Success', 'Action dismissed', 'success');
+                // Clear the current queue item immediately
+                this.queueItem = null;
+                // Then refresh to get the next item or confirm no more items
+                return this.loadQueueItem();
+            })
+            .catch(error => {
+                this.showToast('Error', error.body?.message || 'Failed to dismiss action', 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
+    executeAcceptAction() {
+        console.log('executeAcceptAction started');
+        this.isLoading = true;
+
+        const actionType = this.selectedItem.Action_Type__c;
+        const accountId = this.selectedItem.Account__c;
+        const accountName = this.selectedItem.Account__r.Name;
+        const currentItem = this.selectedItem;
+
+        console.log('Action type:', actionType);
+        console.log('Current modal states - showDismissModal:', this.showDismissModal, 'showCallDispositionModal:', this.showCallDispositionModal);
+
+        acceptAction({ queueItemId: this.selectedItem.Id, additionalNotes: '' })
+            .then((taskId) => {
+                console.log('Accept action successful, task ID:', taskId);
+                this.showToast('Success', 'Action accepted and task created', 'success');
+                // Clear the current queue item immediately
+                this.queueItem = null;
+                if (actionType.includes('Call')) {
+                    console.log('Action is a call type, handling call action');
+                    const phoneNumber = currentItem.Best_Number_to_Call__c || null;
+                    this.handleCallAction(taskId, accountId, accountName, phoneNumber);
+                } else {
+                    console.log('Action is not a call type, launching action');
+                    this.launchAction(currentItem);
+                }
+                return this.loadQueueItem();
+            })
+            .catch(error => {
+                console.error('Accept action error:', error);
+                this.showToast('Error', error.body?.message || 'Failed to accept action', 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
+    closeCallDispositionModal() {
+        this.showCallDispositionModal = false;
+        this.currentTaskId = null;
+        this.callDisposition = '';
+        this.callNotes = '';
+    }
+
+    handleAccountClick(event) {
+        const accountId = event.target.dataset.accountId;
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: accountId,
+                objectApiName: 'Account',
+                actionName: 'view'
+            }
+        });
+    }
+
+    getAccountTitle(item) {
+        return item && item.Account__r && item.Account__r.Name
+            ? `Navigate to ${item.Account__r.Name}`
+            : '';
+    }
+
+    handleCallAction(taskId, accountId, accountName, contactPhone) {
+        this.currentTaskId = taskId;
+
+        if (contactPhone) {
+            this.currentPhoneNumber = contactPhone;
+            this.launchCall(accountId, accountName, contactPhone);
+            setTimeout(() => {
+                this.showCallDispositionModal = true;
+            }, 1000);
+        } else {
+            this.getAccountPhone(accountId)
+                .then(phoneNumber => {
+                    if (phoneNumber) {
+                        this.currentPhoneNumber = phoneNumber;
+                        this.launchCall(accountId, accountName, phoneNumber);
+                        setTimeout(() => {
+                            this.showCallDispositionModal = true;
+                        }, 1000);
+                    } else {
+                        this.currentPhoneNumber = 'No phone number available';
+                        this.showCallDispositionModal = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting phone:', error);
+                    this.currentPhoneNumber = 'Error retrieving phone';
+                    this.showCallDispositionModal = true;
+                });
+        }
+    }
+
+    handleCallDispositionChange(event) {
+        this.callDisposition = event.target.value;
+    }
+
+    handleCallNotesChange(event) {
+        this.callNotes = event.target.value;
+    }
+
+    handleCallDispositionSave() {
+        if (!this.callDisposition) {
+            this.showToast('Error', 'Please select a call disposition', 'error');
+            return;
+        }
+
+        this.isLoading = true;
+
+        updateCallDisposition({ 
+            taskId: this.currentTaskId,
+            disposition: this.callDisposition,
+            callNotes: this.callNotes
+        })
+            .then(() => {
+                this.showToast('Success', 'Call disposition saved', 'success');
+                this.closeCallDispositionModal();
+            })
+            .catch(error => {
+                this.showToast('Error', error.body?.message || 'Failed to save call disposition', 'error');
+            })
+            .finally(() => {
+                this.isLoading = false;
+            });
+    }
+
+
+
+    getActionIcon(actionType) {
+        const iconMap = {
+            'Call': 'utility:call',
+            'Email': 'utility:email',
+            'Meeting': 'utility:event',
+            'Follow_Up': 'utility:follow_up',
+            'Demo': 'utility:screen_share',
+            'Proposal': 'utility:contract',
+            'Payroll Opportunity Call': 'utility:moneybag',
+            'Payroll Prospecting Call': 'utility:currency'
+        };
+        return iconMap[actionType] || 'utility:task';
+    }
+
+    formatDate(dateValue) {
+        if (!dateValue) return '';
+        const date = new Date(dateValue);
+        return date.toLocaleDateString();
+    }
+
+    showToast(title, message, variant) {
+        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    }
+
+    launchAction(queueItem) {
+        const actionType = queueItem.Action_Type__c;
+        const accountId = queueItem.Account__c;
+        const accountName = queueItem.Account__r.Name;
+
+        switch(actionType) {
+            case 'Call':
+            case 'Payroll Opportunity Call':
+            case 'Payroll Prospecting Call':
+                const phoneNumber = queueItem.Best_Number_to_Call__c || null;
+                this.launchCall(accountId, accountName, phoneNumber);
+                break;
+            case 'Email':
+                this.launchEmail(accountId, accountName);
+                break;
+            case 'Meeting':
+                this.launchMeeting(accountId, accountName);
+                break;
+            case 'Demo':
+                this.launchDemo(accountId, accountName);
+                break;
+            case 'Proposal':
+                this.launchProposal(accountId, accountName);
+                break;
+            case 'Follow_Up':
+                this.launchFollowUp(accountId, accountName);
+                break;
+            default:
+                this.navigateToAccount(accountId);
+                break;
+        }
+    }
+
+    // Add this function to trigger click-to-call via tel: link
+    triggerClickToCall(phoneNumber) {
+        if (!phoneNumber) return;
+        // Clean and format the number
+        let cleanedNumber = phoneNumber.replace(/\D/g, '');
+        if (!phoneNumber.startsWith('+')) {
+            if (cleanedNumber.length === 10) {
+                cleanedNumber = '1' + cleanedNumber;
+            }
+            cleanedNumber = '+' + cleanedNumber;
+        } else {
+            cleanedNumber = phoneNumber;
+        }
+        // Create and click a hidden anchor
+        const a = document.createElement('a');
+        a.href = `tel:${cleanedNumber}`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        // Optionally, show a toast
+        this.showToast('Call Initiated', `Calling ${cleanedNumber}`, 'info');
+    }
+
+    launchCall(accountId, accountName, phoneNumber) {
+        console.log('launchCall started - Simple approach');
+
+        const callWithNumber = (number) => {
+            if (number) {
+                let cleanedNumber = number.replace(/\D/g, '');
+                if (!number.startsWith('+')) {
+                    if (cleanedNumber.length === 10) {
+                        cleanedNumber = '1' + cleanedNumber;
+                    }
+                    cleanedNumber = '+' + cleanedNumber;
+                } else {
+                    cleanedNumber = number;
+                }
+
+                // New: Try to trigger click-to-call
+                this.triggerClickToCall(cleanedNumber);
+                // Show phone number in toast
+                this.showToast('Phone Number', `${cleanedNumber}`, 'info');
+                // Navigate to the record where they can use native Salesforce click-to-call
+                setTimeout(() => {
+                    this.showToast('Navigation', `Navigating to ${accountName} for click-to-call`, 'info');
+                    this.navigateToRecord(accountId);
+                }, 2000);
+            } else {
+                console.log('No phone number available');
+                this.showToast('No Phone Number', `No phone number found for ${accountName}`, 'warning');
+                this.navigateToAccount(accountId);
+            }
+        };
+        if (phoneNumber) {
+            callWithNumber(phoneNumber);
+        } else {
+            this.getAccountPhone(accountId)
+                .then(number => callWithNumber(number))
+                .catch(error => {
+                    console.error('Error getting phone number:', error);
+                    this.showToast('Error', 'Unable to retrieve phone number', 'error');
+                    this.navigateToAccount(accountId);
+                });
+        }
+    }
+
+    handleCTIClickToDial(response) {
+        console.log('CTI Click-to-dial event:', response);
+        if (response.success && response.number) {
+            this.trackCallInitiation(response.number, response.recordId);
+        }
+    }
+
+    trackCallInitiation(phoneNumber, recordId) {
+        console.log(`Call initiated to ${phoneNumber} for record ${recordId}`);
+    }
+
+    async getAccountPhone(accountId) {
+        try {
+            const phoneNumber = await getAccountPhoneNumber({ accountId: accountId });
+            return phoneNumber;
+        } catch (error) {
+            console.error('Error fetching phone:', error);
+            return null;
+        }
+    }
+
+    launchEmail(accountId, accountName) {
+        console.log('Launching email for:', accountName, accountId);
+        this[NavigationMixin.Navigate]({
+            type: 'standard__quickAction',
+            attributes: {
+                apiName: 'Global.SendEmail'
+            },
+            state: {
+                recordId: accountId,
+                defaultFieldValues: {
+                    Subject: `Follow-up: ${accountName}`,
+                    HtmlBody: `<p>Dear ${accountName} team,</p><p>I wanted to follow up regarding...</p>`,
+                    RelatedToId: accountId
+                }
+            }
+        }).catch(error => {
+            console.log('Global.SendEmail failed, trying fallback');
+            this.emailFallback(accountId, accountName);
+        });
+    }
+
+    emailFallback(accountId, accountName) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Task',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: {
+                    Subject: `Email: ${accountName}`,
+                    WhatId: accountId,
+                    TaskSubtype: 'Email',
+                    Status: 'In Progress',
+                    Priority: 'Normal',
+                    Description: `Send follow-up email to ${accountName}\n\nTopics to cover:\n- `
+                },
+                navigationLocation: 'RELATED_LIST'
+            }
+        });
+    }
+
+    launchMeeting(accountId, accountName) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Event',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: {
+                    Subject: `Meeting: ${accountName}`,
+                    WhatId: accountId
+                }
+            }
+        });
+    }
+
+    launchDemo(accountId, accountName) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Event',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: {
+                    Subject: `Product Demo: ${accountName}`,
+                    WhatId: accountId,
+                    Description: 'Product demonstration scheduled'
+                }
+            }
+        });
+    }
+
+    launchProposal(accountId, accountName) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Opportunity',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: {
+                    Name: `Proposal - ${accountName}`,
+                    AccountId: accountId,
+                    StageName: 'Proposal/Price Quote'
+                }
+            }
+        });
+    }
+
+    launchFollowUp(accountId, accountName) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Task',
+                actionName: 'new'
+            },
+            state: {
+                defaultFieldValues: {
+                    Subject: `Follow-up: ${accountName}`,
+                    WhatId: accountId,
+                    Status: 'Not Started',
+                    Priority: 'Normal'
+                }
+            }
+        });
+    }
+
+    navigateToAccount(accountId) {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: accountId,
+                objectApiName: 'Account',
+                actionName: 'view'
+            }
+        });
+    }
+
+    get accountName() {
+        return this.queueItem?.Account__r?.Name || '';
+    }
+    get employeeCount() {
+        return this.queueItem?.Account__r?.Employee_Count__c || null;
+    }
+    get companyAgeMonths() {
+        const days = this.queueItem?.Account__r?.Company_Age_in_Days__c;
+        if (!days) return null;
+        return Math.floor(days / 30);
+    }
+    get useCasePayroll() {
+        return this.queueItem?.Account__r?.Use_Case_Payroll__c;
+    }
+    get useCaseScheduling() {
+        return this.queueItem?.Account__r?.Use_Case_Scheduling__c;
+    }
+    get useCaseTimeTracking() {
+        return this.queueItem?.Account__r?.Use_Case_Time_Tracking__c;
+    }
+    get opportunitySource() {
+        return this.queueItem?.Opportunity__r?.Source__c;
+    }
+    get opportunityStage() {
+        return this.queueItem?.Opportunity__r?.StageName;
+    }
+    get payrollBuyerStage() {
+        return this.queueItem?.Opportunity__r?.Payroll_Buyer_Stage__c;
+    }
+    get productSwitcherData() {
+        return this.queueItem?.Opportunity__r?.Account_Product_Switcher_Data__c;
+    }
+
+    get currentPayroll() {
+        // First try Most Recent Payroll Provider, then fall back to Opportunity's Account Current Payroll
+        return this.queueItem?.Most_Recent_Payroll_Provider__c || 
+               this.queueItem?.Opportunity__r?.Account_Current_Payroll__c || 
+               '';
+    }
+
+    get recordName() {
+        // If there's an opportunity, show opportunity name, otherwise show account name
+        if (this.queueItem?.Opportunity__c) {
+            return this.queueItem?.Opportunity__r?.Name || '';
+        } else {
+            return this.queueItem?.Account__r?.Name || '';
+        }
+    }
+
+    get actionText() {
+        // If there's an opportunity, show "Payroll opportunity call for", otherwise show "Account call for"
+        if (this.queueItem?.Opportunity__c) {
+            return 'Payroll opportunity call for';
+        } else {
+            return 'Account call for';
+        }
+    }
+
+    get opportunityName() {
+        return this.queueItem?.Opportunity__r?.Name || '';
+    }
+
+    get accountNameDisplay() {
+        return this.queueItem?.Account__r?.Name || '';
+    }
+
+    get employeeCountDisplay() {
+        return this.employeeCount || 'N/A';
+    }
+
+    get companyAgeDisplay() {
+        return this.companyAgeMonths ? this.companyAgeMonths + ' months' : 'N/A';
+    }
+
+    get opportunityPayrollBuyerStage() {
+        return this.queueItem?.Opportunity__r?.Payroll_Buyer_Stage__c || '';
+    }
+
+    get opportunityImplementationStatus() {
+        return this.queueItem?.Opportunity__r?.Implementation_Status__c || '';
+    }
+
+    handleRecordClick() {
+        // If there's an opportunity, navigate to opportunity, otherwise navigate to account
+        if (this.queueItem?.Opportunity__c) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: this.queueItem.Opportunity__c,
+                    objectApiName: 'Opportunity',
+                    actionName: 'view'
+                }
+            });
+        } else if (this.queueItem?.Account__c) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: this.queueItem.Account__c,
+                    objectApiName: 'Account',
+                    actionName: 'view'
+                }
+            });
+        }
+    }
+
+    handleContactClick(event) {
+        const contactId = event.currentTarget.dataset.contactId;
+        if (contactId) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: contactId,
+                    objectApiName: 'Contact',
+                    actionName: 'view'
+                }
+            });
+        }
+    }
+
+    handlePhoneClick(event) {
+        // CACHE BUSTER: v3 - Try to launch Talkdesk directly
+        const phoneNumber = event.currentTarget.dataset.phone;
+        if (phoneNumber) {
+            // Clean the phone number
+            let cleanedNumber = phoneNumber.replace(/\D/g, '');
+            if (!phoneNumber.startsWith('+')) {
+                if (cleanedNumber.length === 10) {
+                    cleanedNumber = '1' + cleanedNumber;
+                }
+                cleanedNumber = '+' + cleanedNumber;
+            } else {
+                cleanedNumber = phoneNumber;
+            }
+
+            const recordId = this.queueItem?.Account__c || this.queueItem?.Opportunity__c;
+            const recordName = this.queueItem?.Account__r?.Name || this.queueItem?.Opportunity__r?.Name || 'NBA Queue Item';
+            
+            console.log('ATTEMPTING TALKDESK LAUNCH:', cleanedNumber);
+            
+            // Try multiple approaches to launch Talkdesk
+            this.tryTalkdeskLaunch(cleanedNumber, recordId, recordName);
+        }
+    }
+
+    tryTalkdeskLaunch(phoneNumber, recordId, recordName) {
+        // Approach 1: Try to find and click existing Talkdesk dial button
+        const talkdeskButtons = document.querySelectorAll('[data-action*="dial"], [data-action*="call"], [title*="Call"], [title*="Dial"]');
+        
+        if (talkdeskButtons.length > 0) {
+            console.log('Found Talkdesk buttons, clicking first one');
+            talkdeskButtons[0].click();
+            this.showToast('Call Initiated', `Calling ${phoneNumber}`, 'info');
+            return;
+        }
+
+        // Approach 2: Try to trigger Salesforce's native phone field click
+        const phoneFields = document.querySelectorAll('a[data-aura-class="uiOutputPhone"], a[data-field-type="phone"]');
+        
+        if (phoneFields.length > 0) {
+            console.log('Found phone fields, clicking first one');
+            phoneFields[0].click();
+            this.showToast('Call Initiated', `Calling ${phoneNumber}`, 'info');
+            return;
+        }
+
+        // Approach 3: Try to use Lightning Message Service to communicate with Talkdesk
+        try {
+            if (this.messageContext) {
+                const message = {
+                    recordId: recordId,
+                    recordName: recordName,
+                    phoneNumber: phoneNumber,
+                    action: 'dial'
+                };
+                
+                publish(this.messageContext, 'TALKDESK_DIAL', message);
+                console.log('Published TALKDESK_DIAL message');
+                this.showToast('Call Initiated', `Calling ${phoneNumber}`, 'info');
+                return;
+            }
+        } catch (error) {
+            console.log('Lightning Message Service failed:', error);
+        }
+
+        // Approach 4: Try to dispatch a custom event that Talkdesk might be listening for
+        try {
+            const dialEvent = new CustomEvent('talkdesk:dial', {
+                detail: {
+                    phoneNumber: phoneNumber,
+                    recordId: recordId,
+                    recordName: recordName
+                },
+                bubbles: true,
+                cancelable: true
+            });
+            
+            document.dispatchEvent(dialEvent);
+            console.log('Dispatched talkdesk:dial event');
+            this.showToast('Call Initiated', `Calling ${phoneNumber}`, 'info');
+            return;
+        } catch (error) {
+            console.log('Custom event dispatch failed:', error);
+        }
+
+        // Fallback: Show phone number and navigate to record
+        console.log('All Talkdesk launch attempts failed, using fallback');
+        this.showToast('Phone Number', `${phoneNumber}`, 'info');
+        
+        if (recordId) {
+            setTimeout(() => {
+                this.showToast('Navigation', `Navigating to ${recordName} for click-to-call`, 'info');
+                this.navigateToRecord(recordId);
+            }, 2000);
+        }
+    }
+
+    navigateToRecord(recordId) {
+        // Navigate to the record where native Salesforce click-to-call will work
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: {
+                recordId: recordId,
+                actionName: 'view'
+            }
+        });
+    }
+
+
+
+    handleOpportunityClick() {
+        if (this.queueItem?.Opportunity__c) {
+            this[NavigationMixin.Navigate]({
+                type: 'standard__recordPage',
+                attributes: {
+                    recordId: this.queueItem.Opportunity__c,
+                    objectApiName: 'Opportunity',
+                    actionName: 'view'
+                }
+            });
+        }
+    }
+
+    handleTabChange(event) {
+        this.activeTab = event.target.value;
+    }
+
+    get isDetailsTab() {
+        return this.activeTab === 'details';
+    }
+    get isContactTab() {
+        return this.activeTab === 'contact';
+    }
+    get isProductTab() {
+        return this.activeTab === 'product';
+    }
+
+    get detailsTabClass() {
+        return this.isDetailsTab ? 'nba-widget-tab active' : 'nba-widget-tab';
+    }
+
+    get contactTabClass() {
+        return this.isContactTab ? 'nba-widget-tab active' : 'nba-widget-tab';
+    }
+    get productTabClass() {
+        return this.isProductTab ? 'nba-widget-tab active' : 'nba-widget-tab';
+    }
+    get hasProductUsage() {
+        if (!this.queueItem) return false;
+        return this.queueItem.Break_Preferences_Engaged__c || 
+               this.queueItem.Department_Management_Engaged__c || 
+               this.queueItem.Geofencing_Engaged__c || 
+               this.queueItem.Hiring_Engaged__c || 
+               this.queueItem.Hrdocs_Engaged__c || 
+               this.queueItem.Manager_Log_Engaged__c || 
+               this.queueItem.Messaging_Engaged__c || 
+               this.queueItem.Mobile_Time_Tracking_Engaged__c || 
+               this.queueItem.Oam_Activity__c || 
+               this.queueItem.Overtime_Preferences_Engaged__c || 
+               this.queueItem.Scheduling_Engaged__c || 
+               this.queueItem.Shift_Notes_Engaged__c || 
+               this.queueItem.Shift_Trades_Engaged__c || 
+               this.queueItem.Time_Offs_Engaged__c || 
+               this.queueItem.Time_Tracking_Engaged__c;
+    }
+
+    // Helper to check if we should use NBA Queue contact info vs Account primary contact
+    get shouldUseNBAQueueContact() {
+        if (!this.queueItem?.Opportunity__c) {
+            console.log('No opportunity, using NBA Queue contact');
+            return true; // No opportunity, use NBA Queue contact
+        }
+        const stage = this.queueItem?.Opportunity__r?.StageName;
+        const shouldUse = stage === 'New Opportunity' || stage === 'Attempted';
+        console.log('Opportunity stage:', stage, 'Should use NBA Queue contact:', shouldUse);
+        return shouldUse;
+    }
+
+    // Contact information getters that check Opportunity stage
+    get displayContactPerson() {
+        if (this.shouldUseNBAQueueContact) {
+            const nbaContact = this.queueItem?.Best_Person_to_Call__r?.Name || '';
+            console.log('Using NBA Queue contact person:', nbaContact);
+            return nbaContact;
+        } else {
+            const oppContact = this.opportunityPrimaryContact?.contactName || '';
+            console.log('Using Opportunity primary contact person:', oppContact);
+            return oppContact;
+        }
+    }
+
+    get displayContactId() {
+        if (this.shouldUseNBAQueueContact) {
+            return this.queueItem?.Best_Person_to_Call__c || '';
+        } else {
+            return this.opportunityPrimaryContact?.contactId || '';
+        }
+    }
+
+    get displayContactEmail() {
+        if (this.shouldUseNBAQueueContact) {
+            const nbaEmail = this.queueItem?.Best_Person_to_Call__r?.Email || '';
+            console.log('Using NBA Queue contact email:', nbaEmail);
+            return nbaEmail;
+        } else {
+            const oppEmail = this.opportunityPrimaryContact?.contactEmail || '';
+            console.log('Using Opportunity primary contact email:', oppEmail);
+            return oppEmail;
+        }
+    }
+
+    get displayContactPhone() {
+        if (this.shouldUseNBAQueueContact) {
+            const nbaPhone = this.queueItem?.Best_Number_to_Call__c || '';
+            console.log('Using NBA Queue contact phone:', nbaPhone);
+            return nbaPhone;
+        } else {
+            const oppPhone = this.opportunityPrimaryContact?.contactPhone || '';
+            console.log('Using Opportunity primary contact phone:', oppPhone);
+            return oppPhone;
+        }
+    }
+
+    // Priority score display getters
+    get showPriorityScore() {
+        return this.originalScore != null && this.adjustedScore != null;
+    }
+
+    get priorityScoreDisplay() {
+        if (!this.showPriorityScore) return '';
+        return `${this.adjustedScore.toFixed(1)}`;
+    }
+
+    get originalScoreDisplay() {
+        if (!this.originalScore) return '';
+        return `${this.originalScore.toFixed(1)}`;
+    }
+
+    get hasMultipliers() {
+        return this.webUsageApplied || this.bestTimeApplied;
+    }
+
+    get multiplierText() {
+        let text = '';
+        if (this.webUsageApplied) {
+            text += `Web Usage (1.25x)`;
+        }
+        if (this.bestTimeApplied) {
+            if (text) text += ', ';
+            text += `Best Time (1.2x)`;
+        }
+        return text;
+    }
+
+    get priorityScoreClass() {
+        if (!this.showPriorityScore) return '';
+        if (this.adjustedScore >= 80) return 'priority-high';
+        if (this.adjustedScore >= 60) return 'priority-medium';
+        return 'priority-low';
+    }
+
+
+
+
+}

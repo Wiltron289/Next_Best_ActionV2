@@ -1,0 +1,544 @@
+/* Homebase Brand Colors */
+
+/* Container */
+.queue-container {
+    max-height: var(--panel-height);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Main Widget Card */
+.nba-widget-card {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(30, 11, 58, 0.15);
+    border: 1px solid #e6e4d6;
+    margin: 0;
+    max-width: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: var(--panel-height);
+}
+
+/* Header */
+.nba-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px 16px 24px;
+    background: linear-gradient(135deg, #7e3dd4 0%, #1e0b3a 100%);
+    color: #ffffff;
+}
+
+.nba-widget-title {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 1.25rem;
+    line-height: 120%;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    text-transform: none;
+}
+
+.nba-widget-refresh-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nba-widget-refresh-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.nba-widget-refresh-btn:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.nba-widget-refresh-icon {
+    font-size: 16px;
+    color: #ffffff;
+    transition: transform 0.3s ease;
+}
+
+.nba-widget-refresh-btn:hover .nba-widget-refresh-icon {
+    transform: rotate(180deg);
+}
+
+/* Body */
+.nba-widget-body {
+    padding: 20px 24px;
+    background: #ffffff;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.nba-widget-row {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nba-widget-main-row {
+    margin-bottom: 20px;
+}
+
+.nba-widget-icon {
+    font-size: 20px;
+    color: #7e3dd4;
+    flex-shrink: 0;
+}
+
+.nba-widget-main-text {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    line-height: 120%;
+    letter-spacing: -0.02em;
+    color: #1e0b3a;
+}
+
+.nba-widget-link {
+    color: #7e3dd4;
+    text-decoration: none;
+    font-weight: 800;
+    transition: color 0.2s ease;
+}
+
+.nba-widget-link:hover {
+    color: #1e0b3a;
+    text-decoration: underline;
+}
+
+/* Priority Score Styling */
+.nba-widget-priority-row {
+    margin: 16px 0;
+    padding: 16px 20px;
+    background: #f2f2ec;
+    border-radius: 8px;
+    border-left: 4px solid #7e3dd4;
+}
+
+.nba-widget-priority-score {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.nba-widget-priority-label {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.nba-widget-priority-value {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: #1e0b3a;
+}
+
+.nba-widget-priority-value.priority-high {
+    color: #7e3dd4;
+}
+
+.nba-widget-priority-value.priority-medium {
+    color: #1e0b3a;
+}
+
+.nba-widget-priority-value.priority-low {
+    color: #c0bda2;
+}
+
+.nba-widget-priority-original {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #c0bda2;
+    text-decoration: line-through;
+}
+
+.nba-widget-priority-multipliers {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.875rem;
+    color: #e0ff00;
+    background: #1e0b3a;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Badges */
+.nba-widget-badges-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.nba-widget-badge {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.75rem;
+    line-height: 150%;
+    letter-spacing: 0;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: #7e3dd4;
+    color: #ffffff;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.nba-widget-badge-opportunity {
+    background: #e0ff00;
+    color: #1e0b3a;
+}
+
+/* Source Row */
+.nba-widget-source-row {
+    margin-bottom: 16px;
+}
+
+.nba-widget-source-label {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.nba-widget-source-value {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+}
+
+/* Tabs */
+.nba-widget-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 20px;
+    background: #f2f2ec;
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.nba-widget-tab {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.875rem;
+    line-height: 150%;
+    letter-spacing: 0;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: #1e0b3a;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    text-transform: none;
+    flex: 1;
+}
+
+.nba-widget-tab.active {
+    background: #7e3dd4;
+    color: #ffffff;
+}
+
+.nba-widget-tab:hover:not(.active) {
+    background: rgba(126, 61, 212, 0.1);
+}
+
+/* Content Sections */
+.nba-widget-overview {
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: #f2f2ec;
+    border-radius: 8px;
+    border-left: 4px solid #7e3dd4;
+}
+
+.nba-widget-overview-star {
+    font-size: 18px;
+    margin-right: 8px;
+}
+
+.nba-widget-overview-title {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    line-height: 120%;
+    letter-spacing: -0.02em;
+    color: #1e0b3a;
+}
+
+.nba-widget-overview-body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 150%;
+    letter-spacing: 0;
+    color: #1e0b3a;
+    margin-top: 8px;
+}
+
+/* Detail Rows */
+.nba-widget-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid #e6e4d6;
+}
+
+.nba-widget-detail-row:last-child {
+    border-bottom: none;
+}
+
+.nba-widget-detail-label {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.74rem;
+    line-height: 150%;
+    letter-spacing: 0;
+    color: #1e0b3a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex: 0 0 40%;
+}
+
+.nba-widget-detail-value {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.74rem;
+    line-height: 150%;
+    letter-spacing: 0;
+    color: #1e0b3a;
+    text-align: right;
+    flex: 0 0 60%;
+}
+
+/* Product Grid */
+.nba-widget-product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.nba-widget-product-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: #f2f2ec;
+    border-radius: 6px;
+    border: 1px solid #e6e4d6;
+}
+
+.nba-widget-product-icon {
+    font-size: 16px;
+    color: #7e3dd4;
+}
+
+.nba-widget-product-label {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.75rem;
+    line-height: 150%;
+    letter-spacing: 0;
+    color: #1e0b3a;
+    text-transform: uppercase;
+}
+
+/* Placeholders */
+.nba-widget-contact-placeholder,
+.nba-widget-product-placeholder {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 150%;
+    letter-spacing: 0;
+    color: #c0bda2;
+    text-align: center;
+    padding: 20px;
+    background: #f2f2ec;
+    border-radius: 8px;
+}
+
+/* Footer */
+.nba-widget-footer {
+    display: flex;
+    gap: 12px;
+    padding: 20px 24px;
+    background: #f2f2ec;
+    border-top: 1px solid #e6e4d6;
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    box-shadow: 0 -2px 8px rgba(30, 11, 58, 0.08);
+}
+
+.nba-widget-skip,
+.nba-widget-call {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 0.875rem;
+    line-height: 150%;
+    letter-spacing: 0;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex: 1;
+}
+
+.nba-widget-skip {
+    background: #ffffff;
+    color: #1e0b3a;
+    border: 2px solid #e6e4d6;
+}
+
+.nba-widget-skip:hover {
+    background: #e6e4d6;
+    border-color: #c0bda2;
+}
+
+.nba-widget-call {
+    background: #7e3dd4;
+    color: #ffffff;
+    border: 2px solid #7e3dd4;
+}
+
+.nba-widget-call:hover {
+    background: #1e0b3a;
+    border-color: #1e0b3a;
+}
+
+/* Modal Styling */
+.call-disposition-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.call-disposition-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(30, 11, 58, 0.5);
+    z-index: 9999;
+}
+
+.slds-modal__container {
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(30, 11, 58, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
+    z-index: 10001;
+    position: relative;
+}
+
+.slds-modal__header {
+    background: linear-gradient(135deg, #7e3dd4 0%, #1e0b3a 100%);
+    color: #ffffff;
+    padding: 20px 24px;
+    border-bottom: none;
+}
+
+.slds-text-heading_medium {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: 1.25rem;
+    line-height: 120%;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+}
+
+.slds-modal__close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: #ffffff;
+}
+
+.slds-modal__close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.slds-modal__content {
+    padding: 24px;
+}
+
+.slds-modal__footer {
+    padding: 20px 24px;
+    background: #f2f2ec;
+    border-top: 1px solid #e6e4d6;
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+/* Loading State */
+.nba-widget-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: #7e3dd4;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .nba-widget-card {
+        margin: 0;
+        border-radius: 0;
+    }
+    
+    .nba-widget-header {
+        padding: 16px 20px 12px 20px;
+    }
+    
+    .nba-widget-body {
+        padding: 16px 20px;
+    }
+    
+    .nba-widget-footer {
+        padding: 16px 20px;
+    }
+    
+    .nba-widget-product-grid {
+        grid-template-columns: 1fr;
+    }
+}
