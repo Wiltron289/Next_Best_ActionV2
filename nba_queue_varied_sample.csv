@@ -1,0 +1,42 @@
+Account__c,Best_Time_to_Call__c,Best_Person_to_Call__c,Best_Number_to_Call__c,Opportunity__c,Action_Type__c,Priority_Score__c,Status__c,Model_Reason__c,break_preferences_engaged_boolean,department_management_engaged_boolean,geofencing_engaged_boolean,hiring_engaged_boolean,hrdocs_engaged_boolean,manager_log_engaged_boolean,messaging_engaged_boolean,mobile_time_tracking_engaged_boolean,oam_activity_boolean,overtime_preferences_engaged_boolean,scheduling_engaged_boolean,shift_notes_engaged_boolean,shift_trades_engaged_boolean,time_offs_engaged_boolean,time_tracking_engaged_boolean,most_recent_provider
+001Hp00002pJZ3Q,2025-07-15T20:00:00+00:00,003Hp00002ywK8NIAU,9416252436,006Po00000eE1GYIA0,Call,91,Pending,Implementation Info Needed,0,1,1,0,0,0,0,1,1,1,1,1,1,1,1,Accountant/Bookkeeper
+001Po00000ohUHP,2025-07-15T19:00:00+00:00,003Po00000moznwIAA,5024455951,006Po00000eW9vbIAC,Call,77,Pending,"Payroll Opportunity [Reached Dashboard / Verbal Commit]""",0,1,0,0,0,0,0,0,1,0,1,1,1,1,0,Other
+001Po00000KS7mD,2025-07-15T19:00:00+00:00,003Po00000J8YHhIAN,8327540619,,Call,85,Pending,Payroll Opportunity [Pre-SS Flow / Engaged],0,1,0,0,0,0,0,0,1,1,1,1,1,0,1,Gusto
+001Hp00002pJ2ns,2025-07-15T19:00:00+00:00,003Hp00002ywOOpIAM,2142939038,006Po00000enF25IAE,Call,68,Pending,"Payroll Opportunity [Reached Dashboard / Verbal Commit]""",0,1,1,0,1,0,0,1,1,1,1,0,0,0,1,ADP
+001Po00000q8AVr,2025-07-15T16:00:00+00:00,003Po00000oDpMlIAK,5042512673,006Po00000fUrKDIA0,Call,94,Pending,Implementation Info Needed,1,1,0,0,0,1,0,1,1,1,1,1,0,1,1,Other
+001Hp00002pLSGi,2025-07-15T19:00:00+00:00,003Hp00002ywXYmIAM,7152098422,006Po00000gSQXFIA4,Call,72,Pending,Payroll Opportunity [Pre-SS Flow / Engaged],0,1,0,0,0,0,0,1,1,1,1,1,1,0,1,Square
+001Po00000qWRqS,2025-07-15T20:00:00+00:00,003Po00000obo99IAA,5044168674,006Po00000gvxnxIAA,Call,88,Pending,Implementation Info Needed,0,1,0,0,0,0,0,0,1,1,1,1,0,1,1,QuickBooks
+001Po00000qxOeq,2025-07-15T19:00:00+00:00,003Po00000qab6SIAQ,8723297185,006Po00000gyhYBIAY,Call,80,Pending ,Implementation Info Needed,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,QuickBooks
+001Po00000si7bS,2025-07-15T20:00:00+00:00,003Po00000qqRuIIAU,6157157664,006Po00000h6t2kIAA,Call,67,Pending ,Implementation Info Needed,1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,ADP
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+Account__c,Best_Time_to_Call__c,Best_Person_to_Call__c,Best_Number_to_Call__c,Opportunity__c,Action_Type__c,Priority_Score__c,Status__c,Model_Reason__c,Break_Preferences_Engaged__c,Department_Management_Engaged__c,Geofencing_Engaged__c,Hiring_Engaged__c,Hrdocs_Engaged__c,Manager_Log_Engaged__c,Messaging_Engaged__c,Mobile_Time_Tracking_Engaged__c,Oam_Activity__c,Overtime_Preferences_Engaged__c,Scheduling_Engaged__c,Shift_Notes_Engaged__c,Shift_Trades_Engaged__c,Time_Offs_Engaged__c,Time_Tracking_Engaged__c,Most_Recent_Payroll_Provider__c
+001Hp00002pJZ3Q,2025-07-15T20:00:00+00:00,003Hp00002ywK8NIAU,9416252436,006Po00000eE1GYIA0,Call,91,Pending,Implementation Info Needed,0,1,1,0,0,0,0,1,1,1,1,1,1,1,1,Accountant/Bookkeeper
+001Po00000ohUHP,2025-07-15T19:00:00+00:00,003Po00000moznwIAA,5024455951,006Po00000eW9vbIAC,Call,77,Pending,"Payroll Opportunity [Reached Dashboard / Verbal Commit]""",0,1,0,0,0,0,0,0,1,0,1,1,1,1,0,Other
+001Po00000KS7mD,2025-07-15T19:00:00+00:00,003Po00000J8YHhIAN,8327540619,,Call,85,Pending,Payroll Opportunity [Pre-SS Flow / Engaged],0,1,0,0,0,0,0,0,1,1,1,1,1,0,1,
+001Hp00002pJ2ns,2025-07-15T19:00:00+00:00,003Hp00002ywOOpIAM,2142939038,006Po00000enF25IAE,Call,68,Pending,"Payroll Opportunity [Reached Dashboard / Verbal Commit]""",0,1,1,0,1,0,0,1,1,1,1,0,0,0,1,ADP
+001Po00000q8AVr,2025-07-15T16:00:00+00:00,003Po00000oDpMlIAK,5042512673,006Po00000fUrKDIA0,Call,94,Pending,Implementation Info Needed,1,1,0,0,0,1,0,1,1,1,1,1,0,1,1,Other
+001Hp00002pLSGi,2025-07-15T19:00:00+00:00,003Hp00002ywXYmIAM,7152098422,006Po00000gSQXFIA4,Call,72,Pending,Payroll Opportunity [Pre-SS Flow / Engaged],0,1,0,0,0,0,0,1,1,1,1,1,1,0,1,Square
+001Po00000qWRqS,2025-07-15T20:00:00+00:00,003Po00000obo99IAA,5044168674,006Po00000gvxnxIAA,Call,88,Pending,Implementation Info Needed,0,1,0,0,0,0,0,0,1,1,1,1,0,1,1,QuickBooks
+001Po00000qxOeq,2025-07-15T19:00:00+00:00,003Po00000qab6SIAQ,8723297185,006Po00000gyhYBIAY,Call,80,Pending ,Implementation Info Needed,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,QuickBooks
+001Po00000si7bS,2025-07-15T20:00:00+00:00,003Po00000qqRuIIAU,6157157664,006Po00000h6t2kIAA,Call,67,Pending ,Implementation Info Needed,1,0,1,1,1,1,0,1,1,1,1,1,0,1,1,ADP
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,
+Account__c,Best_Time_to_Call__c,Best_Person_to_Call__c,Best_Number_to_Call__c,Opportunity__c,Action_Type__c,Priority_Score__c,Status__c,Model_Reason__c,Break_Preferences_Engaged__c,Department_Management_Engaged__c,Geofencing_Engaged__c,Hiring_Engaged__c,Hrdocs_Engaged__c,Manager_Log_Engaged__c,Messaging_Engaged__c,Mobile_Time_Tracking_Engaged__c,Oam_Activity__c,Overtime_Preferences_Engaged__c,Scheduling_Engaged__c,Shift_Notes_Engaged__c,Shift_Trades_Engaged__c,Time_Offs_Engaged__c,Time_Tracking_Engaged__c,Most_Recent_Payroll_Provider__c
+001Po00000LYcDHIA1,2025-07-15T20:00:00+00:00,003Po00000JwjUwIAJ,9416252436,006Po00000lspldIAA,Call,91,Pending,Implementation Info Needed,0,1,1,0,0,0,0,1,1,1,1,1,1,1,1,Accountant/Bookkeeper
+001Po00000dbnbKIAQ,2025-07-15T19:00:00+00:00,003Po00000bOjMrIAK,5024455951,006Po00000el86MIAQ,Call,77,Pending,"Payroll Opportunity [Reached Dashboard / Verbal Commit]""",0,1,0,0,0,0,0,0,1,0,1,1,1,1,0,Other
