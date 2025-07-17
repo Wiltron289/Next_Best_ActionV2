@@ -315,10 +315,17 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                 this.showToast('Success', 'Action accepted and task created', 'success');
                 // Clear the current queue item immediately
                 this.queueItem = null;
+                
+                // Store task ID for call disposition if needed
+                this.currentTaskId = taskId;
+                
                 if (actionType.includes('Call')) {
-                    console.log('Action is a call type, handling call action');
-                    const phoneNumber = currentItem.Best_Number_to_Call__c || null;
-                    this.handleCallAction(taskId, accountId, accountName, phoneNumber);
+                    console.log('Action is a call type, launching call action');
+                    this.launchAction(currentItem);
+                    // Show call disposition modal after a delay
+                    setTimeout(() => {
+                        this.showCallDispositionModal = true;
+                    }, 1000);
                 } else {
                     console.log('Action is not a call type, launching action');
                     this.launchAction(currentItem);
@@ -361,10 +368,11 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
 
     handleCallAction(taskId, accountId, accountName, contactPhone) {
         this.currentTaskId = taskId;
+        const opportunityId = this.selectedItem?.Opportunity__c;
 
         if (contactPhone) {
             this.currentPhoneNumber = contactPhone;
-            this.launchCall(accountId, accountName, contactPhone);
+            this.launchCall(accountId, accountName, contactPhone, opportunityId);
             setTimeout(() => {
                 this.showCallDispositionModal = true;
             }, 1000);
@@ -373,7 +381,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                 .then(phoneNumber => {
                     if (phoneNumber) {
                         this.currentPhoneNumber = phoneNumber;
-                        this.launchCall(accountId, accountName, phoneNumber);
+                        this.launchCall(accountId, accountName, phoneNumber, opportunityId);
                         setTimeout(() => {
                             this.showCallDispositionModal = true;
                         }, 1000);
@@ -453,31 +461,40 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         const actionType = queueItem.Action_Type__c;
         const accountId = queueItem.Account__c;
         const accountName = queueItem.Account__r.Name;
+        const opportunityId = queueItem.Opportunity__c;
+
+        console.log('=== launchAction Debug ===');
+        console.log('Action Type:', actionType);
+        console.log('Account ID:', accountId);
+        console.log('Account Name:', accountName);
+        console.log('Opportunity ID:', opportunityId);
+        console.log('Full queueItem:', queueItem);
 
         switch(actionType) {
             case 'Call':
             case 'Payroll Opportunity Call':
             case 'Payroll Prospecting Call':
-                const phoneNumber = queueItem.Best_Number_to_Call__c || null;
-                this.launchCall(accountId, accountName, phoneNumber);
+                // Use the same contact logic as the display
+                const phoneNumber = this.getContactPhoneForCall(queueItem);
+                this.launchCall(accountId, accountName, phoneNumber, opportunityId);
                 break;
             case 'Email':
-                this.launchEmail(accountId, accountName);
+                this.launchEmail(accountId, accountName, opportunityId);
                 break;
             case 'Meeting':
-                this.launchMeeting(accountId, accountName);
+                this.launchMeeting(accountId, accountName, opportunityId);
                 break;
             case 'Demo':
-                this.launchDemo(accountId, accountName);
+                this.launchDemo(accountId, accountName, opportunityId);
                 break;
             case 'Proposal':
-                this.launchProposal(accountId, accountName);
+                this.launchProposal(accountId, accountName, opportunityId);
                 break;
             case 'Follow_Up':
-                this.launchFollowUp(accountId, accountName);
+                this.launchFollowUp(accountId, accountName, opportunityId);
                 break;
             default:
-                this.navigateToAccount(accountId);
+                this.navigateToRecord(opportunityId || accountId);
                 break;
         }
     }
@@ -506,7 +523,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         this.showToast('Call Initiated', `Calling ${cleanedNumber}`, 'info');
     }
 
-    launchCall(accountId, accountName, phoneNumber) {
+    launchCall(accountId, accountName, phoneNumber, opportunityId) {
         console.log('launchCall started - Simple approach');
 
         const callWithNumber = (number) => {
@@ -521,6 +538,9 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                     cleanedNumber = number;
                 }
 
+                // Set current phone number for call disposition
+                this.currentPhoneNumber = cleanedNumber;
+
                 // New: Try to trigger click-to-call
                 this.triggerClickToCall(cleanedNumber);
                 // Show phone number in toast
@@ -528,12 +548,13 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                 // Navigate to the record where they can use native Salesforce click-to-call
                 setTimeout(() => {
                     this.showToast('Navigation', `Navigating to ${accountName} for click-to-call`, 'info');
-                    this.navigateToRecord(accountId);
+                    this.navigateToRecord(opportunityId || accountId);
                 }, 2000);
             } else {
                 console.log('No phone number available');
+                this.currentPhoneNumber = 'No phone number available';
                 this.showToast('No Phone Number', `No phone number found for ${accountName}`, 'warning');
-                this.navigateToAccount(accountId);
+                this.navigateToRecord(opportunityId || accountId);
             }
         };
         if (phoneNumber) {
@@ -543,8 +564,9 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                 .then(number => callWithNumber(number))
                 .catch(error => {
                     console.error('Error getting phone number:', error);
+                    this.currentPhoneNumber = 'Error retrieving phone';
                     this.showToast('Error', 'Unable to retrieve phone number', 'error');
-                    this.navigateToAccount(accountId);
+                    this.navigateToRecord(opportunityId || accountId);
                 });
         }
     }
@@ -570,28 +592,30 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         }
     }
 
-    launchEmail(accountId, accountName) {
+    launchEmail(accountId, accountName, opportunityId) {
         console.log('Launching email for:', accountName, accountId);
+        const recordId = opportunityId || accountId;
         this[NavigationMixin.Navigate]({
             type: 'standard__quickAction',
             attributes: {
                 apiName: 'Global.SendEmail'
             },
             state: {
-                recordId: accountId,
+                recordId: recordId,
                 defaultFieldValues: {
                     Subject: `Follow-up: ${accountName}`,
                     HtmlBody: `<p>Dear ${accountName} team,</p><p>I wanted to follow up regarding...</p>`,
-                    RelatedToId: accountId
+                    RelatedToId: recordId
                 }
             }
         }).catch(error => {
             console.log('Global.SendEmail failed, trying fallback');
-            this.emailFallback(accountId, accountName);
+            this.emailFallback(accountId, accountName, opportunityId);
         });
     }
 
-    emailFallback(accountId, accountName) {
+    emailFallback(accountId, accountName, opportunityId) {
+        const recordId = opportunityId || accountId;
         this[NavigationMixin.Navigate]({
             type: 'standard__objectPage',
             attributes: {
@@ -601,7 +625,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             state: {
                 defaultFieldValues: {
                     Subject: `Email: ${accountName}`,
-                    WhatId: accountId,
+                    WhatId: recordId,
                     TaskSubtype: 'Email',
                     Status: 'In Progress',
                     Priority: 'Normal',
@@ -612,7 +636,8 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         });
     }
 
-    launchMeeting(accountId, accountName) {
+    launchMeeting(accountId, accountName, opportunityId) {
+        const recordId = opportunityId || accountId;
         this[NavigationMixin.Navigate]({
             type: 'standard__objectPage',
             attributes: {
@@ -622,13 +647,14 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             state: {
                 defaultFieldValues: {
                     Subject: `Meeting: ${accountName}`,
-                    WhatId: accountId
+                    WhatId: recordId
                 }
             }
         });
     }
 
-    launchDemo(accountId, accountName) {
+    launchDemo(accountId, accountName, opportunityId) {
+        const recordId = opportunityId || accountId;
         this[NavigationMixin.Navigate]({
             type: 'standard__objectPage',
             attributes: {
@@ -638,14 +664,15 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             state: {
                 defaultFieldValues: {
                     Subject: `Product Demo: ${accountName}`,
-                    WhatId: accountId,
+                    WhatId: recordId,
                     Description: 'Product demonstration scheduled'
                 }
             }
         });
     }
 
-    launchProposal(accountId, accountName) {
+    launchProposal(accountId, accountName, opportunityId) {
+        const recordId = opportunityId || accountId;
         this[NavigationMixin.Navigate]({
             type: 'standard__objectPage',
             attributes: {
@@ -662,7 +689,8 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         });
     }
 
-    launchFollowUp(accountId, accountName) {
+    launchFollowUp(accountId, accountName, opportunityId) {
+        const recordId = opportunityId || accountId;
         this[NavigationMixin.Navigate]({
             type: 'standard__objectPage',
             attributes: {
@@ -672,7 +700,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             state: {
                 defaultFieldValues: {
                     Subject: `Follow-up: ${accountName}`,
-                    WhatId: accountId,
+                    WhatId: recordId,
                     Status: 'Not Started',
                     Priority: 'Normal'
                 }
@@ -908,6 +936,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     }
 
     navigateToRecord(recordId) {
+        console.log('=== navigateToRecord Debug ===');
+        console.log('Navigating to record ID:', recordId);
+        console.log('Record ID type:', typeof recordId);
+        
         // Navigate to the record where native Salesforce click-to-call will work
         this[NavigationMixin.Navigate]({
             type: 'standard__recordPage',
@@ -1071,7 +1103,27 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         return 'priority-low';
     }
 
-
-
-
+    // Helper method to get the correct phone number for call actions
+    getContactPhoneForCall(queueItem) {
+        // Use the same logic as shouldUseNBAQueueContact
+        if (!queueItem?.Opportunity__c) {
+            console.log('No opportunity, using NBA Queue contact for call');
+            return queueItem?.Best_Number_to_Call__c || null;
+        }
+        
+        const stage = queueItem?.Opportunity__r?.StageName;
+        const shouldUseNBAQueueContact = stage === 'New Opportunity' || stage === 'Attempted';
+        
+        console.log('Call contact logic - Opportunity stage:', stage, 'Should use NBA Queue contact:', shouldUseNBAQueueContact);
+        
+        if (shouldUseNBAQueueContact) {
+            console.log('Using NBA Queue contact phone for call:', queueItem?.Best_Number_to_Call__c);
+            return queueItem?.Best_Number_to_Call__c || null;
+        } else {
+            // For other stages, use the opportunity primary contact phone that's already loaded
+            const oppPhone = this.opportunityPrimaryContact?.contactPhone || null;
+            console.log('Using Opportunity primary contact phone for call:', oppPhone);
+            return oppPhone;
+        }
+    }
 }
