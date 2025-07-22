@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Call_Disposition__c</fullName>
+    <description>Call disposition selected when accepting a call action</description>
+    <externalId>false</externalId>
+    <label>Call Disposition</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>Connected - DM</fullName>
+                <default>false</default>
+                <label>Connected - DM</label>
+            </value>
+            <value>
+                <fullName>Connected - GK</fullName>
+                <default>false</default>
+                <label>Connected - GK</label>
+            </value>
+            <value>
+                <fullName>Attempted - Left Voicemail</fullName>
+                <default>false</default>
+                <label>Attempted - Left Voicemail</label>
+            </value>
+            <value>
+                <fullName>Attempted - No Voicemail</fullName>
+                <default>false</default>
+                <label>Attempted - No Voicemail</label>
+            </value>
+            <value>
+                <fullName>Not Interested</fullName>
+                <default>false</default>
+                <label>Not Interested</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField> 

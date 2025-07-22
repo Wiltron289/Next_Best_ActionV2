@@ -309,54 +309,75 @@ public class NBAQueueManager {
     
     @AuraEnabled
     public static String acceptAction(Id queueItemId, String additionalNotes) {
-        NBA_Queue__c queueItem = [SELECT Id, Account__c, Subject__c, Description__c, 
-                                         Due_Date__c, Action_Type__c,
-                                         Priority_Score__c, Sales_Rep__c, Opportunity__c
-                                  FROM NBA_Queue__c 
-                                  WHERE Id = :queueItemId];
-        
-        // Get primary contact from Opportunity
-        Id whoId = null;
-        if (queueItem.Opportunity__c != null) {
-            List<Opportunity> opportunities = [
-                SELECT Primary_Contact__c 
-                FROM Opportunity 
-                WHERE Id = :queueItem.Opportunity__c 
-                AND Primary_Contact__c != null
-                LIMIT 1
-            ];
-            if (!opportunities.isEmpty()) {
-                whoId = opportunities[0].Primary_Contact__c;
+        try {
+            System.debug('=== acceptAction Debug ===');
+            System.debug('Queue Item ID: ' + queueItemId);
+            System.debug('Additional Notes: ' + additionalNotes);
+            
+            NBA_Queue__c queueItem = [SELECT Id, Account__c, Subject__c, Description__c, 
+                                             Due_Date__c, Action_Type__c,
+                                             Priority_Score__c, Sales_Rep__c, Opportunity__c
+                                      FROM NBA_Queue__c 
+                                      WHERE Id = :queueItemId];
+            
+            System.debug('Queue Item found: ' + queueItem.Id);
+            System.debug('Account: ' + queueItem.Account__c);
+            System.debug('Opportunity: ' + queueItem.Opportunity__c);
+            System.debug('Sales Rep: ' + queueItem.Sales_Rep__c);
+            
+            // Get primary contact from Opportunity
+            Id whoId = null;
+            if (queueItem.Opportunity__c != null) {
+                List<Opportunity> opportunities = [
+                    SELECT Primary_Contact__c 
+                    FROM Opportunity 
+                    WHERE Id = :queueItem.Opportunity__c 
+                    AND Primary_Contact__c != null
+                    LIMIT 1
+                ];
+                if (!opportunities.isEmpty()) {
+                    whoId = opportunities[0].Primary_Contact__c;
+                    System.debug('Primary Contact found: ' + whoId);
+                }
             }
+            
+            // Use Sales_Rep__c directly
+            Id taskOwnerId = queueItem.Sales_Rep__c;
+            
+            // Create standard Task
+            Task newTask = new Task(
+                Subject = 'Next Best Action: ' + queueItem.Action_Type__c,
+                Description = buildTaskDescription(queueItem, additionalNotes),
+                WhatId = queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c,
+                WhoId = whoId,
+                OwnerId = taskOwnerId,
+                ActivityDate = queueItem.Due_Date__c,
+                Status = 'Completed',  // Mark as completed when accepted
+                Priority = mapPriorityToTask(queueItem.Priority_Score__c)
+            );
+            
+            System.debug('Task to be created: ' + newTask);
+            
+            insert newTask;
+            System.debug('Task created successfully: ' + newTask.Id);
+            
+            // Update queue item status and actioned date
+            queueItem.Status__c = 'Accepted';
+            queueItem.Actioned_Date__c = System.now();
+            update queueItem;
+            System.debug('Queue item updated successfully');
+            
+            // Publish platform event for real-time updates
+            NBAQueueEventPublisher.publishItemStatusUpdate(queueItem.Id, taskOwnerId, 'Updated');
+            
+            // Return task ID for call disposition tracking
+            return newTask.Id;
+            
+        } catch (Exception e) {
+            System.debug('Error in acceptAction: ' + e.getMessage());
+            System.debug('Error stack trace: ' + e.getStackTraceString());
+            throw new AuraHandledException('Error accepting action: ' + e.getMessage());
         }
-        
-        // Use Sales_Rep__c directly
-        Id taskOwnerId = queueItem.Sales_Rep__c;
-        
-        // Create standard Task
-        Task newTask = new Task(
-            Subject = 'Next Best Action: ' + queueItem.Action_Type__c,
-            Description = buildTaskDescription(queueItem, additionalNotes),
-            WhatId = queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c,
-            WhoId = whoId,
-            OwnerId = taskOwnerId,
-            ActivityDate = queueItem.Due_Date__c,
-            Status = 'Completed',  // Mark as completed when accepted
-            Priority = mapPriorityToTask(queueItem.Priority_Score__c)
-        );
-        
-        insert newTask;
-        
-        // Update queue item status and actioned date
-        queueItem.Status__c = 'Accepted';
-        queueItem.Actioned_Date__c = System.now();
-        update queueItem;
-        
-        // Publish platform event for real-time updates
-        NBAQueueEventPublisher.publishItemStatusUpdate(queueItem.Id, taskOwnerId, 'Updated');
-        
-        // Return task ID for call disposition tracking
-        return newTask.Id;
     }
     
     @AuraEnabled
@@ -374,17 +395,69 @@ public class NBAQueueManager {
     
     @AuraEnabled
     public static void updateCallDisposition(Id taskId, String disposition, String callNotes) {
-        Task callTask = [SELECT Id, Description FROM Task WHERE Id = :taskId];
+        Task callTask = [SELECT Id, Description, CallDisposition FROM Task WHERE Id = :taskId];
         
-        callTask.CallDisposition = disposition; // Using standard field
-        
-        // Add call notes to description if provided
-        if (String.isNotBlank(callNotes)) {
-            String existingDescription = callTask.Description != null ? callTask.Description : '';
-            callTask.Description = existingDescription + '\n\nCall Notes: ' + callNotes;
+        // Update CallDisposition field on Task
+        if (String.isNotBlank(disposition)) {
+            callTask.CallDisposition = disposition;
         }
         
+        // Add call disposition and notes to description
+        String existingDescription = callTask.Description != null ? callTask.Description : '';
+        String updatedDescription = existingDescription;
+        
+        if (String.isNotBlank(disposition)) {
+            updatedDescription += '\n\nCall Disposition: ' + disposition;
+        }
+        
+        if (String.isNotBlank(callNotes)) {
+            updatedDescription += '\n\nCall Notes: ' + callNotes;
+        }
+        
+        callTask.Description = updatedDescription;
         update callTask;
+    }
+    
+    @AuraEnabled
+    public static void updateCallDispositionWithQueueId(Id taskId, Id queueItemId, String disposition, String callNotes) {
+        // Update the task
+        Task callTask = [SELECT Id, Description, CallDisposition FROM Task WHERE Id = :taskId];
+        
+        // Update CallDisposition field on Task
+        if (String.isNotBlank(disposition)) {
+            callTask.CallDisposition = disposition;
+        }
+        
+        // Add call disposition and notes to description
+        String existingDescription = callTask.Description != null ? callTask.Description : '';
+        String updatedDescription = existingDescription;
+        
+        if (String.isNotBlank(disposition)) {
+            updatedDescription += '\n\nCall Disposition: ' + disposition;
+        }
+        
+        if (String.isNotBlank(callNotes)) {
+            updatedDescription += '\n\nCall Notes: ' + callNotes;
+        }
+        
+        callTask.Description = updatedDescription;
+        update callTask;
+        
+        // Update the NBA Queue record with the disposition and notes
+        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c FROM NBA_Queue__c WHERE Id = :queueItemId];
+        
+        // Update Rep_Notes__c with call notes
+        if (String.isNotBlank(callNotes)) {
+            String existingNotes = queueItem.Rep_Notes__c != null ? queueItem.Rep_Notes__c : '';
+            queueItem.Rep_Notes__c = existingNotes + '\n\nCall Notes: ' + callNotes;
+        }
+        
+        // Update Call_Disposition__c with disposition
+        if (String.isNotBlank(disposition)) {
+            queueItem.Call_Disposition__c = disposition;
+        }
+        
+        update queueItem;
     }
     
     @TestVisible private static String buildTaskDescription(NBA_Queue__c queueItem, String additionalNotes) {

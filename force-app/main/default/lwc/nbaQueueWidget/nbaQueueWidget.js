@@ -9,7 +9,7 @@ import getNextQueueItemWithDetails from '@salesforce/apex/NBAQueueManager.getNex
 import markAsViewed from '@salesforce/apex/NBAQueueManager.markAsViewed';
 import acceptAction from '@salesforce/apex/NBAQueueManager.acceptAction';
 import dismissAction from '@salesforce/apex/NBAQueueManager.dismissAction';
-import updateCallDisposition from '@salesforce/apex/NBAQueueManager.updateCallDisposition';
+import updateCallDisposition from '@salesforce/apex/NBAQueueManager.updateCallDispositionWithQueueId';
 import getOpportunityPrimaryContact from '@salesforce/apex/NBAQueueManager.getOpportunityPrimaryContact';
 import getAccountPhoneNumber from '@salesforce/apex/NBAQueueManager.getAccountPhoneNumber';
 import userId from '@salesforce/user/Id';
@@ -381,6 +381,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
 
         updateCallDisposition({ 
             taskId: this.currentTaskId,
+            queueItemId: this.selectedItem.Id,
             disposition: this.callDisposition,
             callNotes: this.callNotes
         })
