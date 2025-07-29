@@ -1,0 +1,110 @@
+NBA QUEUE OBJECT - FIELD CLEANUP ANALYSIS
+==========================================
+
+FIELDS CURRENTLY USED IN CODE:
+==============================
+
+CORE FIELDS (Always Used):
+- Id
+- Account__c
+- Action_Type__c
+- Priority_Score__c
+- Status__c
+- Subject__c
+- Sales_Rep__c
+- Opportunity__c
+
+FIELDS USED IN LWC DISPLAY:
+- Account__r.Name
+- Account__r.Employee_Count__c
+- Account__r.Company_Age_in_Days__c
+- Account__r.Use_Case_Payroll__c
+- Account__r.Use_Case_Scheduling__c
+- Account__r.Use_Case_Time_Tracking__c
+- Account__r.Phone
+- Account__r.Last_Web_Usage_Timestamp__c
+- Account__r.Payroll_Status__c
+- Opportunity__r.Name
+- Opportunity__r.Source__c
+- Opportunity__r.StageName
+- Opportunity__r.Description
+- Opportunity__r.Payroll_Buyer_Stage__c
+- Opportunity__r.Implementation_Status__c
+- Opportunity__r.Account_Product_Switcher_Data__c
+- Opportunity__r.Account_Current_Payroll__c
+- Opportunity__r.Last_Call_Date_Time__c
+
+FIELDS USED IN LOGIC:
+- Description__c
+- Due_Date__c
+- Model_Reason__c
+- Model_Version__c
+- Most_Recent_Payroll_Provider__c
+- First_Viewed_Date__c
+- Actioned_Date__c
+- Call_Disposition__c
+- Dismissed_Reason__c
+- Best_Number_to_Call__c
+- Best_Person_to_Call__c
+- Best_Time_to_Call__c
+- Best_Person_to_Call__r.Name
+- Best_Person_to_Call__r.Phone
+- Best_Person_to_Call__r.Email
+
+PRODUCT USAGE FIELDS (Used in LWC):
+- Break_Preferences_Engaged__c
+- Department_Management_Engaged__c
+- Geofencing_Engaged__c
+- Hiring_Engaged__c
+- Hrdocs_Engaged__c
+- Manager_Log_Engaged__c
+- Messaging_Engaged__c
+- Mobile_Time_Tracking_Engaged__c
+- Oam_Activity__c
+- Overtime_Preferences_Engaged__c
+- Scheduling_Engaged__c
+- Shift_Notes_Engaged__c
+- Shift_Trades_Engaged__c
+- Time_Offs_Engaged__c
+- Time_Tracking_Engaged__c
+- Implementation_Project__c
+- Implementation_Project__r.Name
+
+FIELDS YOU CAN LIKELY DELETE:
+=============================
+
+Based on the code analysis, these fields appear UNUSED and can probably be deleted:
+
+- Action_Context__c
+- Company_Age_Days__c (duplicate of Account__r.Company_Age_in_Days__c)
+- Active_Employees__c (duplicate of Account__r.Employee_Count__c)
+- Feature_Usage__c
+- Contact_Name__c
+- Contact_Phone__c
+- Current_Payroll_Provider__c (duplicate of Opportunity__r.Account_Current_Payroll__c)
+- Last_Call_Date__c (duplicate of Opportunity__r.Last_Call_Date_Time__c)
+- Opportunity_Stage__c (duplicate of Opportunity__r.StageName)
+- Opportunity_Source__c (duplicate of Opportunity__r.Source__c)
+- Payroll_Buyer_Stage__c (duplicate of Opportunity__r.Payroll_Buyer_Stage__c)
+- Rep_Notes__c
+- Close_Date__c
+- Inception_Switcher__c
+
+IMPORTANT NOTES:
+===============
+
+Before deleting any fields, double-check if they are used in:
+1. Workflows/Processes
+2. Validation Rules
+3. Other Apex classes not in this project
+4. Reports/Dashboards
+5. External integrations
+
+The duplicates (like Company_Age_Days__c vs Account__r.Company_Age_in_Days__c) are definitely safe to delete since the code uses the relationship fields.
+
+RECOMMENDED CLEANUP ORDER:
+=========================
+1. Delete duplicate fields first (safest)
+2. Delete unused fields that don't appear in any other metadata
+3. Test thoroughly after each deletion
+4. Keep backup of field metadata before deletion 

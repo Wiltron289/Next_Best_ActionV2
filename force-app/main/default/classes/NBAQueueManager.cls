@@ -220,9 +220,18 @@ public class NBAQueueManager {
         return (Decimal) details.get('adjustedScore');
     }
     
-    // Custom comparator class to sort by adjusted priority score
+    // Custom comparator class to sort by status first (In Progress prioritized), then by adjusted priority score
     public class PriorityScoreComparator implements Comparator<NBA_Queue__c> {
         public Integer compare(NBA_Queue__c item1, NBA_Queue__c item2) {
+            // First, prioritize In Progress items over Pending items
+            if (item1.Status__c == 'In Progress' && item2.Status__c == 'Pending') {
+                return -1; // In Progress comes first
+            }
+            if (item1.Status__c == 'Pending' && item2.Status__c == 'In Progress') {
+                return 1; // Pending comes after In Progress
+            }
+            
+            // If both items have the same status, sort by adjusted priority score
             Decimal score1 = calculateAdjustedPriorityScore(item1);
             Decimal score2 = calculateAdjustedPriorityScore(item2);
             
@@ -361,8 +370,8 @@ public class NBAQueueManager {
             insert newTask;
             System.debug('Task created successfully: ' + newTask.Id);
             
-            // Update queue item status and actioned date
-            queueItem.Status__c = 'Accepted';
+            // Update queue item status to "In Progress" and actioned date
+            queueItem.Status__c = 'In Progress';
             queueItem.Actioned_Date__c = System.now();
             update queueItem;
             System.debug('Queue item updated successfully');
@@ -444,7 +453,7 @@ public class NBAQueueManager {
         update callTask;
         
         // Update the NBA Queue record with the disposition and notes
-        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c FROM NBA_Queue__c WHERE Id = :queueItemId];
+        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId];
         
         // Update Rep_Notes__c with call notes
         if (String.isNotBlank(callNotes)) {
@@ -457,7 +466,41 @@ public class NBAQueueManager {
             queueItem.Call_Disposition__c = disposition;
         }
         
+        // Update status to "Accepted" and set completed date when disposition is saved
+        queueItem.Status__c = 'Accepted';
+        queueItem.Completed_Date__c = System.now();
+        
         update queueItem;
+        
+        // Update the Opportunity Description field if there's a related opportunity
+        if (queueItem.Opportunity__c != null && String.isNotBlank(callNotes)) {
+            try {
+                Opportunity opp = [SELECT Id, Description FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
+                
+                // Append call notes to existing description on a new line
+                String currentDescription = opp.Description != null ? opp.Description : '';
+                String timestamp = DateTime.now().format('MM/dd/yyyy HH:mm:ss');
+                String newCallNotes = '\n\n--- Call Notes (' + timestamp + ') ---\n' + callNotes;
+                
+                opp.Description = currentDescription + newCallNotes;
+                update opp;
+                System.debug('Updated Opportunity Description for ID: ' + opp.Id + ' - Appended call notes');
+            } catch (Exception e) {
+                System.debug('Error updating Opportunity Description: ' + e.getMessage());
+            }
+        }
+    }
+    
+    @AuraEnabled
+    public static void cancelCallDisposition(Id queueItemId) {
+        // Revert the NBA Queue record status back to "Pending" when disposition is cancelled
+        NBA_Queue__c queueItem = [SELECT Id, Status__c, Sales_Rep__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :queueItemId];
+        queueItem.Status__c = 'Pending';
+        queueItem.Completed_Date__c = null; // Clear completed date when reverting to pending
+        update queueItem;
+        
+        // Publish platform event for real-time updates
+        NBAQueueEventPublisher.publishItemStatusUpdate(queueItem.Id, queueItem.Sales_Rep__c, 'Updated');
     }
     
     @TestVisible private static String buildTaskDescription(NBA_Queue__c queueItem, String additionalNotes) {
@@ -547,7 +590,7 @@ public class NBAQueueManager {
                            ', Status__c: ' + item.Status__c);
             }
             
-            // Now get the pending items with additional fields for priority calculation
+            // Now get the pending and in progress items with additional fields for priority calculation
             List<NBA_Queue__c> items = [
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
@@ -556,7 +599,7 @@ public class NBAQueueManager {
                        Company_Age_Days__c, Active_Employees__c, Feature_Usage__c, Contact_Name__c, Contact_Phone__c, Action_Context__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Description,
                        Opportunity_Stage__c, Opportunity_Source__c, Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c, Inception_Switcher__c,
                        Current_Payroll_Provider__c, Last_Call_Date__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c,
@@ -566,8 +609,8 @@ public class NBAQueueManager {
                        Most_Recent_Payroll_Provider__c, Implementation_Project__c, Implementation_Project__r.Name
                 FROM NBA_Queue__c 
                 WHERE Sales_Rep__c = :userId
-                AND Status__c = 'Pending'
-                ORDER BY Priority_Score__c DESC, Due_Date__c ASC
+                AND Status__c IN ('Pending', 'In Progress')
+                ORDER BY Status__c ASC, Priority_Score__c DESC, Due_Date__c ASC
             ];
             
             System.debug('Pending NBA_Queue__c records for user: ' + items.size());
@@ -590,7 +633,7 @@ public class NBAQueueManager {
                     // Calculate adjusted priority scores and sort by the adjusted score
                     for(NBA_Queue__c item : filteredItems) {
                         Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(item);
-                        System.debug('Item: ' + item.Id + ' - Original Score: ' + item.Priority_Score__c + ' - Adjusted Score: ' + scoreDetails.get('adjustedScore'));
+                        System.debug('Item: ' + item.Id + ' - Status: ' + item.Status__c + ' - Original Score: ' + item.Priority_Score__c + ' - Adjusted Score: ' + scoreDetails.get('adjustedScore'));
                     }
                     
                     // Sort by adjusted priority score (highest first)
@@ -616,7 +659,7 @@ public class NBAQueueManager {
                     result.put('queueItem', null);
                 }
             } else {
-                System.debug('No pending items found for user');
+                System.debug('No pending or in progress items found for user');
                 result.put('queueItem', null);
             }
             

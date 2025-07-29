@@ -10,6 +10,7 @@ import markAsViewed from '@salesforce/apex/NBAQueueManager.markAsViewed';
 import acceptAction from '@salesforce/apex/NBAQueueManager.acceptAction';
 import dismissAction from '@salesforce/apex/NBAQueueManager.dismissAction';
 import updateCallDisposition from '@salesforce/apex/NBAQueueManager.updateCallDispositionWithQueueId';
+import cancelCallDisposition from '@salesforce/apex/NBAQueueManager.cancelCallDisposition';
 import getOpportunityPrimaryContact from '@salesforce/apex/NBAQueueManager.getOpportunityPrimaryContact';
 import getAccountPhoneNumber from '@salesforce/apex/NBAQueueManager.getAccountPhoneNumber';
 import userId from '@salesforce/user/Id';
@@ -30,6 +31,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     @track opportunityPrimaryContact = null;
     @track lastRefreshTime = null;
     @track fontLoaded = false;
+    @track showCallDispositionForm = false;
+    @track showDismissForm = false;
+    @track pendingAction = null; // Track pending action for when widget is minimized
+    @track isBlinking = false; // For alerting when new action comes in
     
     @wire(MessageContext) messageContext;
 
@@ -43,6 +48,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         
         this.loadQueueItem();
         this.startAutoRefresh();
+        
+        // Listen for page visibility changes to detect when widget is minimized
+        document.addEventListener('visibilitychange', this.handleVisibilityChange.bind(this));
+        
         if (window.sforce && window.sforce.opencti) {
             window.sforce.opencti.enableClickToDial({
                 callback: (response) => {
@@ -55,6 +64,12 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                 listener: this.handleCTIClickToDial.bind(this)
             });
         }
+    }
+    
+    handleVisibilityChange() {
+        // Track when the page becomes hidden (widget minimized) or visible (widget opened)
+        this.isPageHidden = document.hidden;
+        console.log('Page visibility changed:', this.isPageHidden ? 'Hidden' : 'Visible');
     }
 
     async loadFonts() {
@@ -77,6 +92,95 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         });
     }
 
+    // Method to trigger blinking alert for new actions
+    triggerBlinkingAlert() {
+        this.isBlinking = true;
+        // Stop blinking after 5 seconds
+        setTimeout(() => {
+            this.isBlinking = false;
+        }, 5000);
+        
+        // Try to show browser notification for utility bar context
+        this.showBrowserNotification();
+    }
+    
+    showBrowserNotification() {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Next Best Action', {
+                body: 'New action item available in your queue',
+                icon: '/resource/slds/assets/icons/utility/notification.svg',
+                tag: 'nba-queue-pending',
+                requireInteraction: true, // Keep notification until user interacts
+                silent: false // Play notification sound
+            });
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+            Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                    this.showBrowserNotification();
+                }
+            });
+        }
+        
+        // Flash the page title as a fallback
+        this.flashPageTitle();
+        
+        // Also try to make a beep sound if possible
+        this.playNotificationSound();
+    }
+    
+    playNotificationSound() {
+        try {
+            // Create a simple beep sound using Web Audio API
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (error) {
+            console.log('Could not play notification sound:', error);
+        }
+    }
+    
+    flashPageTitle() {
+        const originalTitle = document.title;
+        let flashCount = 0;
+        const maxFlashes = 10;
+        
+        const flashInterval = setInterval(() => {
+            if (flashCount >= maxFlashes) {
+                document.title = originalTitle;
+                clearInterval(flashInterval);
+                return;
+            }
+            
+            document.title = flashCount % 2 === 0 ? '🚨 PENDING ACTION 🚨' : originalTitle;
+            flashCount++;
+        }, 1000);
+    }
+    
+    isWidgetVisible() {
+        // Check if the widget element is visible in the viewport
+        const widgetElement = this.template.querySelector('.nba-widget-card');
+        if (!widgetElement) return false;
+        
+        const rect = widgetElement.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && 
+               rect.top < window.innerHeight && 
+               rect.bottom > 0;
+    }
+
+
+
     async loadQueueItem() {
         console.log('=== NBA Queue Widget Debug ===');
         console.log('Current User ID:', this.currentUserId);
@@ -89,6 +193,9 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             console.log('Queue item data received:', result);
             
             if (result && result.queueItem) {
+                // Check if this is a new item (different from current)
+                const isNewItem = !this.queueItem || this.queueItem.Id !== result.queueItem.Id;
+                
                 // Store priority score details
                 this.originalScore = result.originalScore;
                 this.adjustedScore = result.adjustedScore;
@@ -132,27 +239,47 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                     console.error('Error marking record as viewed:', error);
                 }
                 
-                // Load opportunity primary contact if needed
+                // Load opportunity primary contact if there's an opportunity (needed for fallback)
                 console.log('Checking if should load opportunity primary contact...');
                 console.log('Opportunity ID:', result.queueItem.Opportunity__c);
-                console.log('Should use NBA Queue contact:', this.shouldUseNBAQueueContact);
                 
-                if (result.queueItem.Opportunity__c && !this.shouldUseNBAQueueContact) {
+                if (result.queueItem.Opportunity__c) {
                     try {
                         console.log('Loading opportunity primary contact for ID:', result.queueItem.Opportunity__c);
                         const contactData = await getOpportunityPrimaryContact({ opportunityId: result.queueItem.Opportunity__c });
                         this.opportunityPrimaryContact = contactData;
                         console.log('Opportunity primary contact loaded:', contactData);
+                        
+                        // Pre-populate call notes with opportunity description if available
+                        if (result.queueItem.Opportunity__r && result.queueItem.Opportunity__r.Description) {
+                            this.callNotes = result.queueItem.Opportunity__r.Description;
+                            console.log('Pre-populated call notes with opportunity description:', this.callNotes);
+                        } else {
+                            this.callNotes = ''; // Clear call notes if no opportunity description
+                        }
                     } catch (error) {
                         console.error('Error loading opportunity primary contact:', error);
                         this.opportunityPrimaryContact = null;
+                        this.callNotes = ''; // Clear call notes on error
                     }
                 } else {
-                    console.log('Not loading opportunity primary contact - setting to null');
+                    console.log('No opportunity - setting primary contact to null');
                     this.opportunityPrimaryContact = null;
+                    this.callNotes = ''; // Clear call notes if no opportunity
                 }
                 
                 console.log('Queue item processed successfully');
+                
+                // Only trigger blinking alert if this is a new item and widget might be minimized
+                if (isNewItem) {
+                    // Check if page is hidden (widget minimized) or widget is not visible
+                    if (this.isPageHidden || document.hidden || !this.isWidgetVisible()) {
+                        console.log('New item detected while widget appears minimized - triggering alert');
+                        this.triggerBlinkingAlert();
+                    } else {
+                        console.log('New item detected while widget is visible - no alert needed');
+                    }
+                }
             } else {
                 console.log('No queue items found for user');
                 this.queueItem = null;
@@ -221,12 +348,43 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         return `--panel-height: ${this.panelHeight}px;`;
     }
 
+    get widgetClass() {
+        let classes = 'nba-widget-card';
+        if (this.showCallDispositionForm || this.showDismissForm) {
+            classes += ' nba-widget-form-active';
+        }
+        if (this.isBlinking) {
+            classes += ' nba-widget-blinking';
+        }
+        // Add pulsing class when there's a pending action
+        if (this.pendingAction) {
+            classes += ' nba-widget-pending-pulse';
+        }
+        return classes;
+    }
+
+    get hasPendingAction() {
+        return this.pendingAction !== null;
+    }
+
+    get pendingActionText() {
+        if (this.pendingAction === 'call') {
+            return 'Call Disposition Required';
+        } else if (this.pendingAction === 'dismiss') {
+            return 'Dismiss Reason Required';
+        }
+        return '';
+    }
+
+
+
     get callDispositionOptions() {
         return [
             { label: 'Connected - DM', value: 'Connected - DM' },
             { label: 'Connected - GK', value: 'Connected - GK' },
             { label: 'Attempted - Left Voicemail', value: 'Attempted - Left Voicemail' },
             { label: 'Attempted - No Voicemail', value: 'Attempted - No Voicemail' },
+            { label: 'Invalid Number', value: 'Invalid Number' },
             { label: 'Not Interested', value: 'Not Interested' }
         ];
     }
@@ -243,22 +401,16 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
 
     handleDismissAction(event) {
         console.log('Dismiss action triggered');
-        this.showDismissModal = true;
+        this.showDismissForm = true;
         this.dismissReason = '';
-        console.log('showDismissModal set to:', this.showDismissModal);
-        
-        // Ensure modal shows up by forcing a re-render
-        this.template.querySelector('.nba-widget-card')?.classList.add('modal-open');
+        this.pendingAction = 'dismiss';
+        console.log('showDismissForm set to:', this.showDismissForm);
     }
-    closeDismissModal() {
-        console.log('Closing dismiss modal');
-        this.showDismissModal = false;
+    closeDismissForm() {
+        console.log('Closing dismiss form');
+        this.showDismissForm = false;
         this.dismissReason = '';
-        // Remove the modal-open class
-        const card = this.template.querySelector('.nba-widget-card');
-        if (card) {
-            card.classList.remove('modal-open');
-        }
+        this.pendingAction = null;
     }
     handleDismissReasonChange(event) {
         this.dismissReason = event.target.value;
@@ -272,7 +424,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         
         this.selectedItem = this.queueItem;
         this.executeDismissActionWithReason();
-        this.showDismissModal = false;
+        this.showDismissForm = false;
     }
     executeDismissActionWithReason() {
         this.isLoading = true;
@@ -308,24 +460,39 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             .then((taskId) => {
                 console.log('Accept action successful, task ID:', taskId);
                 this.showToast('Success', 'Action accepted and task created', 'success');
-                // Clear the current queue item immediately
-                this.queueItem = null;
                 
                 // Store task ID for call disposition if needed
                 this.currentTaskId = taskId;
                 
                 if (actionType.includes('Call')) {
-                    console.log('Action is a call type, launching call action');
+                    console.log('Action is a call type, launching call and showing disposition form');
+                    console.log('Queue item data for pre-population:', {
+                        hasQueueItem: !!this.queueItem,
+                        hasOpportunity: !!(this.queueItem && this.queueItem.Opportunity__r),
+                        opportunityDescription: this.queueItem?.Opportunity__r?.Description,
+                        fullQueueItem: this.queueItem
+                    });
+                    
+                    // Preserve any pre-populated call notes from the opportunity description BEFORE showing form
+                    if (this.queueItem && this.queueItem.Opportunity__r && this.queueItem.Opportunity__r.Description) {
+                        this.callNotes = this.queueItem.Opportunity__r.Description;
+                        console.log('Preserved opportunity description in call notes:', this.callNotes);
+                    } else {
+                        console.log('No opportunity description found to pre-populate');
+                        this.callNotes = ''; // Ensure it's empty if no description
+                    }
+                    
+                    // Launch the call first
                     this.launchAction(currentItem);
-                                    // Show call disposition modal after a delay
-                setTimeout(() => {
-                    this.showCallDispositionModal = true;
-                }, 500);
+                    // Then show call disposition form
+                    this.showCallDispositionForm = true;
+                    this.pendingAction = 'call';
                 } else {
                     console.log('Action is not a call type, launching action');
                     this.launchAction(currentItem);
+                    // Load next queue item after non-call action
+                    return this.loadQueueItem();
                 }
-                return this.loadQueueItem();
             })
             .catch(error => {
                 console.error('Accept action error:', error);
@@ -336,11 +503,25 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             });
     }
 
-    closeCallDispositionModal() {
-        this.showCallDispositionModal = false;
+    closeCallDispositionForm() {
+        // Cancel the call disposition and revert status to "Pending"
+        if (this.selectedItem && this.selectedItem.Id) {
+            cancelCallDisposition({ queueItemId: this.selectedItem.Id })
+                .then(() => {
+                    console.log('Call disposition cancelled, status reverted to Pending');
+                })
+                .catch(error => {
+                    console.error('Error cancelling call disposition:', error);
+                });
+        }
+        
+        this.showCallDispositionForm = false;
         this.currentTaskId = null;
         this.callDisposition = '';
-        this.callNotes = '';
+        // Don't clear callNotes here - let loadQueueItem handle it
+        this.pendingAction = null;
+        // Load next queue item when closing the form
+        this.loadQueueItem();
     }
 
     handleAccountClick(event) {
@@ -387,7 +568,9 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         })
             .then(() => {
                 this.showToast('Success', 'Call disposition saved', 'success');
-                this.closeCallDispositionModal();
+                this.closeCallDispositionFormSuccess();
+                // Load next queue item after saving disposition
+                return this.loadQueueItem();
             })
             .catch(error => {
                 this.showToast('Error', error.body?.message || 'Failed to save call disposition', 'error');
@@ -395,6 +578,15 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             .finally(() => {
                 this.isLoading = false;
             });
+    }
+    
+    closeCallDispositionFormSuccess() {
+        // Close form without cancelling - status should remain "Accepted"
+        this.showCallDispositionForm = false;
+        this.currentTaskId = null;
+        this.callDisposition = '';
+        this.callNotes = '';
+        this.pendingAction = null;
     }
 
 
@@ -423,7 +615,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
 
-    launchAction(queueItem) {
+    async launchAction(queueItem) {
         const actionType = queueItem.Action_Type__c;
         const accountId = queueItem.Account__c;
         const accountName = queueItem.Account__r.Name;
@@ -434,7 +626,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             case 'Payroll Opportunity Call':
             case 'Payroll Prospecting Call':
                 // Use the same contact logic as the display
-                const phoneNumber = this.getContactPhoneForCall(queueItem);
+                const phoneNumber = await this.getContactPhoneForCall(queueItem);
                 this.launchCall(accountId, accountName, phoneNumber, opportunityId);
                 break;
             case 'Email':
@@ -519,14 +711,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         if (phoneNumber) {
             callWithNumber(phoneNumber);
         } else {
-            this.getAccountPhone(accountId)
-                .then(number => callWithNumber(number))
-                .catch(error => {
-                    console.error('Error getting phone number:', error);
-                    this.currentPhoneNumber = 'Error retrieving phone';
-                    this.showToast('Error', 'Unable to retrieve phone number', 'error');
-                    this.navigateToRecord(opportunityId || accountId);
-                });
+            console.log('No phone number available from getContactPhoneForCall');
+            this.currentPhoneNumber = 'No phone number available';
+            this.showToast('No Phone Number', `No phone number found for ${accountName}`, 'warning');
+            this.navigateToRecord(opportunityId || accountId);
         }
     }
 
@@ -1000,14 +1188,43 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     }
 
     get displayContactPhone() {
-        if (this.shouldUseNBAQueueContact) {
-            const nbaPhone = this.queueItem?.Best_Number_to_Call__c || '';
-            console.log('Using NBA Queue contact phone:', nbaPhone);
-            return nbaPhone;
+        // If the NBA Queue record has a related Opportunity
+        if (this.queueItem?.Opportunity__c) {
+            const stage = this.queueItem?.Opportunity__r?.StageName;
+            
+            // If the Opportunity's StageName is "New Opportunity" or "Attempted"
+            if (stage === 'New Opportunity' || stage === 'Attempted') {
+                // Use the "Best Number to Call" field from the NBA Queue record
+                const nbaPhone = this.queueItem?.Best_Number_to_Call__c;
+                if (nbaPhone) {
+                    console.log('Using NBA Queue Best Number to Call:', nbaPhone);
+                    return nbaPhone;
+                } else {
+                    // If that field is null, fall back to the phone number of the Primary Contact on the related Opportunity
+                    const oppPhone = this.opportunityPrimaryContact?.contactPhone || '';
+                    console.log('NBA Queue phone is null, falling back to Opportunity primary contact phone:', oppPhone);
+                    return oppPhone;
+                }
+            } else {
+                // If the Opportunity's StageName is anything else, ignore the "Best Number to Call" field
+                // Use the phone number of the Primary Contact on the related Opportunity
+                const oppPhone = this.opportunityPrimaryContact?.contactPhone || '';
+                console.log('Using Opportunity primary contact phone (other stages):', oppPhone);
+                return oppPhone;
+            }
         } else {
-            const oppPhone = this.opportunityPrimaryContact?.contactPhone || '';
-            console.log('Using Opportunity primary contact phone:', oppPhone);
-            return oppPhone;
+            // If the NBA Queue record does not have a related Opportunity
+            // First, try to use the "Best Number to Call" field from the NBA Queue record
+            const nbaPhone = this.queueItem?.Best_Number_to_Call__c;
+            if (nbaPhone) {
+                console.log('Using NBA Queue Best Number to Call (no opportunity):', nbaPhone);
+                return nbaPhone;
+            } else {
+                // If that is null, we can't get the account phone in a getter (async)
+                // The actual account phone will be resolved in getContactPhoneForCall
+                console.log('NBA Queue phone is null, will fall back to Account primary contact phone in call logic');
+                return ''; // Empty string for display, actual phone will be resolved during call
+            }
         }
     }
 
@@ -1050,21 +1267,57 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     }
 
     // Helper method to get the correct phone number for call actions
-    getContactPhoneForCall(queueItem) {
-        // Use the same logic as shouldUseNBAQueueContact
-        if (!queueItem?.Opportunity__c) {
-            return queueItem?.Best_Number_to_Call__c || null;
-        }
-        
-        const stage = queueItem?.Opportunity__r?.StageName;
-        const shouldUseNBAQueueContact = stage === 'New Opportunity' || stage === 'Attempted';
-        
-        if (shouldUseNBAQueueContact) {
-            return queueItem?.Best_Number_to_Call__c || null;
+    async getContactPhoneForCall(queueItem) {
+        // If the NBA Queue record has a related Opportunity
+        if (queueItem?.Opportunity__c) {
+            const stage = queueItem?.Opportunity__r?.StageName;
+            
+            // If the Opportunity's StageName is "New Opportunity" or "Attempted"
+            if (stage === 'New Opportunity' || stage === 'Attempted') {
+                // Use the "Best Number to Call" field from the NBA Queue record
+                const nbaPhone = queueItem?.Best_Number_to_Call__c;
+                if (nbaPhone) {
+                    return nbaPhone;
+                } else {
+                    // If that field is null, fall back to the phone number of the Primary Contact on the related Opportunity
+                    return this.opportunityPrimaryContact?.contactPhone || null;
+                }
+            } else {
+                // If the Opportunity's StageName is anything else, ignore the "Best Number to Call" field
+                // Use the phone number of the Primary Contact on the related Opportunity
+                return this.opportunityPrimaryContact?.contactPhone || null;
+            }
         } else {
-            // For other stages, use the opportunity primary contact phone that's already loaded
-            const oppPhone = this.opportunityPrimaryContact?.contactPhone || null;
-            return oppPhone;
+            // If the NBA Queue record does not have a related Opportunity
+            // First, try to use the "Best Number to Call" field from the NBA Queue record
+            const nbaPhone = queueItem?.Best_Number_to_Call__c;
+            if (nbaPhone) {
+                return nbaPhone;
+            } else {
+                // If that is null, fall back to the phone number of the Primary Contact on the related Account
+                try {
+                    const accountPhone = await this.getAccountPhone(queueItem?.Account__c);
+                    return accountPhone;
+                } catch (error) {
+                    console.error('Error getting account phone:', error);
+                    return null;
+                }
+            }
         }
+    }
+
+    // Opportunity Description getters for Rep Notes section
+    get hasOpportunityDescription() {
+        return this.queueItem && 
+               this.queueItem.Opportunity__c && 
+               this.queueItem.Opportunity__r && 
+               this.queueItem.Opportunity__r.Description;
+    }
+
+    get opportunityDescription() {
+        if (this.hasOpportunityDescription) {
+            return this.queueItem.Opportunity__r.Description;
+        }
+        return '';
     }
 }

@@ -104,37 +104,6 @@ public class NBAQueueManagerTest {
     }
 
     @isTest
-    static void testUpdateCallDispositionWithQueueId() {
-        NBA_Queue__c item = [SELECT Id, Account__c, Sales_Rep__c FROM NBA_Queue__c WHERE Status__c != 'Dismissed' LIMIT 1];
-
-        Task t = new Task(
-            Subject = 'Test Call',
-            WhatId = item.Account__c,
-            OwnerId = item.Sales_Rep__c,
-            ActivityDate = Date.today(),
-            Status = 'Completed',
-            Priority = 'Normal'
-        );
-        insert t;
-
-        Test.startTest();
-        NBAQueueManager.updateCallDispositionWithQueueId(
-            t.Id,
-            item.Id,
-            'Connected - DM',
-            'Good convo, they are interested'
-        );
-        Test.stopTest();
-
-        Task updated = [SELECT Id, CallDisposition, Description FROM Task WHERE Id = :t.Id];
-        NBA_Queue__c updatedItem = [SELECT Id, Call_Disposition__c, Rep_Notes__c FROM NBA_Queue__c WHERE Id = :item.Id];
-
-        System.assertEquals('Connected - DM', updated.CallDisposition);
-        System.assert(updated.Description.contains('Call Notes'), 'Task description should include call notes');
-        System.assertEquals('Connected - DM', updatedItem.Call_Disposition__c);
-    }
-
-    @isTest
     static void testMarkAsViewed() {
         NBA_Queue__c item = [SELECT Id FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
 
@@ -144,29 +113,6 @@ public class NBAQueueManagerTest {
 
         NBA_Queue__c updated = [SELECT First_Viewed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
         System.assertNotEquals(null, updated.First_Viewed_Date__c, 'First_Viewed_Date__c should be set');
-    }
-
-    @isTest
-    static void testGetAccountPhoneNumber() {
-        Account acct = [SELECT Id FROM Account LIMIT 1];
-
-        Test.startTest();
-        String phoneNumber = NBAQueueManager.getAccountPhoneNumber(acct.Id);
-        Test.stopTest();
-
-        System.assertEquals('123-456-7890', phoneNumber, 'Should return correct phone number');
-    }
-
-    @isTest
-    static void testGetOpportunityPrimaryContact() {
-        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
-
-        Test.startTest();
-        Map<String, Object> result = NBAQueueManager.getOpportunityPrimaryContact(opp.Id);
-        Test.stopTest();
-
-        System.assert(result.containsKey('contactId'), 'Should contain contactId');
-        System.assertNotEquals(null, result.get('contactId'), 'Should return contact ID');
     }
 
     @isTest
@@ -312,5 +258,297 @@ public class NBAQueueManagerTest {
 
         List<NBA_Queue__c> createdItems = [SELECT Id FROM NBA_Queue__c WHERE Account__c = :acct.Id];
         System.assert(!createdItems.isEmpty(), 'Should create queue items');
+    }
+
+    // Test new "In Progress" status functionality
+    @isTest
+    static void testAcceptActionSetsInProgressStatus() {
+        NBA_Queue__c item = [SELECT Id, Status__c, Actioned_Date__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+        
+        System.assertEquals('Pending', item.Status__c, 'Initial status should be Pending');
+        System.assertEquals(null, item.Actioned_Date__c, 'Actioned_Date__c should be null initially');
+
+        Test.startTest();
+        String taskId = NBAQueueManager.acceptAction(item.Id, 'Test notes');
+        Test.stopTest();
+
+        NBA_Queue__c updated = [SELECT Id, Status__c, Actioned_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertEquals('In Progress', updated.Status__c, 'Status should be set to In Progress');
+        System.assertNotEquals(null, updated.Actioned_Date__c, 'Actioned_Date__c should be set when going to In Progress');
+    }
+
+    // Test that "In Progress" items are prioritized in queue
+    @isTest
+    static void testInProgressItemsArePrioritized() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Opportunity opp = [SELECT Id FROM Opportunity WHERE AccountId = :acct.Id LIMIT 1];
+
+        // Create a second NBA item with higher priority but Pending status
+        NBA_Queue__c highPriorityPending = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 90, // Higher priority
+            Subject__c = 'NBA: High Priority Call',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id,
+            Opportunity__c = opp.Id
+        );
+        insert highPriorityPending;
+
+        // Accept the first item to make it "In Progress"
+        NBA_Queue__c firstItem = [SELECT Id FROM NBA_Queue__c WHERE Status__c = 'Pending' AND Priority_Score__c = 50 LIMIT 1];
+        NBAQueueManager.acceptAction(firstItem.Id, 'Test');
+
+        Test.startTest();
+        Map<String, Object> result = NBAQueueManager.getNextQueueItemWithDetails(salesRep.Id);
+        Test.stopTest();
+
+        NBA_Queue__c returnedItem = (NBA_Queue__c) result.get('queueItem');
+        System.assertEquals('In Progress', returnedItem.Status__c, 'Should return In Progress item even if there are higher priority Pending items');
+    }
+
+    // Test call disposition completion sets status to "Accepted" and sets Completed_Date__c
+    @isTest
+    static void testCallDispositionCompletesToAccepted() {
+        NBA_Queue__c item = [SELECT Id, Status__c, Completed_Date__c, Opportunity__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+
+        // First accept the action to set it to "In Progress"
+        NBAQueueManager.acceptAction(item.Id, 'Test notes');
+        
+        // Verify it's now "In Progress"
+        NBA_Queue__c inProgress = [SELECT Id, Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertEquals('In Progress', inProgress.Status__c, 'Should be In Progress after accept');
+        System.assertEquals(null, inProgress.Completed_Date__c, 'Completed_Date__c should be null while In Progress');
+
+        // Create a task for the call
+        Task callTask = new Task(
+            Subject = 'Test Call',
+            WhatId = item.Opportunity__c,
+            Status = 'Completed'
+        );
+        insert callTask;
+
+        Test.startTest();
+        NBAQueueManager.updateCallDispositionWithQueueId(
+            callTask.Id,
+            item.Id,
+            'Connected - DM',
+            'Great conversation, they are interested'
+        );
+        Test.stopTest();
+
+        NBA_Queue__c completed = [SELECT Id, Status__c, Completed_Date__c, Call_Disposition__c, Rep_Notes__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertEquals('Accepted', completed.Status__c, 'Status should be set to Accepted after disposition');
+        System.assertNotEquals(null, completed.Completed_Date__c, 'Completed_Date__c should be set when going to Accepted');
+        System.assertEquals('Connected - DM', completed.Call_Disposition__c, 'Call disposition should be saved');
+        System.assert(completed.Rep_Notes__c.contains('Call Notes: Great conversation'), 'Rep notes should include call notes');
+    }
+
+    // Test Opportunity Description append functionality
+    @isTest
+    static void testOpportunityDescriptionIsAppended() {
+        NBA_Queue__c item = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+        Opportunity opp = [SELECT Id, Description FROM Opportunity WHERE Id = :item.Opportunity__c];
+        
+        // Set initial description
+        opp.Description = 'Initial opportunity description';
+        update opp;
+
+        // Accept and complete the action
+        NBAQueueManager.acceptAction(item.Id, 'Test notes');
+        
+        Task callTask = new Task(
+            Subject = 'Test Call',
+            WhatId = item.Opportunity__c,
+            Status = 'Completed'
+        );
+        insert callTask;
+
+        Test.startTest();
+        NBAQueueManager.updateCallDispositionWithQueueId(
+            callTask.Id,
+            item.Id,
+            'Connected - DM',
+            'New call notes from this conversation'
+        );
+        Test.stopTest();
+
+        Opportunity updatedOpp = [SELECT Id, Description FROM Opportunity WHERE Id = :opp.Id];
+        System.assert(updatedOpp.Description.contains('Initial opportunity description'), 'Should preserve original description');
+        System.assert(updatedOpp.Description.contains('--- Call Notes'), 'Should include call notes separator');
+        System.assert(updatedOpp.Description.contains('New call notes from this conversation'), 'Should include new call notes');
+    }
+
+    // Test cancel call disposition functionality
+    @isTest
+    static void testCancelCallDisposition() {
+        NBA_Queue__c item = [SELECT Id, Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+        
+        // Accept the action to set it to "In Progress"
+        NBAQueueManager.acceptAction(item.Id, 'Test notes');
+        
+        // Verify it's "In Progress"
+        NBA_Queue__c inProgress = [SELECT Id, Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertEquals('In Progress', inProgress.Status__c, 'Should be In Progress after accept');
+
+        Test.startTest();
+        NBAQueueManager.cancelCallDisposition(item.Id);
+        Test.stopTest();
+
+        NBA_Queue__c cancelled = [SELECT Id, Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertEquals('Pending', cancelled.Status__c, 'Status should revert to Pending when cancelled');
+        System.assertEquals(null, cancelled.Completed_Date__c, 'Completed_Date__c should be cleared when cancelled');
+    }
+
+    // Test that getNextQueueItemWithDetails includes Opportunity Description
+    @isTest
+    static void testGetNextQueueItemWithDetailsIncludesOpportunityDescription() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
+        
+        // Set opportunity description
+        opp.Description = 'Test opportunity description for pre-population';
+        update opp;
+
+        Test.startTest();
+        Map<String, Object> result = NBAQueueManager.getNextQueueItemWithDetails(salesRep.Id);
+        Test.stopTest();
+
+        NBA_Queue__c returnedItem = (NBA_Queue__c) result.get('queueItem');
+        System.assertNotEquals(null, returnedItem, 'Should return a queue item');
+        System.assertNotEquals(null, returnedItem.Opportunity__r, 'Should include opportunity relationship');
+        System.assertEquals('Test opportunity description for pre-population', returnedItem.Opportunity__r.Description, 'Should include opportunity description');
+    }
+
+    // Test edge case: Opportunity with no description
+    @isTest
+    static void testOpportunityWithNoDescription() {
+        NBA_Queue__c item = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+        Opportunity opp = [SELECT Id, Description FROM Opportunity WHERE Id = :item.Opportunity__c];
+        
+        // Clear description
+        opp.Description = null;
+        update opp;
+
+        // Accept and complete the action
+        NBAQueueManager.acceptAction(item.Id, 'Test notes');
+        
+        Task callTask = new Task(
+            Subject = 'Test Call',
+            WhatId = item.Opportunity__c,
+            Status = 'Completed'
+        );
+        insert callTask;
+
+        Test.startTest();
+        NBAQueueManager.updateCallDispositionWithQueueId(
+            callTask.Id,
+            item.Id,
+            'Connected - DM',
+            'Call notes when no previous description'
+        );
+        Test.stopTest();
+
+        Opportunity updatedOpp = [SELECT Id, Description FROM Opportunity WHERE Id = :opp.Id];
+        System.assert(updatedOpp.Description.contains('--- Call Notes'), 'Should include call notes separator');
+        System.assert(updatedOpp.Description.contains('Call notes when no previous description'), 'Should include new call notes');
+    }
+
+    // Test edge case: NBA Queue item without opportunity
+    @isTest
+    static void testNBAQueueItemWithoutOpportunity() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+
+        // Create NBA item without opportunity
+        NBA_Queue__c itemWithoutOpp = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 75,
+            Subject__c = 'NBA: Call - No Opportunity',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id
+            // No Opportunity__c field
+        );
+        insert itemWithoutOpp;
+
+        // Accept the action
+        NBAQueueManager.acceptAction(itemWithoutOpp.Id, 'Test notes');
+        
+        Task callTask = new Task(
+            Subject = 'Test Call',
+            WhatId = acct.Id,
+            Status = 'Completed'
+        );
+        insert callTask;
+
+        Test.startTest();
+        NBAQueueManager.updateCallDispositionWithQueueId(
+            callTask.Id,
+            itemWithoutOpp.Id,
+            'Connected - DM',
+            'Call notes for item without opportunity'
+        );
+        Test.stopTest();
+
+        // Should not throw an error and should complete successfully
+        NBA_Queue__c completed = [SELECT Id, Status__c, Call_Disposition__c FROM NBA_Queue__c WHERE Id = :itemWithoutOpp.Id];
+        System.assertEquals('Accepted', completed.Status__c, 'Should complete successfully even without opportunity');
+        System.assertEquals('Connected - DM', completed.Call_Disposition__c, 'Call disposition should be saved');
+    }
+
+    @isTest
+    static void testUpdateCallDispositionWithQueueId() {
+        NBA_Queue__c item = [SELECT Id, Account__c, Sales_Rep__c FROM NBA_Queue__c WHERE Status__c != 'Dismissed' LIMIT 1];
+
+        Task t = new Task(
+            Subject = 'Test Call',
+            WhatId = item.Account__c,
+            OwnerId = item.Sales_Rep__c,
+            ActivityDate = Date.today(),
+            Status = 'Completed',
+            Priority = 'Normal'
+        );
+        insert t;
+
+        Test.startTest();
+        NBAQueueManager.updateCallDispositionWithQueueId(
+            t.Id,
+            item.Id,
+            'Connected - DM',
+            'Good convo, they are interested'
+        );
+        Test.stopTest();
+
+        Task updated = [SELECT Id, CallDisposition, Description FROM Task WHERE Id = :t.Id];
+        NBA_Queue__c updatedItem = [SELECT Id, Call_Disposition__c, Rep_Notes__c FROM NBA_Queue__c WHERE Id = :item.Id];
+
+        System.assertEquals('Connected - DM', updated.CallDisposition);
+        System.assert(updated.Description.contains('Call Notes'), 'Task description should include call notes');
+        System.assertEquals('Connected - DM', updatedItem.Call_Disposition__c);
+    }
+
+    @isTest
+    static void testGetAccountPhoneNumber() {
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+
+        Test.startTest();
+        String phoneNumber = NBAQueueManager.getAccountPhoneNumber(acct.Id);
+        Test.stopTest();
+
+        System.assertEquals('123-456-7890', phoneNumber, 'Should return correct phone number');
+    }
+
+    @isTest
+    static void testGetOpportunityPrimaryContact() {
+        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
+
+        Test.startTest();
+        Map<String, Object> result = NBAQueueManager.getOpportunityPrimaryContact(opp.Id);
+        Test.stopTest();
+
+        System.assert(result.containsKey('contactId'), 'Should contain contactId');
+        System.assertNotEquals(null, result.get('contactId'), 'Should return contact ID');
     }
 }

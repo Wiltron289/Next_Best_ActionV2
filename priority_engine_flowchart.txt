@@ -1,0 +1,252 @@
+PRIORITY ENGINE DATA MODEL & INTEGRATION FLOWCHART
+==================================================
+
+DATA INGESTION FLOW
+===================
+
+[External Data Sources]
+         |
+         v
+┌─────────────────────────────────────────────────────────────┐
+│                    DATA INGESTION LAYER                     │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │   Web       │  │   Email     │  │   CRM       │         │
+│  │ Analytics   │  │ Engagement  │  │ Activities  │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+│         │                │                │                │
+│         └────────────────┼────────────────┘                │
+│                          │                                 │
+│         ┌────────────────┼────────────────┐                │
+│         │                │                │                │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
+│  │   Social     │  │   Calendar  │  │   External  │         │
+│  │   Media      │  │   Events    │  │   APIs      │         │
+│  └─────────────┘  └─────────────┘  └─────────────┘         │
+└─────────────────────────────────────────────────────────────┘
+         │
+         v
+┌─────────────────────────────────────────────────────────────┐
+│                 DATA PROCESSING ENGINE                      │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              Real-Time Activity Monitor                 │ │
+│  │  • Web Visits → Activity_Score__c                      │ │
+│  │  • Email Opens → Engagement_Score__c                   │ │
+│  │  • Form Submissions → Lead_Score__c                    │ │
+│  │  • Social Interactions → Social_Score__c               │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                          │                                  │
+│                          v                                  │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              Priority Factor Calculator                 │ │
+│  │  • Account Factors (Revenue, Industry, Size)           │ │
+│  │  • Opportunity Factors (Stage, Amount, Close Date)     │ │
+│  │  • Time Factors (Business Hours, Optimal Times)        │ │
+│  │  • Urgency Factors (Competitors, Expiring Deals)       │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+         │
+         v
+┌─────────────────────────────────────────────────────────────┐
+│                 SALESFORCE DATA MODEL                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              CORE OBJECTS                               │ │
+│  │                                                         │ │
+│  │  Sales_Action_Priority_Engine__c                       │ │
+│  │  ├── Priority_Score__c (0-100)                        │ │
+│  │  ├── Action_Type__c (Call, Email, Meeting)            │ │
+│  │  ├── Account__c, Opportunity__c, Sales_Rep__c         │ │
+│  │  ├── Status__c (Pending, In Progress, Completed)      │ │
+│  │  └── Due_Date__c, Priority_Calculation_Date__c        │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                          │                                  │
+│                          v                                  │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              SUPPORTING OBJECTS                         │ │
+│  │                                                         │ │
+│  │  Priority_Factor__c                                    │ │
+│  │  ├── Factor_Type__c, Weight__c, Is_Active__c          │ │
+│  │  └── Calculation_Formula__c                            │ │
+│  │                                                         │ │
+│  │  Account_Priority_Factor__c                            │ │
+│  │  ├── Account__c, Factor_Type__c, Factor_Value__c      │ │
+│  │  └── Priority_Impact__c                                │ │
+│  │                                                         │ │
+│  │  Activity_Priority_Factor__c                           │ │
+│  │  ├── Account__c, Activity_Type__c, Activity_Score__c  │ │
+│  │  └── Decay_Rate__c, Priority_Impact__c                │ │
+│  │                                                         │ │
+│  │  Business_Hours_Schedule__c                            │ │
+│  │  ├── Sales_Rep__c, Day_of_Week__c                     │ │
+│  │  └── Start_Time__c, End_Time__c, Is_Available__c      │ │
+│  │                                                         │ │
+│  │  Optimal_Contact_Time__c                               │ │
+│  │  ├── Account__c, Contact_Person__c                     │ │
+│  │  └── Preferred_Day__c, Preferred_Start_Time__c        │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+         │
+         v
+┌─────────────────────────────────────────────────────────────┐
+│                 PRIORITY CALCULATION ENGINE                 │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              SCORING ALGORITHM                          │ │
+│  │                                                         │ │
+│  │  Final_Score = Base_Score + Time_Multiplier +          │ │
+│  │                Activity_Multiplier + Urgency_Multiplier │ │
+│  │                                                         │ │
+│  │  Base_Score Components:                                │ │
+│  │  • Account Revenue Potential (20%)                     │ │
+│  │  • Opportunity Stage & Amount (30%)                    │ │
+│  │  • Sales Rep Performance (10%)                         │ │
+│  │  • Historical Success Rate (15%)                       │ │
+│  │                                                         │ │
+│  │  Time Multipliers:                                     │ │
+│  │  • Business Hours Bonus (+25%)                         │ │
+│  │  • Optimal Contact Time Bonus (+50%)                   │ │
+│  │  • Decay Factor (decreases over time)                  │ │
+│  │                                                         │ │
+│  │  Activity Multipliers:                                 │ │
+│  │  • Recent Web Activity (+20%)                          │ │
+│  │  • Email Engagement (+15%)                             │ │
+│  │  • Form Submissions (+30%)                             │ │
+│  │                                                         │ │
+│  │  Urgency Multipliers:                                  │ │
+│  │  • Competitor Activity (+40%)                          │ │
+│  │  • Expiring Deals (+60%)                               │ │
+│  │  • High-Value Opportunities (+35%)                     │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+         │
+         v
+┌─────────────────────────────────────────────────────────────┐
+│                 WIDGET INTEGRATION                          │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              NBA QUEUE WIDGET                           │ │
+│  │                                                         │ │
+│  │  ┌─────────────────────────────────────────────────────┐ │ │
+│  │  │           PRIORITY DISPLAY                          │ │ │
+│  │  │  • Real-time priority score updates                 │ │ │
+│  │  │  • Visual priority indicators (High/Medium/Low)     │ │ │
+│  │  │  • Priority change notifications                    │ │ │
+│  │  │  • Score breakdown tooltips                         │ │ │
+│  │  └─────────────────────────────────────────────────────┘ │ │
+│  │                          │                              │ │
+│  │                          v                              │ │
+│  │  ┌─────────────────────────────────────────────────────┐ │ │
+│  │  │           SMART SCHEDULING                          │ │ │
+│  │  │  • Auto-suggest optimal call times                  │ │ │
+│  │  │  • Business hours integration                       │ │ │
+│  │  │  • Calendar event creation                          │ │ │
+│  │  │  • Follow-up scheduling                             │ │ │
+│  │  └─────────────────────────────────────────────────────┘ │ │
+│  │                          │                              │ │
+│  │                          v                              │ │
+│  │  ┌─────────────────────────────────────────────────────┐ │ │
+│  │  │           CONTEXT-AWARE ACTIONS                     │ │ │
+│  │  │  • Recent activity highlights                       │ │ │
+│  │  │  • Urgency indicators                               │ │ │
+│  │  │  • Competitor activity alerts                       │ │ │
+│  │  │  • Deal expiration warnings                         │ │ │
+│  │  └─────────────────────────────────────────────────────┘ │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              WIDGET API INTEGRATION                     │ │
+│  │                                                         │ │
+│  │  • getNextQueueItemWithPriority()                      │ │
+│  │  • updatePriorityScore()                               │ │
+│  │  • getPriorityBreakdown()                              │ │
+│  │  • scheduleOptimalTime()                               │ │
+│  │  • getUrgencyAlerts()                                  │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+         │
+         v
+┌─────────────────────────────────────────────────────────────┐
+│                 REAL-TIME UPDATES                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              PLATFORM EVENTS                            │ │
+│  │                                                         │ │
+│  │  • Priority_Score_Updated__e                           │ │
+│  │  • New_Activity_Detected__e                            │ │
+│  │  • Urgency_Alert_Triggered__e                          │ │
+│  │  • Optimal_Time_Available__e                           │ │
+│  └─────────────────────────────────────────────────────────┘ │
+│                          │                                  │
+│                          v                                  │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              WIDGET REFRESH TRIGGERS                    │ │
+│  │                                                         │ │
+│  │  • Auto-refresh every 30 seconds                       │ │
+│  │  • Manual refresh button                               │ │
+│  │  • Priority change notifications                       │ │
+│  │  • New urgency alerts                                  │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+
+IMPLEMENTATION PHASES
+====================
+
+PHASE 1: CORE PRIORITY ENGINE
+├── Create data model objects
+├── Implement basic scoring algorithm
+├── Add time-based factors
+└── Integrate with existing NBA Queue
+
+PHASE 2: DATA INGESTION
+├── Set up external data connectors
+├── Implement real-time activity monitoring
+├── Create data processing workflows
+└── Add priority factor calculations
+
+PHASE 3: WIDGET ENHANCEMENT
+├── Add priority score display
+├── Implement smart scheduling
+├── Add context-aware features
+└── Create urgency alerts
+
+PHASE 4: ADVANCED FEATURES
+├── Machine learning optimization
+├── Predictive scoring
+├── Territory-based routing
+└── Workload balancing
+
+TECHNICAL INTEGRATION POINTS
+===========================
+
+1. APEX TRIGGERS
+   • Account/Opportunity changes → Recalculate priority
+   • Activity creation → Update activity factors
+   • Time-based triggers → Update time multipliers
+
+2. PLATFORM EVENTS
+   • Priority score changes → Widget refresh
+   • New activities → Real-time updates
+   • Urgency alerts → Immediate notifications
+
+3. SCHEDULED JOBS
+   • Daily priority recalculation
+   • Activity score decay
+   • Business hours updates
+
+4. EXTERNAL APIS
+   • Web analytics integration
+   • Email engagement tracking
+   • Calendar synchronization
+   • Social media monitoring
+
+5. WIDGET ENHANCEMENTS
+   • Priority score visualization
+   • Smart scheduling suggestions
+   • Context-aware notifications
+   • Real-time activity feed 

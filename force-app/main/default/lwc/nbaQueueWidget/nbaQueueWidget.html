@@ -12,12 +12,14 @@
         </div>
     </template>
     <template if:true={queueItem}>
-        <div class="nba-widget-card">
+        <div class={widgetClass}>
             <div class="nba-widget-header">
                 <div class="nba-widget-title">Next Best Action</div>
-                <button class="nba-widget-refresh-btn" onclick={handleManualRefresh} title="Refresh Queue">
-                    <span class="nba-widget-refresh-icon">🔄</span>
-                </button>
+                <div class="nba-widget-header-actions">
+                    <button class="nba-widget-refresh-btn" onclick={handleManualRefresh} title="Refresh Queue">
+                        <span class="nba-widget-refresh-icon">🔄</span>
+                    </button>
+                </div>
             </div>
             <div class="nba-widget-body">
                 <div class="nba-widget-row nba-widget-main-row">
@@ -255,101 +257,80 @@
                     </div>
                 </template>
             </div>
-            <div class="nba-widget-footer">
-                <button class="nba-widget-skip" data-id={queueItem.Id} onclick={handleDismissAction}>Skip</button>
-                <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>Accept</button>
-            </div>
-        </div>
-    </template>
-    <template if:true={showDismissModal}>
-        <div class="slds-backdrop slds-backdrop_open call-disposition-backdrop"></div>
-        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open call-disposition-modal">
-            <div class="slds-modal__container">
-                <header class="slds-modal__header">
-                    <h2 class="slds-text-heading_medium">Dismiss Reason</h2>
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
-                        title="Close"
-                        onclick={closeDismissModal}>
-                        <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
-                    </button>
-                </header>
-                <div class="slds-modal__content slds-p-around_medium">
-                    <lightning-textarea
-                        label="Reason for Dismissal"
-                        value={dismissReason}
-                        onchange={handleDismissReasonChange}
-                        placeholder="Enter reason...">
-                    </lightning-textarea>
-                </div>
-                <footer class="slds-modal__footer">
-                    <lightning-button
-                        variant="neutral"
-                        label="Cancel"
-                        title="Cancel"
-                        onclick={closeDismissModal}>
-                    </lightning-button>
-                    <lightning-button
-                        variant="brand"
-                        label="Submit"
-                        title="Submit"
-                        class="slds-m-left_x-small"
-                        onclick={submitDismissReason}>
-                    </lightning-button>
-                </footer>
-            </div>
-        </section>
-    </template>
-
-    <template if:true={showCallDispositionModal}>
-        <div class="slds-backdrop slds-backdrop_open call-disposition-backdrop"></div>
-        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open call-disposition-modal">
-            <div class="slds-modal__container">
-                <header class="slds-modal__header">
-                    <h2 class="slds-text-heading_medium">Call Disposition</h2>
-                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
-                        title="Close"
-                        onclick={closeCallDispositionModal}>
-                        <lightning-icon icon-name="utility:close" size="small"></lightning-icon>
-                    </button>
-                </header>
-                <div class="slds-modal__content slds-p-around_medium">
-                    <div class="slds-form-element slds-m-bottom_medium">
-                        <label class="slds-form-element__label">Phone Number</label>
-                        <div class="slds-form-element__control">
-                            <span class="slds-text-body_regular">{currentPhoneNumber}</span>
+            
+            <!-- Call Disposition Form -->
+            <template if:true={showCallDispositionForm}>
+                <div class="nba-widget-form-section">
+                    <div class="nba-widget-form-header">
+                        <h3>Call Disposition</h3>
+                        <button class="nba-widget-form-close" onclick={closeCallDispositionForm}>×</button>
+                    </div>
+                    <div class="nba-widget-form-content">
+                        <div class="nba-widget-form-field">
+                            <label>Phone Number</label>
+                            <div class="nba-widget-form-value">{currentPhoneNumber}</div>
+                        </div>
+                        <div class="nba-widget-form-field">
+                            <label for="call-disposition">Call Disposition *</label>
+                            <select id="call-disposition" class="nba-widget-form-select" onchange={handleCallDispositionChange} value={callDisposition} required>
+                                <option value="">Select disposition...</option>
+                                <template for:each={callDispositionOptions} for:item="option">
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="nba-widget-form-field">
+                            <label for="call-notes">Call Notes</label>
+                            <textarea id="call-notes" class="nba-widget-form-textarea" oninput={handleCallNotesChange} value={callNotes} placeholder="Enter call notes..."></textarea>
+                        </div>
+                        <template if:true={hasOpportunityDescription}>
+                            <div class="nba-widget-form-field">
+                                <label>Rep Notes</label>
+                                <div class="nba-widget-form-rep-notes">{opportunityDescription}</div>
+                            </div>
+                        </template>
+                        <div class="nba-widget-form-actions">
+                            <button class="nba-widget-form-cancel" onclick={closeCallDispositionForm}>Cancel</button>
+                            <button class="nba-widget-form-save" onclick={handleCallDispositionSave} disabled={isLoading}>
+                                Save
+                            </button>
                         </div>
                     </div>
-                    <lightning-combobox
-                        label="Call Disposition"
-                        value={callDisposition}
-                        options={callDispositionOptions}
-                        onchange={handleCallDispositionChange}
-                        required>
-                    </lightning-combobox>
-                    <lightning-textarea
-                        label="Call Notes"
-                        value={callNotes}
-                        onchange={handleCallNotesChange}
-                        placeholder="Enter call notes..."
-                        class="slds-m-top_medium">
-                    </lightning-textarea>
                 </div>
-                <footer class="slds-modal__footer">
-                    <lightning-button
-                        variant="neutral"
-                        label="Cancel"
-                        title="Cancel"
-                        onclick={closeCallDispositionModal}>
-                    </lightning-button>
-                    <lightning-button
-                        variant="brand"
-                        label="Save"
-                        title="Save"
-                        class="slds-m-left_x-small"
-                        onclick={handleCallDispositionSave}>
-                    </lightning-button>
-                </footer>
-            </div>
-        </section>
+            </template>
+
+            <!-- Dismiss Form -->
+            <template if:true={showDismissForm}>
+                <div class="nba-widget-form-section">
+                    <div class="nba-widget-form-header">
+                        <h3>Dismiss Reason</h3>
+                        <button class="nba-widget-form-close" onclick={closeDismissForm}>×</button>
+                    </div>
+                    <div class="nba-widget-form-content">
+                        <div class="nba-widget-form-field">
+                            <label for="dismiss-reason">Reason for Dismissal *</label>
+                            <textarea id="dismiss-reason" class="nba-widget-form-textarea" oninput={handleDismissReasonChange} value={dismissReason} placeholder="Enter reason..." required></textarea>
+                        </div>
+                        <div class="nba-widget-form-actions">
+                            <button class="nba-widget-form-cancel" onclick={closeDismissForm}>Cancel</button>
+                            <button class="nba-widget-form-save" onclick={submitDismissReason} disabled={isLoading}>
+                                Submit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Footer Actions (only show when no forms are active) -->
+            <template if:false={showCallDispositionForm}>
+                <template if:false={showDismissForm}>
+                    <div class="nba-widget-footer">
+                        <button class="nba-widget-skip" data-id={queueItem.Id} onclick={handleDismissAction}>Skip</button>
+                        <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>Accept</button>
+                    </div>
+                </template>
+            </template>
+        </div>
     </template>
+
 </template>
