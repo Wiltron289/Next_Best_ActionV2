@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
-        <members>NBA_Queue__c.Assigned_Date__c</members>
-        <members>NBA_Queue__c.Created_From_Model__c</members>
+        <members>NBA_Queue__c.View_Count__c</members>
         <name>CustomField</name>
     </types>
     <version>58.0</version>

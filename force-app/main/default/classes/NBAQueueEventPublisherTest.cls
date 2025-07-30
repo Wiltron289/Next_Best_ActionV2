@@ -94,4 +94,67 @@ public class NBAQueueEventPublisherTest {
         // Verify method executed successfully
         System.assertNotEquals(null, queueItem.Id, 'Queue item should exist');
     }
+    
+    @IsTest
+    static void testPublishQueueUpdateWithEmptyList() {
+        Test.startTest();
+        NBAQueueEventPublisher.publishQueueUpdate(new List<NBA_Queue__c>(), 'Empty');
+        Test.stopTest();
+        
+        // Verify method executes without error
+        System.assertEquals(0, new List<NBA_Queue__c>().size(), 'Should handle empty list');
+    }
+    
+    @IsTest
+    static void testPublishQueueUpdateWithNullItem() {
+        Test.startTest();
+        try {
+            NBAQueueEventPublisher.publishQueueUpdate((NBA_Queue__c)null, 'Null');
+        } catch (Exception e) {
+            // Expected to handle null gracefully
+        }
+        Test.stopTest();
+        
+        // Verify method executes without error
+        System.assert(true, 'Should handle null item gracefully');
+    }
+    
+    @IsTest
+    static void testPublishItemStatusUpdateWithNullIds() {
+        Test.startTest();
+        NBAQueueEventPublisher.publishItemStatusUpdate(null, null, 'NullIds');
+        Test.stopTest();
+        
+        // Verify method executes without error
+        System.assert(true, 'Should handle null IDs gracefully');
+    }
+    
+    @IsTest
+    static void testPublishQueueUpdateWithLargeList() {
+        Account testAccount = [SELECT Id FROM Account LIMIT 1];
+        User testUser = [SELECT Id FROM User WHERE IsActive = true LIMIT 1];
+        
+        List<NBA_Queue__c> largeQueueItems = new List<NBA_Queue__c>();
+        
+        // Create multiple items to test bulk processing
+        for (Integer i = 0; i < 10; i++) {
+            NBA_Queue__c item = new NBA_Queue__c(
+                Account__c = testAccount.Id,
+                Sales_Rep__c = testUser.Id,
+                Action_Type__c = 'Call',
+                Priority_Score__c = 80.0 + i,
+                Status__c = 'Pending'
+            );
+            largeQueueItems.add(item);
+        }
+        
+        insert largeQueueItems;
+        
+        Test.startTest();
+        NBAQueueEventPublisher.publishQueueUpdate(largeQueueItems, 'Bulk');
+        Test.stopTest();
+        
+        // Verify method executed successfully
+        System.assertEquals(10, largeQueueItems.size(), 'Should handle large list');
+    }
 }

@@ -310,7 +310,7 @@ public class NBAQueueManagerTest {
         Test.stopTest();
 
         NBA_Queue__c updated = [SELECT Id, Status__c, Actioned_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
-        System.assertEquals('In_Progress', updated.Status__c, 'Status should be set to In Progress');
+        System.assertEquals('In Progress', updated.Status__c, 'Status should be set to In Progress');
         System.assertNotEquals(null, updated.Actioned_Date__c, 'Actioned_Date__c should be set when going to In Progress');
     }
 
@@ -342,7 +342,7 @@ public class NBAQueueManagerTest {
         Test.stopTest();
 
         NBA_Queue__c returnedItem = (NBA_Queue__c) result.get('queueItem');
-        System.assertEquals('In_Progress', returnedItem.Status__c, 'Should return In Progress item even if there are higher priority Pending items');
+        System.assertEquals('In Progress', returnedItem.Status__c, 'Should return In Progress item even if there are higher priority Pending items');
     }
 
     // Test call disposition completion sets status to "Accepted" and sets Completed_Date__c
@@ -355,7 +355,7 @@ public class NBAQueueManagerTest {
         
         // Verify it's now "In Progress"
         NBA_Queue__c inProgress = [SELECT Id, Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
-        System.assertEquals('In_Progress', inProgress.Status__c, 'Should be In Progress after accept');
+        System.assertEquals('In Progress', inProgress.Status__c, 'Should be In Progress after accept');
         System.assertEquals(null, inProgress.Completed_Date__c, 'Completed_Date__c should be null while In Progress');
 
         // Create a task for the call
@@ -427,7 +427,7 @@ public class NBAQueueManagerTest {
         
         // Verify it's "In Progress"
         NBA_Queue__c inProgress = [SELECT Id, Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
-        System.assertEquals('In_Progress', inProgress.Status__c, 'Should be In Progress after accept');
+        System.assertEquals('In Progress', inProgress.Status__c, 'Should be In Progress after accept');
 
         Test.startTest();
         NBAQueueManager.cancelCallDisposition(item.Id);
@@ -587,5 +587,143 @@ public class NBAQueueManagerTest {
 
         System.assert(result.containsKey('contactId'), 'Should contain contactId');
         System.assertNotEquals(null, result.get('contactId'), 'Should return contact ID');
+    }
+    
+    @isTest
+    static void testLastViewedDateUpdate() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        NBA_Queue__c item = [SELECT Id, Last_Viewed_Date__c, Priority_Multiplier_Applied__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+        
+        // Verify initial state
+        System.assertEquals(null, item.Last_Viewed_Date__c, 'Last viewed date should be null initially');
+        System.assertEquals(null, item.Priority_Multiplier_Applied__c, 'Priority multiplier should be null initially');
+        
+        Test.startTest();
+        NBA_Queue__c returnedItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        Test.stopTest();
+        
+        // Verify last viewed date was updated but multiplier not set yet
+        NBA_Queue__c updatedItem = [SELECT Id, Last_Viewed_Date__c, Priority_Multiplier_Applied__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertNotEquals(null, updatedItem.Last_Viewed_Date__c, 'Last viewed date should be set');
+        System.assertEquals(null, updatedItem.Priority_Multiplier_Applied__c, 'Priority multiplier should not be set until accepted');
+    }
+    
+    @isTest
+    static void testLastViewedDateUpdateWithDetails() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        NBA_Queue__c item = [SELECT Id, Last_Viewed_Date__c, Priority_Multiplier_Applied__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+        
+        // Verify initial state
+        System.assertEquals(null, item.Last_Viewed_Date__c, 'Last viewed date should be null initially');
+        System.assertEquals(null, item.Priority_Multiplier_Applied__c, 'Priority multiplier should be null initially');
+        
+        Test.startTest();
+        Map<String, Object> result = NBAQueueManager.getNextQueueItemWithDetails(salesRep.Id);
+        Test.stopTest();
+        
+        // Verify last viewed date was updated but multiplier not set yet
+        NBA_Queue__c updatedItem = [SELECT Id, Last_Viewed_Date__c, Priority_Multiplier_Applied__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertNotEquals(null, updatedItem.Last_Viewed_Date__c, 'Last viewed date should be set');
+        System.assertEquals(null, updatedItem.Priority_Multiplier_Applied__c, 'Priority multiplier should not be set until accepted');
+        
+        // Verify result contains the item
+        System.assertNotEquals(null, result.get('queueItem'), 'Should return a queue item');
+    }
+    
+    @isTest
+    static void testMultipleLastViewedDateUpdates() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        NBA_Queue__c item = [SELECT Id, Last_Viewed_Date__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+        
+        Test.startTest();
+        // Call getNextQueueItem multiple times
+        NBA_Queue__c returnedItem1 = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        NBA_Queue__c returnedItem2 = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        NBA_Queue__c returnedItem3 = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        Test.stopTest();
+        
+        // Verify last viewed date was updated (should be the most recent timestamp)
+        NBA_Queue__c updatedItem = [SELECT Id, Last_Viewed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertNotEquals(null, updatedItem.Last_Viewed_Date__c, 'Last viewed date should be set');
+    }
+    
+    @isTest
+    static void testPriorityMultiplierDescription() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        
+        // Create an item with recent web usage to trigger multiplier
+        NBA_Queue__c itemWithWebUsage = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 80,
+            Subject__c = 'NBA: Call - Web Usage Test',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id
+        );
+        insert itemWithWebUsage;
+        
+        // Update account to have recent web usage
+        acct.Last_Web_Usage_Timestamp__c = DateTime.now().addMinutes(-30); // Within last hour
+        update acct;
+        
+        Test.startTest();
+        NBA_Queue__c returnedItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        Test.stopTest();
+        
+        // Verify multiplier description was NOT set (only set when action is completed)
+        NBA_Queue__c updatedItem = [SELECT Id, Priority_Multiplier_Applied__c FROM NBA_Queue__c WHERE Id = :itemWithWebUsage.Id];
+        System.assertEquals(null, updatedItem.Priority_Multiplier_Applied__c, 'Multiplier should not be set when item is served');
+    }
+    
+    @isTest
+    static void testMultiplierSetOnCompletedAction() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        
+        // Create an item with recent web usage to trigger multiplier
+        NBA_Queue__c itemWithWebUsage = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 100, // High priority to ensure it's returned
+            Subject__c = 'NBA: Call - Web Usage Test',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id
+        );
+        insert itemWithWebUsage;
+        
+        // Update account to have recent web usage and ensure it doesn't have problematic status
+        acct.Last_Web_Usage_Timestamp__c = DateTime.now().addMinutes(-30); // Within last hour
+        acct.Payroll_Status__c = 'Active'; // Ensure it's not 'pending', 'processing', or 'paid'
+        update acct;
+        
+        Test.startTest();
+        // First, serve the item (should update last viewed date but not set multiplier)
+        NBA_Queue__c servedItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        
+        // Verify we got a result
+        System.assertNotEquals(null, servedItem, 'Should return a queue item');
+        
+        // Verify last viewed date updated but multiplier not set
+        NBA_Queue__c beforeAccept = [SELECT Id, Last_Viewed_Date__c, Priority_Multiplier_Applied__c FROM NBA_Queue__c WHERE Id = :servedItem.Id];
+        System.assertNotEquals(null, beforeAccept.Last_Viewed_Date__c, 'Last viewed date should be set');
+        System.assertEquals(null, beforeAccept.Priority_Multiplier_Applied__c, 'Multiplier should not be set yet');
+        
+        // Now accept the action (should NOT set the multiplier yet)
+        String taskId = NBAQueueManager.acceptAction(servedItem.Id, 'Test notes');
+        
+        // Verify multiplier was NOT set when action was accepted
+        NBA_Queue__c afterAccept = [SELECT Id, Priority_Multiplier_Applied__c, Status__c FROM NBA_Queue__c WHERE Id = :servedItem.Id];
+        System.assertEquals(null, afterAccept.Priority_Multiplier_Applied__c, 'Multiplier should not be set when action is accepted');
+        System.assertEquals('In Progress', afterAccept.Status__c, 'Status should be In Progress');
+        
+        // Now complete the action (should set the multiplier)
+        NBAQueueManager.updateCallDispositionWithQueueId(taskId, servedItem.Id, 'Connected - DM', 'Test call notes');
+        Test.stopTest();
+        
+        // Verify multiplier was set when action was completed
+        NBA_Queue__c afterComplete = [SELECT Id, Priority_Multiplier_Applied__c, Status__c FROM NBA_Queue__c WHERE Id = :servedItem.Id];
+        System.assert(afterComplete.Priority_Multiplier_Applied__c.contains('Web Usage (1.25x)'), 'Should set multiplier when action is completed');
+        System.assertEquals('Accepted', afterComplete.Status__c, 'Status should be Accepted');
     }
 }

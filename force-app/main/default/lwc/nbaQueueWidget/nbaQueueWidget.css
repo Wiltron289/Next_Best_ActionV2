@@ -494,6 +494,20 @@
     resize: vertical;
 }
 
+.nba-widget-form-rep-notes {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    line-height: 1.5;
+    max-height: 120px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+
 .nba-widget-form-actions {
     display: flex;
     gap: 12px;

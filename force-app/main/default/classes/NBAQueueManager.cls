@@ -155,7 +155,7 @@ public class NBAQueueManager {
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c,
                        Opportunity_Stage__c, Opportunity_Source__c, Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c, Inception_Switcher__c,
                        Current_Payroll_Provider__c, Last_Call_Date__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
-                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c,
+                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
                        Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
@@ -192,11 +192,16 @@ public class NBAQueueManager {
                     // Sort by adjusted priority score (highest first)
                     filteredItems.sort(new PriorityScoreComparator());
                     
-                    System.debug('Returning item: ' + filteredItems[0].Id + ' - ' + filteredItems[0].Subject__c);
+                    NBA_Queue__c selectedItem = filteredItems[0];
+                    
+                    // Update last viewed date when item is served to user
+                    updateItemLastViewedDate(selectedItem);
+                    
+                    System.debug('Returning item: ' + selectedItem.Id + ' - ' + selectedItem.Subject__c);
                     
                     // Note: Contact information will be handled in the LWC by querying OpportunityContactRole directly
                     // This avoids the need to add virtual fields to the NBA_Queue__c object
-                    return filteredItems[0];
+                    return selectedItem;
                 } else {
                     System.debug('No items remain after filtering');
                     return null;
@@ -252,7 +257,7 @@ public class NBAQueueManager {
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description,
                        Opportunity_Stage__c, Opportunity_Source__c, Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c, Inception_Switcher__c,
                        Current_Payroll_Provider__c, Last_Call_Date__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
-                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c,
+                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
                        Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
@@ -291,6 +296,9 @@ public class NBAQueueManager {
                     
                     NBA_Queue__c selectedItem = filteredItems[0];
                     Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(selectedItem);
+                    
+                    // Update last viewed date when item is served to user
+                    updateItemLastViewedDate(selectedItem);
                     
                     System.debug('Returning item: ' + selectedItem.Id + ' - ' + selectedItem.Subject__c);
                     
@@ -574,7 +582,10 @@ public class NBAQueueManager {
         update callTask;
         
         // Update the NBA Queue record with the disposition and notes
-        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId];
+        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, 
+                                         Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, 
+                                         Best_Time_to_Call__c
+                                  FROM NBA_Queue__c WHERE Id = :queueItemId];
         
         // Update Rep_Notes__c with call notes
         if (String.isNotBlank(callNotes)) {
@@ -587,11 +598,17 @@ public class NBAQueueManager {
             queueItem.Call_Disposition__c = disposition;
         }
         
-        // Update status to "Accepted" and set completed date when disposition is saved
+        // Calculate priority score details to set multiplier indicator when action is completed
+        Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(queueItem);
+        String multiplierDescription = (String) scoreDetails.get('multiplierDescription');
+        
+        // Update status to "Accepted", set completed date, and set multiplier indicator when disposition is saved
         queueItem.Status__c = 'Accepted';
         queueItem.Completed_Date__c = System.now();
+        queueItem.Priority_Multiplier_Applied__c = multiplierDescription;
         
         update queueItem;
+        System.debug('Queue item completed with multiplier: ' + multiplierDescription);
         
         // Update the Opportunity Description field if there's a related opportunity
         if (queueItem.Opportunity__c != null && String.isNotBlank(callNotes)) {
@@ -637,7 +654,7 @@ public class NBAQueueManager {
     // Helper method to determine if a queue item should be skipped based on filtering rules
     private static Boolean shouldSkipQueueItem(NBA_Queue__c item) {
         // Skip if Opportunity Stage is one of the specified stages
-        if (item.Opportunity__c != null && item.Opportunity__r.StageName != null) {
+        if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.StageName != null) {
             String stage = item.Opportunity__r.StageName.toLowerCase();
             if (stage == 'closed won - pending implementation' || 
                 stage == 'closed lost' || 
@@ -648,7 +665,7 @@ public class NBAQueueManager {
         }
         
         // Skip if Opportunity Last_Call_Date_Time__c is today
-        if (item.Opportunity__c != null && item.Opportunity__r.Last_Call_Date_Time__c != null) {
+        if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Last_Call_Date_Time__c != null) {
             DateTime lastCallTime = item.Opportunity__r.Last_Call_Date_Time__c;
             Date today = Date.today();
             Date lastCallDate = lastCallTime.date();
@@ -660,7 +677,7 @@ public class NBAQueueManager {
         }
         
         // Skip if Opportunity Future_Follow_Up_Date__c is in the future
-        if (item.Opportunity__c != null && item.Opportunity__r.Future_Follow_Up_Date__c != null) {
+        if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Future_Follow_Up_Date__c != null) {
             Date futureFollowUpDate = item.Opportunity__r.Future_Follow_Up_Date__c;
             Date today = Date.today();
             
@@ -671,7 +688,7 @@ public class NBAQueueManager {
         }
         
         // Skip if Account Payroll_Status__c contains specific values
-        if (item.Account__r.Payroll_Status__c != null) {
+        if (item.Account__r != null && item.Account__r.Payroll_Status__c != null) {
             String payrollStatus = item.Account__r.Payroll_Status__c.toLowerCase();
             if (payrollStatus == 'pending' || 
                 payrollStatus == 'processing' || 
@@ -733,7 +750,33 @@ public class NBAQueueManager {
         details.put('bestTimeApplied', bestTimeApplied);
         details.put('webUsageMultiplier', webUsageMultiplier);
         details.put('bestTimeMultiplier', bestTimeMultiplier);
+        
+        // Build multiplier description for Priority_Multiplier_Applied__c field
+        List<String> appliedMultipliers = new List<String>();
+        if (webUsageApplied) {
+            appliedMultipliers.add('Web Usage (1.25x)');
+        }
+        if (bestTimeApplied) {
+            appliedMultipliers.add('Best Time (1.2x)');
+        }
+        String multiplierDescription = appliedMultipliers.isEmpty() ? 'None' : String.join(appliedMultipliers, ', ');
+        details.put('multiplierDescription', multiplierDescription);
+        
         return details;
+    }
+    
+    // Helper method to update last viewed date when item is served
+    private static void updateItemLastViewedDate(NBA_Queue__c item) {
+        try {
+            // Query the record fresh to avoid DML issues
+            NBA_Queue__c itemToUpdate = [SELECT Id, Last_Viewed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
+            itemToUpdate.Last_Viewed_Date__c = System.now();
+            
+            update itemToUpdate;
+            System.debug('Updated last viewed date for item ' + item.Id + ': Last Viewed = ' + itemToUpdate.Last_Viewed_Date__c);
+        } catch (Exception e) {
+            System.debug('Error updating last viewed date: ' + e.getMessage());
+        }
     }
 
 
