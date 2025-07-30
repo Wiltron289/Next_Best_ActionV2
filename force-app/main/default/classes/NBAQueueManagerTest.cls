@@ -102,6 +102,43 @@ public class NBAQueueManagerTest {
         System.assertEquals('Dismissed', updated.Status__c);
         System.assertEquals('No longer relevant', updated.Dismissed_Reason__c);
     }
+    
+    @isTest
+    static void testSkipQueueItemWithFutureFollowUpDate() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        
+        // Create opportunity with future follow-up date
+        Opportunity oppWithFutureDate = new Opportunity(
+            Name = 'Future Follow Up Opp',
+            StageName = 'Qualification',
+            CloseDate = Date.today().addDays(30),
+            AccountId = acct.Id,
+            OwnerId = salesRep.Id,
+            Source__c = 'Outbound',
+            Future_Follow_Up_Date__c = Date.today().addDays(7) // Future date
+        );
+        insert oppWithFutureDate;
+        
+        // Create NBA item for this opportunity
+        NBA_Queue__c futureItem = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 90, // High priority
+            Subject__c = 'NBA: Call - Future Follow Up',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id,
+            Opportunity__c = oppWithFutureDate.Id
+        );
+        insert futureItem;
+        
+        Test.startTest();
+        NBA_Queue__c result = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        Test.stopTest();
+        
+        // Should return the original item, not the future follow-up item
+        System.assertNotEquals(futureItem.Id, result.Id, 'Should not return item with future follow-up date');
+    }
 
     @isTest
     static void testMarkAsViewed() {
@@ -273,7 +310,7 @@ public class NBAQueueManagerTest {
         Test.stopTest();
 
         NBA_Queue__c updated = [SELECT Id, Status__c, Actioned_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
-        System.assertEquals('In Progress', updated.Status__c, 'Status should be set to In Progress');
+        System.assertEquals('In_Progress', updated.Status__c, 'Status should be set to In Progress');
         System.assertNotEquals(null, updated.Actioned_Date__c, 'Actioned_Date__c should be set when going to In Progress');
     }
 
@@ -305,7 +342,7 @@ public class NBAQueueManagerTest {
         Test.stopTest();
 
         NBA_Queue__c returnedItem = (NBA_Queue__c) result.get('queueItem');
-        System.assertEquals('In Progress', returnedItem.Status__c, 'Should return In Progress item even if there are higher priority Pending items');
+        System.assertEquals('In_Progress', returnedItem.Status__c, 'Should return In Progress item even if there are higher priority Pending items');
     }
 
     // Test call disposition completion sets status to "Accepted" and sets Completed_Date__c
@@ -318,7 +355,7 @@ public class NBAQueueManagerTest {
         
         // Verify it's now "In Progress"
         NBA_Queue__c inProgress = [SELECT Id, Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
-        System.assertEquals('In Progress', inProgress.Status__c, 'Should be In Progress after accept');
+        System.assertEquals('In_Progress', inProgress.Status__c, 'Should be In Progress after accept');
         System.assertEquals(null, inProgress.Completed_Date__c, 'Completed_Date__c should be null while In Progress');
 
         // Create a task for the call
@@ -390,7 +427,7 @@ public class NBAQueueManagerTest {
         
         // Verify it's "In Progress"
         NBA_Queue__c inProgress = [SELECT Id, Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
-        System.assertEquals('In Progress', inProgress.Status__c, 'Should be In Progress after accept');
+        System.assertEquals('In_Progress', inProgress.Status__c, 'Should be In Progress after accept');
 
         Test.startTest();
         NBAQueueManager.cancelCallDisposition(item.Id);

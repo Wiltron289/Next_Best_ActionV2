@@ -152,7 +152,7 @@ public class NBAQueueManager {
                        Company_Age_Days__c, Active_Employees__c, Feature_Usage__c, Contact_Name__c, Contact_Phone__c, Action_Context__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c,
                        Opportunity_Stage__c, Opportunity_Source__c, Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c, Inception_Switcher__c,
                        Current_Payroll_Provider__c, Last_Call_Date__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c,
@@ -209,6 +209,114 @@ public class NBAQueueManager {
             
         } catch (Exception e) {
             System.debug('ERROR in getNextQueueItem: ' + e.getMessage());
+            System.debug('Stack trace: ' + e.getStackTraceString());
+            throw new AuraHandledException('Error retrieving queue items: ' + e.getMessage());
+        }
+    }
+    
+    @AuraEnabled
+    public static Map<String, Object> getNextQueueItemWithDetails(Id userId) {
+        // Debug logging
+        System.debug('=== NBA Queue Debug ===');
+        System.debug('User ID requesting queue items: ' + userId);
+        System.debug('Current user context: ' + UserInfo.getUserId());
+        System.debug('Current user name: ' + UserInfo.getName());
+        
+        Map<String, Object> result = new Map<String, Object>();
+        
+        try {
+            // First, let's check if there are any NBA_Queue__c records at all for this user
+            List<NBA_Queue__c> allUserItems = [
+                SELECT Id, Account__c, Sales_Rep__c, Status__c, Action_Type__c, Subject__c
+                FROM NBA_Queue__c 
+                WHERE Sales_Rep__c = :userId
+            ];
+            System.debug('Total NBA_Queue__c records for user: ' + allUserItems.size());
+            
+            // Log each record for debugging
+            for(NBA_Queue__c item : allUserItems) {
+                System.debug('Record ID: ' + item.Id + 
+                           ', Sales_Rep__c: ' + item.Sales_Rep__c + 
+                           ', Status__c: ' + item.Status__c);
+            }
+            
+            // Now get the pending and in progress items with additional fields for priority calculation
+            List<NBA_Queue__c> items = [
+                SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
+                       Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
+                       Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c,
+                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Model_Reason__c, Status__c,
+                       Company_Age_Days__c, Active_Employees__c, Feature_Usage__c, Contact_Name__c, Contact_Phone__c, Action_Context__c,
+                       Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
+                       Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description,
+                       Opportunity_Stage__c, Opportunity_Source__c, Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c, Inception_Switcher__c,
+                       Current_Payroll_Provider__c, Last_Call_Date__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
+                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c,
+                       Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
+                       Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
+                       Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
+                       Most_Recent_Payroll_Provider__c, Implementation_Project__c, Implementation_Project__r.Name
+                FROM NBA_Queue__c 
+                WHERE Sales_Rep__c = :userId
+                AND Status__c IN ('Pending', 'In Progress')
+                ORDER BY Status__c ASC, Priority_Score__c DESC, Due_Date__c ASC
+            ];
+            
+            System.debug('Pending NBA_Queue__c records for user: ' + items.size());
+            
+            if (!items.isEmpty()) {
+                // Filter out items that should be skipped
+                List<NBA_Queue__c> filteredItems = new List<NBA_Queue__c>();
+                
+                for(NBA_Queue__c item : items) {
+                    if (shouldSkipQueueItem(item)) {
+                        System.debug('Skipping item ' + item.Id + ' due to filtering rules');
+                        continue;
+                    }
+                    filteredItems.add(item);
+                }
+                
+                System.debug('Items after filtering: ' + filteredItems.size());
+                
+                if (!filteredItems.isEmpty()) {
+                    // Calculate adjusted priority scores and sort by the adjusted score
+                    for(NBA_Queue__c item : filteredItems) {
+                        Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(item);
+                        System.debug('Item: ' + item.Id + ' - Status: ' + item.Status__c + ' - Original Score: ' + item.Priority_Score__c + ' - Adjusted Score: ' + scoreDetails.get('adjustedScore'));
+                    }
+                    
+                    // Sort by adjusted priority score (highest first)
+                    filteredItems.sort(new PriorityScoreComparator());
+                    
+                    NBA_Queue__c selectedItem = filteredItems[0];
+                    Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(selectedItem);
+                    
+                    System.debug('Returning item: ' + selectedItem.Id + ' - ' + selectedItem.Subject__c);
+                    
+                    result.put('queueItem', selectedItem);
+                    result.put('originalScore', selectedItem.Priority_Score__c);
+                    result.put('adjustedScore', scoreDetails.get('adjustedScore'));
+                    result.put('webUsageMultiplier', scoreDetails.get('webUsageMultiplier'));
+                    result.put('bestTimeMultiplier', scoreDetails.get('bestTimeMultiplier'));
+                    result.put('webUsageApplied', scoreDetails.get('webUsageApplied'));
+                    result.put('bestTimeApplied', scoreDetails.get('bestTimeApplied'));
+                    
+                    // Note: Contact information will be handled in the LWC by querying OpportunityContactRole directly
+                    // This avoids the need to add virtual fields to the NBA_Queue__c object
+                } else {
+                    System.debug('No items remain after filtering');
+                    result.put('queueItem', null);
+                }
+            } else {
+                System.debug('No pending or in progress items found for user');
+                result.put('queueItem', null);
+            }
+            
+            return result;
+            
+        } catch (Exception e) {
+            System.debug('ERROR in getNextQueueItemWithDetails: ' + e.getMessage());
             System.debug('Stack trace: ' + e.getStackTraceString());
             throw new AuraHandledException('Error retrieving queue items: ' + e.getMessage());
         }
@@ -340,13 +448,14 @@ public class NBAQueueManager {
                 List<Opportunity> opportunities = [
                     SELECT Primary_Contact__c 
                     FROM Opportunity 
-                    WHERE Id = :queueItem.Opportunity__c 
-                    AND Primary_Contact__c != null
+                    WHERE Id = :queueItem.Opportunity__c
                     LIMIT 1
                 ];
-                if (!opportunities.isEmpty()) {
+                if (!opportunities.isEmpty() && opportunities[0].Primary_Contact__c != null) {
                     whoId = opportunities[0].Primary_Contact__c;
                     System.debug('Primary Contact found: ' + whoId);
+                } else {
+                    System.debug('No primary contact found for opportunity: ' + queueItem.Opportunity__c);
                 }
             }
             
@@ -370,7 +479,7 @@ public class NBAQueueManager {
             insert newTask;
             System.debug('Task created successfully: ' + newTask.Id);
             
-            // Update queue item status to "In Progress" and actioned date
+            // Update queue item status and actioned date
             queueItem.Status__c = 'In Progress';
             queueItem.Actioned_Date__c = System.now();
             update queueItem;
@@ -425,6 +534,18 @@ public class NBAQueueManager {
         
         callTask.Description = updatedDescription;
         update callTask;
+    }
+    
+    @AuraEnabled
+    public static void cancelCallDisposition(Id queueItemId) {
+        // Revert the NBA Queue record status back to "Pending" when disposition is cancelled
+        NBA_Queue__c queueItem = [SELECT Id, Status__c, Sales_Rep__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :queueItemId];
+        queueItem.Status__c = 'Pending';
+        queueItem.Completed_Date__c = null; // Clear completed date when reverting to pending
+        update queueItem;
+        
+        // Publish platform event for real-time updates
+        NBAQueueEventPublisher.publishItemStatusUpdate(queueItem.Id, queueItem.Sales_Rep__c, 'Updated');
     }
     
     @AuraEnabled
@@ -491,18 +612,6 @@ public class NBAQueueManager {
         }
     }
     
-    @AuraEnabled
-    public static void cancelCallDisposition(Id queueItemId) {
-        // Revert the NBA Queue record status back to "Pending" when disposition is cancelled
-        NBA_Queue__c queueItem = [SELECT Id, Status__c, Sales_Rep__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :queueItemId];
-        queueItem.Status__c = 'Pending';
-        queueItem.Completed_Date__c = null; // Clear completed date when reverting to pending
-        update queueItem;
-        
-        // Publish platform event for real-time updates
-        NBAQueueEventPublisher.publishItemStatusUpdate(queueItem.Id, queueItem.Sales_Rep__c, 'Updated');
-    }
-    
     @TestVisible private static String buildTaskDescription(NBA_Queue__c queueItem, String additionalNotes) {
         String description = queueItem.Description__c != null ? queueItem.Description__c : '';
         
@@ -550,6 +659,17 @@ public class NBAQueueManager {
             }
         }
         
+        // Skip if Opportunity Future_Follow_Up_Date__c is in the future
+        if (item.Opportunity__c != null && item.Opportunity__r.Future_Follow_Up_Date__c != null) {
+            Date futureFollowUpDate = item.Opportunity__r.Future_Follow_Up_Date__c;
+            Date today = Date.today();
+            
+            if (futureFollowUpDate > today) {
+                System.debug('Skipping item due to future follow-up date: ' + futureFollowUpDate);
+                return true;
+            }
+        }
+        
         // Skip if Account Payroll_Status__c contains specific values
         if (item.Account__r.Payroll_Status__c != null) {
             String payrollStatus = item.Account__r.Payroll_Status__c.toLowerCase();
@@ -564,113 +684,7 @@ public class NBAQueueManager {
         return false;
     }
 
-    @AuraEnabled
-    public static Map<String, Object> getNextQueueItemWithDetails(Id userId) {
-        // Debug logging
-        System.debug('=== NBA Queue Debug ===');
-        System.debug('User ID requesting queue items: ' + userId);
-        System.debug('Current user context: ' + UserInfo.getUserId());
-        System.debug('Current user name: ' + UserInfo.getName());
-        
-        Map<String, Object> result = new Map<String, Object>();
-        
-        try {
-            // First, let's check if there are any NBA_Queue__c records at all for this user
-            List<NBA_Queue__c> allUserItems = [
-                SELECT Id, Account__c, Sales_Rep__c, Status__c, Action_Type__c, Subject__c
-                FROM NBA_Queue__c 
-                WHERE Sales_Rep__c = :userId
-            ];
-            System.debug('Total NBA_Queue__c records for user: ' + allUserItems.size());
-            
-            // Log each record for debugging
-            for(NBA_Queue__c item : allUserItems) {
-                System.debug('Record ID: ' + item.Id + 
-                           ', Sales_Rep__c: ' + item.Sales_Rep__c + 
-                           ', Status__c: ' + item.Status__c);
-            }
-            
-            // Now get the pending and in progress items with additional fields for priority calculation
-            List<NBA_Queue__c> items = [
-                SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
-                       Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
-                       Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c,
-                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Model_Reason__c, Status__c,
-                       Company_Age_Days__c, Active_Employees__c, Feature_Usage__c, Contact_Name__c, Contact_Phone__c, Action_Context__c,
-                       Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
-                       Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Description,
-                       Opportunity_Stage__c, Opportunity_Source__c, Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c, Inception_Switcher__c,
-                       Current_Payroll_Provider__c, Last_Call_Date__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
-                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c,
-                       Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
-                       Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
-                       Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
-                       Most_Recent_Payroll_Provider__c, Implementation_Project__c, Implementation_Project__r.Name
-                FROM NBA_Queue__c 
-                WHERE Sales_Rep__c = :userId
-                AND Status__c IN ('Pending', 'In Progress')
-                ORDER BY Status__c ASC, Priority_Score__c DESC, Due_Date__c ASC
-            ];
-            
-            System.debug('Pending NBA_Queue__c records for user: ' + items.size());
-            
-            if (!items.isEmpty()) {
-                // Filter out items that should be skipped
-                List<NBA_Queue__c> filteredItems = new List<NBA_Queue__c>();
-                
-                for(NBA_Queue__c item : items) {
-                    if (shouldSkipQueueItem(item)) {
-                        System.debug('Skipping item ' + item.Id + ' due to filtering rules');
-                        continue;
-                    }
-                    filteredItems.add(item);
-                }
-                
-                System.debug('Items after filtering: ' + filteredItems.size());
-                
-                if (!filteredItems.isEmpty()) {
-                    // Calculate adjusted priority scores and sort by the adjusted score
-                    for(NBA_Queue__c item : filteredItems) {
-                        Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(item);
-                        System.debug('Item: ' + item.Id + ' - Status: ' + item.Status__c + ' - Original Score: ' + item.Priority_Score__c + ' - Adjusted Score: ' + scoreDetails.get('adjustedScore'));
-                    }
-                    
-                    // Sort by adjusted priority score (highest first)
-                    filteredItems.sort(new PriorityScoreComparator());
-                    
-                    NBA_Queue__c selectedItem = filteredItems[0];
-                    Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(selectedItem);
-                    
-                    System.debug('Returning item: ' + selectedItem.Id + ' - ' + selectedItem.Subject__c);
-                    
-                    result.put('queueItem', selectedItem);
-                    result.put('originalScore', selectedItem.Priority_Score__c);
-                    result.put('adjustedScore', scoreDetails.get('adjustedScore'));
-                    result.put('webUsageMultiplier', scoreDetails.get('webUsageMultiplier'));
-                    result.put('bestTimeMultiplier', scoreDetails.get('bestTimeMultiplier'));
-                    result.put('webUsageApplied', scoreDetails.get('webUsageApplied'));
-                    result.put('bestTimeApplied', scoreDetails.get('bestTimeApplied'));
-                    
-                    // Note: Contact information will be handled in the LWC by querying OpportunityContactRole directly
-                    // This avoids the need to add virtual fields to the NBA_Queue__c object
-                } else {
-                    System.debug('No items remain after filtering');
-                    result.put('queueItem', null);
-                }
-            } else {
-                System.debug('No pending or in progress items found for user');
-                result.put('queueItem', null);
-            }
-            
-            return result;
-            
-        } catch (Exception e) {
-            System.debug('ERROR in getNextQueueItemWithDetails: ' + e.getMessage());
-            System.debug('Stack trace: ' + e.getStackTraceString());
-            throw new AuraHandledException('Error retrieving queue items: ' + e.getMessage());
-        }
-    }
+
 
     // Helper method to calculate adjusted priority score and return details
     private static Map<String, Object> calculateAdjustedPriorityScoreWithDetails(NBA_Queue__c item) {
