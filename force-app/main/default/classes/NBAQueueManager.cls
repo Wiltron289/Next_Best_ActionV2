@@ -162,11 +162,11 @@ public class NBAQueueManager {
                        Most_Recent_Payroll_Provider__c, Implementation_Project__c, Implementation_Project__r.Name
                 FROM NBA_Queue__c 
                 WHERE Sales_Rep__c = :userId
-                AND Status__c = 'Pending'
-                ORDER BY Priority_Score__c DESC, Due_Date__c ASC
+                AND Status__c IN ('Pending', 'In Progress')
+                ORDER BY Status__c ASC, Priority_Score__c DESC, Due_Date__c ASC
             ];
             
-            System.debug('Pending NBA_Queue__c records for user: ' + items.size());
+            System.debug('Pending and In Progress NBA_Queue__c records for user: ' + items.size());
             
             if (!items.isEmpty()) {
                 // Filter out items that should be skipped
@@ -207,7 +207,7 @@ public class NBAQueueManager {
                     return null;
                 }
             } else {
-                System.debug('No pending items found for user');
+                System.debug('No pending or in progress items found for user');
             }
             
             return null;
@@ -268,7 +268,7 @@ public class NBAQueueManager {
                 ORDER BY Status__c ASC, Priority_Score__c DESC, Due_Date__c ASC
             ];
             
-            System.debug('Pending NBA_Queue__c records for user: ' + items.size());
+            System.debug('Pending and In Progress NBA_Queue__c records for user: ' + items.size());
             
             if (!items.isEmpty()) {
                 // Filter out items that should be skipped
@@ -439,9 +439,9 @@ public class NBAQueueManager {
             System.debug('Queue Item ID: ' + queueItemId);
             System.debug('Additional Notes: ' + additionalNotes);
             
-            NBA_Queue__c queueItem = [SELECT Id, Account__c, Subject__c, Description__c, 
-                                             Due_Date__c, Action_Type__c,
-                                             Priority_Score__c, Sales_Rep__c, Opportunity__c
+            NBA_Queue__c queueItem = [SELECT Id, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c,
+                                             Subject__c, Description__c, Due_Date__c, Action_Type__c,
+                                             Priority_Score__c, Sales_Rep__c, Opportunity__c, Best_Time_to_Call__c
                                       FROM NBA_Queue__c 
                                       WHERE Id = :queueItemId];
             
@@ -653,6 +653,12 @@ public class NBAQueueManager {
 
     // Helper method to determine if a queue item should be skipped based on filtering rules
     private static Boolean shouldSkipQueueItem(NBA_Queue__c item) {
+        // In Progress items should never be excluded - reps need to complete their work
+        if (item.Status__c == 'In Progress') {
+            System.debug('Item is In Progress - skipping all exclusion logic to allow completion');
+            return false;
+        }
+        
         // Skip if Opportunity Stage is one of the specified stages
         if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.StageName != null) {
             String stage = item.Opportunity__r.StageName.toLowerCase();

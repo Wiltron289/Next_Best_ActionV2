@@ -565,6 +565,8 @@ public class NBAQueueManagerTest {
         System.assert(updated.Description.contains('Call Notes'), 'Task description should include call notes');
         System.assertEquals('Connected - DM', updatedItem.Call_Disposition__c);
     }
+    
+
 
     @isTest
     static void testGetAccountPhoneNumber() {
@@ -725,5 +727,39 @@ public class NBAQueueManagerTest {
         NBA_Queue__c afterComplete = [SELECT Id, Priority_Multiplier_Applied__c, Status__c FROM NBA_Queue__c WHERE Id = :servedItem.Id];
         System.assert(afterComplete.Priority_Multiplier_Applied__c.contains('Web Usage (1.25x)'), 'Should set multiplier when action is completed');
         System.assertEquals('Accepted', afterComplete.Status__c, 'Status should be Accepted');
+    }
+    
+    @isTest
+    static void testInProgressItemsNotAffectedByExclusionLogic() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Opportunity opp = [SELECT Id FROM Opportunity WHERE AccountId = :acct.Id LIMIT 1];
+        
+        // Create an NBA Queue item that's In Progress
+        NBA_Queue__c inProgressItem = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 100,
+            Subject__c = 'NBA: Call - In Progress Test',
+            Status__c = 'In Progress',
+            Sales_Rep__c = salesRep.Id,
+            Opportunity__c = opp.Id
+        );
+        insert inProgressItem;
+        
+        Test.startTest();
+        // Update the opportunity to trigger exclusion logic (set last call to today)
+        opp.Last_Call_Date_Time__c = DateTime.now();
+        update opp;
+        
+        // Try to get the next queue item - the In Progress item should still be returned
+        // even though the opportunity now has a last call date of today
+        NBA_Queue__c returnedItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        Test.stopTest();
+        
+        // The In Progress item should still be available despite the exclusion logic
+        System.assertNotEquals(null, returnedItem, 'In Progress item should not be excluded by opportunity updates');
+        System.assertEquals(inProgressItem.Id, returnedItem.Id, 'Should return the In Progress item');
+        System.assertEquals('In Progress', returnedItem.Status__c, 'Item should remain In Progress');
     }
 }
