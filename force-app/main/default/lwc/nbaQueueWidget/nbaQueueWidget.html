@@ -1,6 +1,6 @@
 <template>
     <template if:false={queueItem}>
-        <div class="nba-widget-card">
+        <div class="nba-widget-card" style={containerStyle}>
             <div class="nba-widget-header">
                 <div class="nba-widget-title">Next Best Action</div>
             </div>
@@ -12,7 +12,7 @@
         </div>
     </template>
     <template if:true={queueItem}>
-        <div class={widgetClass}>
+        <div class={widgetClass} style={containerStyle}>
             <div class="nba-widget-header">
                 <div class="nba-widget-title">Next Best Action</div>
                 <div class="nba-widget-header-actions">
@@ -50,12 +50,6 @@
                     </template>
                 </div>
 
-                <template if:true={queueItem.Opportunity__c}>
-                    <div class="nba-widget-row nba-widget-source-row">
-                        <span class="nba-widget-source-label">Source:</span>
-                        <span class="nba-widget-source-value">{opportunitySource}</span>
-                    </div>
-                </template>
                 <div class="nba-widget-row nba-widget-badges-row">
                     <template if:true={employeeCount}>
                         <span class="nba-widget-badge">{employeeCount} employees</span>
@@ -63,61 +57,12 @@
                     <template if:true={companyAgeMonths}>
                         <span class="nba-widget-badge">{companyAgeMonths} months old</span>
                     </template>
-                    <template if:true={useCaseTimeTracking}>
-                        <span class="nba-widget-badge">Time tracking</span>
-                    </template>
-                    <template if:true={useCaseScheduling}>
-                        <span class="nba-widget-badge">Scheduling</span>
-                    </template>
-                    <template if:true={useCasePayroll}>
-                        <span class="nba-widget-badge">Payroll</span>
-                    </template>
                 </div>
-                <template if:true={queueItem.Opportunity__c}>
-                    <div class="nba-widget-tabs">
-                        <button value="details" onclick={handleTabChange} class={detailsTabClass}>Opportunity details</button>
-                        <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
-                        <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
-                    </div>
-                </template>
-                <template if:false={queueItem.Opportunity__c}>
-                    <div class="nba-widget-tabs">
-                        <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
-                        <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
-                    </div>
-                </template>
-                <template if:true={isDetailsTab}>
-                    <div class="nba-widget-details">
-                        <template if:true={queueItem.Opportunity__c}>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Payroll Buyer Stage</span>
-                                <span class="nba-widget-detail-value">{opportunityPayrollBuyerStage}</span>
-                            </div>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Implementation Status</span>
-                                <span class="nba-widget-detail-value">{opportunityImplementationStatus}</span>
-                            </div>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Payroll Provider</span>
-                                <span class="nba-widget-detail-value">{currentPayroll}</span>
-                            </div>
-                        </template>
-                        <template if:false={queueItem.Opportunity__c}>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Account</span>
-                                <span class="nba-widget-detail-value">{accountNameDisplay}</span>
-                            </div>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Employee Count</span>
-                                <span class="nba-widget-detail-value">{employeeCountDisplay}</span>
-                            </div>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Company Age</span>
-                                <span class="nba-widget-detail-value">{companyAgeDisplay}</span>
-                            </div>
-                        </template>
-                    </div>
-                </template>
+                <div class="nba-widget-tabs">
+                    <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
+                    <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
+                </div>
+                <!-- Removed Opportunity details panel: this content now lives on the right panel of the console page -->
                 <template if:true={isContactTab}>
                     <div class="nba-widget-contact">
                         <template if:true={displayContactPerson}>
@@ -267,7 +212,7 @@
                     </div>
                     <div class="nba-widget-form-content">
                         <div class="nba-widget-form-field">
-                            <label>Phone Number</label>
+                            <label>Phone Number Called</label>
                             <div class="nba-widget-form-value">{currentPhoneNumber}</div>
                         </div>
                         <div class="nba-widget-form-field">
@@ -279,14 +224,28 @@
                                 </template>
                             </select>
                         </div>
+                        <template if:true={hasOpportunity}>
+                            <div class="nba-widget-form-field">
+                                <label for="stage-update">Opportunity Stage Update</label>
+                                <select id="stage-update" class="nba-widget-form-select" onchange={handleStageChange} value={selectedStage}>
+                                    <template for:each={opportunityStageOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </template>
                         <div class="nba-widget-form-field">
                             <label for="call-notes">Call Notes</label>
                             <textarea id="call-notes" class="nba-widget-form-textarea" oninput={handleCallNotesChange} value={callNotes} placeholder="Enter call notes..."></textarea>
                         </div>
-                        <template if:true={hasOpportunityDescription}>
+                        <template if:true={showNextStepsFields}>
                             <div class="nba-widget-form-field">
-                                <label>Rep Notes</label>
-                                <div class="nba-widget-form-rep-notes">{opportunityDescription}</div>
+                                <label for="next-step-date">Next Step Date</label>
+                                <input type="date" id="next-step-date" class="nba-widget-form-textarea" oninput={handleNextStepDateChange} value={nextStepDate} />
+                            </div>
+                            <div class="nba-widget-form-field">
+                                <label for="next-step">Next Step</label>
+                                <textarea id="next-step" class="nba-widget-form-textarea" oninput={handleNextStepsChange} value={nextSteps} placeholder="Enter next step..."></textarea>
                             </div>
                         </template>
                         <div class="nba-widget-form-actions">
@@ -308,9 +267,32 @@
                     </div>
                     <div class="nba-widget-form-content">
                         <div class="nba-widget-form-field">
-                            <label for="dismiss-reason">Reason for Dismissal *</label>
-                            <textarea id="dismiss-reason" class="nba-widget-form-textarea" oninput={handleDismissReasonChange} value={dismissReason} placeholder="Enter reason..." required></textarea>
+                            <label for="dismissal-category">Dismissal Category *</label>
+                            <select id="dismissal-category" class="nba-widget-form-select" onchange={handleDismissalCategoryChange}>
+                                <option value="">Select...</option>
+                                <option value="Call Scheduled">Call Scheduled</option>
+                                <option value="Time Zone">Time Zone</option>
+                                <option value="Other">Other</option>
+                            </select>
                         </div>
+                        <template if:true={isCallScheduled}>
+                            <div class="nba-widget-form-field">
+                                <label for="snooze-datetime">When is the Call Scheduled?</label>
+                                <input id="snooze-datetime" type="datetime-local" class="nba-widget-form-textarea" oninput={handleSnoozeScheduledAtChange} />
+                            </div>
+                        </template>
+                        <template if:true={isTimeZoneSnooze}>
+                            <div class="nba-widget-form-field">
+                                <label for="snooze-hours">Snooze for how many hours?</label>
+                                <input id="snooze-hours" type="number" min="1" class="nba-widget-form-textarea" oninput={handleSnoozeHoursChange} />
+                            </div>
+                        </template>
+                        <template if:true={isOtherDismissal}>
+                            <div class="nba-widget-form-field">
+                                <label for="dismiss-reason">Reason for Dismissal</label>
+                                <textarea id="dismiss-reason" class="nba-widget-form-textarea" oninput={handleDismissReasonChange} value={dismissReason} placeholder="Enter reason..."></textarea>
+                            </div>
+                        </template>
                         <div class="nba-widget-form-actions">
                             <button class="nba-widget-form-cancel" onclick={closeDismissForm}>Cancel</button>
                             <button class="nba-widget-form-save" onclick={submitDismissReason} disabled={isLoading}>

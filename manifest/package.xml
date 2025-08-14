@@ -26,28 +26,23 @@
     <types>
         <members>NBA_Queue__c.Account__c</members>
         <members>NBA_Queue__c.Action_Type__c</members>
-        <members>NBA_Queue__c.Assigned_User__c</members>
+        
         <members>NBA_Queue__c.Description__c</members>
         <members>NBA_Queue__c.Due_Date__c</members>
-        <members>NBA_Queue__c.Model_Reason__c</members>
-        <members>NBA_Queue__c.Model_Version__c</members>
+        <!-- Removed: Model_Reason__c, Model_Version__c -->
         <members>NBA_Queue__c.Priority_Score__c</members>
         <members>NBA_Queue__c.Status__c</members>
         <members>NBA_Queue__c.Subject__c</members>
         <members>NBA_Queue__c.Company_Age_Days__c</members>
-        <members>NBA_Queue__c.Active_Employees__c</members>
-        <members>NBA_Queue__c.Feature_Usage__c</members>
-        <members>NBA_Queue__c.Contact_Name__c</members>
-        <members>NBA_Queue__c.Contact_Phone__c</members>
+        <!-- Removed: Active_Employees__c, Feature_Usage__c, Contact_Name__c, Contact_Phone__c -->
         <members>NBA_Queue__c.Action_Context__c</members>
-        <members>NBA_Queue__c.Opportunity_Stage__c</members>
-        <members>NBA_Queue__c.Opportunity_Source__c</members>
+        <!-- Removed: Opportunity_Stage__c, Opportunity_Source__c -->
         <members>NBA_Queue__c.Payroll_Buyer_Stage__c</members>
         <members>NBA_Queue__c.Rep_Notes__c</members>
         <members>NBA_Queue__c.Close_Date__c</members>
-        <members>NBA_Queue__c.Inception_Switcher__c</members>
+        <!-- Removed: Inception_Switcher__c -->
         <members>NBA_Queue__c.Current_Payroll_Provider__c</members>
-        <members>NBA_Queue__c.Last_Call_Date__c</members>
+        <!-- Removed: Last_Call_Date__c -->
         <members>NBA_Queue__c.Best_Time_to_Call__c</members>
         <name>CustomField</name>
     </types>

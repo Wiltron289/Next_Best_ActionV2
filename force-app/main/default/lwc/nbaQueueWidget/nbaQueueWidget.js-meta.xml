@@ -13,6 +13,10 @@
         <targetConfig targets="lightning__UtilityBar">
             <property name="panelHeight" type="Integer" default="400" min="200" max="800" 
                      label="Panel Height" description="Height of the NBA Queue panel in pixels"/>
+            <property name="navigateOnAccept" type="Boolean" default="false" label="Navigate on Accept" description="If true, navigate to record after accept; default off"/>
+        </targetConfig>
+        <targetConfig targets="lightning__AppPage, lightning__HomePage, lightning__RecordPage">
+            <property name="navigateOnAccept" type="Boolean" default="false" label="Navigate on Accept" description="If true, navigate to record after accept; default off"/>
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

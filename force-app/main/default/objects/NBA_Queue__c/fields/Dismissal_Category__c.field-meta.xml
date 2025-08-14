@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Inception_Switcher__c</fullName>
-    <externalId>false</externalId>
-    <label>Inception/Switcher</label>
+    <fullName>Dismissal_Category__c</fullName>
+    <label>Dismissal Category</label>
     <required>false</required>
     <trackHistory>false</trackHistory>
     <trackTrending>false</trackTrending>
@@ -12,14 +11,19 @@
         <valueSetDefinition>
             <sorted>false</sorted>
             <value>
-                <fullName>Inception</fullName>
+                <fullName>Call Scheduled</fullName>
                 <default>false</default>
-                <label>Inception</label>
+                <label>Call Scheduled</label>
             </value>
             <value>
-                <fullName>Switcher</fullName>
+                <fullName>Time Zone</fullName>
                 <default>false</default>
-                <label>Switcher</label>
+                <label>Time Zone</label>
+            </value>
+            <value>
+                <fullName>Other</fullName>
+                <default>false</default>
+                <label>Other</label>
             </value>
         </valueSetDefinition>
     </valueSet>

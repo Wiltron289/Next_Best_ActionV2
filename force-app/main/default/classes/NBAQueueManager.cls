@@ -57,11 +57,8 @@ public class NBAQueueManager {
                 Description__c = req.modelReason,
                 Due_Date__c = calculateDueDate(req.actionType),
                 Status__c = 'Pending',
-                Model_Reason__c = req.modelReason,
-                Model_Version__c = req.modelVersion,
                 Opportunity__c = oppId,
-                Sales_Rep__c = salesRepId,
-                Most_Recent_Payroll_Provider__c = req.mostRecentPayrollProvider
+                Sales_Rep__c = salesRepId
             );
             queueItems.add(item);
         }
@@ -147,22 +144,24 @@ public class NBAQueueManager {
             List<NBA_Queue__c> items = [
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
-                       Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c,
-                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Model_Reason__c, Status__c,
-                       Company_Age_Days__c, Active_Employees__c, Feature_Usage__c, Contact_Name__c, Contact_Phone__c, Action_Context__c,
+                       Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
+                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
+                        Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c,
-                       Opportunity_Stage__c, Opportunity_Source__c, Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c, Inception_Switcher__c,
-                       Current_Payroll_Provider__c, Last_Call_Date__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
+                       Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
+                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
-                       Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
-                       Most_Recent_Payroll_Provider__c, Implementation_Project__c, Implementation_Project__r.Name
+                        Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
+                        Implementation_Project__c, Implementation_Project__r.Name,
+                        Call_Script__c
                 FROM NBA_Queue__c 
                 WHERE Sales_Rep__c = :userId
-                AND Status__c IN ('Pending', 'In Progress')
+                AND Status__c IN ('Pending', 'In Progress', 'Snoozed')
+                AND (Status__c != 'Snoozed' OR Snoozed_Until__c <= :System.now())
                 ORDER BY Status__c ASC, Priority_Score__c DESC, Due_Date__c ASC
             ];
             
@@ -249,22 +248,24 @@ public class NBAQueueManager {
             List<NBA_Queue__c> items = [
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
-                       Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c,
-                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Model_Reason__c, Status__c,
-                       Company_Age_Days__c, Active_Employees__c, Feature_Usage__c, Contact_Name__c, Contact_Phone__c, Action_Context__c,
+                       Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
+                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
+                       Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description,
-                       Opportunity_Stage__c, Opportunity_Source__c, Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c, Inception_Switcher__c,
-                       Current_Payroll_Provider__c, Last_Call_Date__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
+                       Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
+                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
-                       Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
-                       Most_Recent_Payroll_Provider__c, Implementation_Project__c, Implementation_Project__r.Name
+                        Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
+                        Implementation_Project__c, Implementation_Project__r.Name,
+                        Call_Script__c
                 FROM NBA_Queue__c 
                 WHERE Sales_Rep__c = :userId
-                AND Status__c IN ('Pending', 'In Progress')
+                AND Status__c IN ('Pending', 'In Progress', 'Snoozed')
+                AND (Status__c != 'Snoozed' OR Snoozed_Until__c <= :System.now())
                 ORDER BY Status__c ASC, Priority_Score__c DESC, Due_Date__c ASC
             ];
             
@@ -433,6 +434,111 @@ public class NBAQueueManager {
     }
     
     @AuraEnabled
+    public static Map<String, Object> getAccountPrimaryContact(Id accountId) {
+        try {
+            Map<String, Object> result = new Map<String, Object>();
+            if (accountId == null) {
+                return result;
+            }
+            List<Account> accounts = [
+                SELECT Id, Primary_Contact__c, Primary_Contact__r.Name, Primary_Contact__r.Email,
+                       Primary_Contact__r.Phone, Primary_Contact__r.MobilePhone
+                FROM Account
+                WHERE Id = :accountId AND Primary_Contact__c != null
+                LIMIT 1
+            ];
+            if (!accounts.isEmpty()) {
+                Account acc = accounts[0];
+                result.put('contactId', acc.Primary_Contact__c);
+                result.put('contactName', acc.Primary_Contact__r.Name);
+                result.put('contactEmail', acc.Primary_Contact__r.Email);
+                result.put('contactPhone', acc.Primary_Contact__r.Phone != null ? acc.Primary_Contact__r.Phone : acc.Primary_Contact__r.MobilePhone);
+            }
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving account primary contact: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static void sendQueueEmail(Id queueItemId, String toAddress, String subject, String htmlBody) {
+        if (queueItemId == null) {
+            throw new AuraHandledException('Queue item id is required');
+        }
+        if (String.isBlank(toAddress)) {
+            throw new AuraHandledException('To address is required');
+        }
+        try {
+            NBA_Queue__c qi = [SELECT Id, Opportunity__c, Account__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+            mail.setToAddresses(new List<String>{ toAddress });
+            mail.setSaveAsActivity(true);
+            if (qi.Opportunity__c != null) {
+                mail.setWhatId(qi.Opportunity__c);
+            } else if (qi.Account__c != null) {
+                mail.setWhatId(qi.Account__c);
+            }
+            mail.setSubject(subject == null ? '' : subject);
+            if (!String.isBlank(htmlBody)) {
+                mail.setHtmlBody(htmlBody);
+            } else {
+                mail.setPlainTextBody('');
+            }
+            Messaging.SendEmailResult[] r = Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ mail });
+            // If send succeeds, move item to Accepted/Completed as needed
+            if (r != null && r.size() > 0 && r[0].isSuccess()) {
+                NBA_Queue__c forUpdate = [SELECT Id, Status__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+                forUpdate.Status__c = 'Accepted';
+                update forUpdate;
+            }
+        } catch (Exception e) {
+            throw new AuraHandledException('Error sending email: ' + e.getMessage());
+        }
+    }
+
+    // Email template support for inline composer
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String, String>> listEmailTemplates(String searchText) {
+        List<Map<String, String>> out = new List<Map<String, String>>();
+        String likeExpr = (searchText == null || searchText.trim() == '') ? null : '%' + searchText.trim() + '%';
+        List<EmailTemplate> temps = likeExpr == null ?
+            [SELECT Id, Name FROM EmailTemplate WHERE IsActive = true ORDER BY Name LIMIT 200] :
+            [SELECT Id, Name FROM EmailTemplate WHERE IsActive = true AND Name LIKE :likeExpr ORDER BY Name LIMIT 200];
+        for (EmailTemplate t : temps) {
+            Map<String, String> row = new Map<String, String>();
+            row.put('id', (String)t.Id);
+            row.put('name', t.Name);
+            out.add(row);
+        }
+        return out;
+    }
+
+    // Note: We intentionally avoid server-side render calls to keep compatibility; we send using setTemplateId instead
+
+    @AuraEnabled
+    public static void sendQueueEmailWithTemplate(Id queueItemId, Id templateId, Id whoId, Id whatId, String subjectOverride) {
+        if (queueItemId == null) throw new AuraHandledException('Queue item id is required');
+        if (templateId == null) throw new AuraHandledException('Template id is required');
+        if (whoId == null) throw new AuraHandledException('A Contact or Lead (whoId) is required to use a template');
+        try {
+            NBA_Queue__c qi = [SELECT Id FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+            mail.setTemplateId(templateId);
+            mail.setTargetObjectId(whoId);
+            if (whatId != null) mail.setWhatId(whatId);
+            mail.setSaveAsActivity(true);
+            if (subjectOverride != null) mail.setSubject(subjectOverride);
+            Messaging.SendEmailResult[] r = Messaging.sendEmail(new List<Messaging.SingleEmailMessage>{ mail });
+            if (r != null && r.size() > 0 && r[0].isSuccess()) {
+                NBA_Queue__c forUpdate = new NBA_Queue__c(Id = queueItemId, Status__c = 'Accepted');
+                update forUpdate;
+            }
+        } catch (Exception e) {
+            throw new AuraHandledException('Error sending templated email: ' + e.getMessage());
+        }
+    }
+    
+    @AuraEnabled
     public static String acceptAction(Id queueItemId, String additionalNotes) {
         try {
             System.debug('=== acceptAction Debug ===');
@@ -583,8 +689,8 @@ public class NBAQueueManager {
         
         // Update the NBA Queue record with the disposition and notes
         NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, 
-                                         Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, 
-                                         Best_Time_to_Call__c
+                                         Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Last_Progression_Time__c, 
+                                          Best_Time_to_Call__c, Next_Step_Date__c, Next_Steps__c
                                   FROM NBA_Queue__c WHERE Id = :queueItemId];
         
         // Update Rep_Notes__c with call notes
@@ -627,6 +733,64 @@ public class NBAQueueManager {
                 System.debug('Error updating Opportunity Description: ' + e.getMessage());
             }
         }
+    }
+
+    @AuraEnabled
+    public static void saveNextSteps(Id queueItemId, Date nextStepDate, String nextSteps, String newOpportunityStage) {
+        // Update NBA Queue and related Opportunity with next steps and stage
+        NBA_Queue__c queueItem = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId];
+
+        if (nextStepDate != null) {
+            queueItem.Next_Step_Date__c = nextStepDate;
+        }
+        if (String.isNotBlank(nextSteps)) {
+            queueItem.Next_Steps__c = nextSteps;
+        }
+        update queueItem;
+
+        if (queueItem.Opportunity__c != null) {
+            Opportunity opp = [SELECT Id, Next_Step_Date__c, NextStep, StageName FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
+            if (nextStepDate != null) {
+                opp.Next_Step_Date__c = nextStepDate;
+            }
+            if (String.isNotBlank(nextSteps)) {
+                opp.NextStep = nextSteps;
+            }
+            if (String.isNotBlank(newOpportunityStage)) {
+                opp.StageName = newOpportunityStage;
+            }
+            update opp;
+        }
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<String> getOpportunityStageNames() {
+        Schema.DescribeFieldResult dfr = Opportunity.StageName.getDescribe();
+        List<String> stages = new List<String>();
+        for (Schema.PicklistEntry pe : dfr.getPicklistValues()) {
+            stages.add(pe.getLabel());
+        }
+        return stages;
+    }
+    
+    @AuraEnabled
+    public static void snoozeQueueItem(Id queueItemId, String category, Datetime scheduledDateTime, Integer snoozeHours) {
+        if (queueItemId == null || String.isBlank(category)) {
+            throw new AuraHandledException('Missing required snooze inputs');
+        }
+        NBA_Queue__c item = [SELECT Id, Status__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+        Datetime snoozeUntil;
+        if (category == 'Call Scheduled' && scheduledDateTime != null) {
+            snoozeUntil = scheduledDateTime.addMinutes(-15);
+        } else if (category == 'Time Zone' && snoozeHours != null) {
+            snoozeUntil = System.now().addHours(snoozeHours);
+        }
+        if (snoozeUntil == null) {
+            throw new AuraHandledException('Invalid snooze parameters');
+        }
+        item.Status__c = 'Snoozed';
+        item.Snoozed_Until__c = snoozeUntil;
+        update item;
     }
     
     @TestVisible private static String buildTaskDescription(NBA_Queue__c queueItem, String additionalNotes) {
@@ -714,8 +878,10 @@ public class NBAQueueManager {
         Decimal adjustedScore = item.Priority_Score__c != null ? item.Priority_Score__c : 0;
         Boolean webUsageApplied = false;
         Boolean bestTimeApplied = false;
+        Boolean progressionApplied = false;
         Decimal webUsageMultiplier = 1;
         Decimal bestTimeMultiplier = 1;
+        Decimal progressionMultiplier = 1;
 
         // Check if Last_Web_Usage_Timestamp__c is within the last hour
         if (item.Account__r.Last_Web_Usage_Timestamp__c != null) {
@@ -750,12 +916,30 @@ public class NBAQueueManager {
             }
         }
         
+        // New: Progression recency multiplier based on Account.Last_Progression_Time__c
+        if (item.Account__r != null && item.Account__r.Last_Progression_Time__c != null) {
+            Datetime lastProg = item.Account__r.Last_Progression_Time__c;
+            Datetime sevenDaysAgo = Datetime.now().addDays(-7);
+            Datetime thirtyDaysAgo = Datetime.now().addDays(-30);
+            if (lastProg >= sevenDaysAgo) {
+                adjustedScore = adjustedScore * 1.5;
+                progressionApplied = true;
+                progressionMultiplier = 1.5;
+            } else if (lastProg >= thirtyDaysAgo) {
+                adjustedScore = adjustedScore * 1.2;
+                progressionApplied = true;
+                progressionMultiplier = 1.2;
+            }
+        }
+        
         Map<String, Object> details = new Map<String, Object>();
         details.put('adjustedScore', adjustedScore);
         details.put('webUsageApplied', webUsageApplied);
         details.put('bestTimeApplied', bestTimeApplied);
+        details.put('progressionApplied', progressionApplied);
         details.put('webUsageMultiplier', webUsageMultiplier);
         details.put('bestTimeMultiplier', bestTimeMultiplier);
+        details.put('progressionMultiplier', progressionMultiplier);
         
         // Build multiplier description for Priority_Multiplier_Applied__c field
         List<String> appliedMultipliers = new List<String>();
@@ -764,6 +948,9 @@ public class NBAQueueManager {
         }
         if (bestTimeApplied) {
             appliedMultipliers.add('Best Time (1.2x)');
+        }
+        if (progressionApplied) {
+            appliedMultipliers.add('Progression (' + String.valueOf(progressionMultiplier) + 'x)');
         }
         String multiplierDescription = appliedMultipliers.isEmpty() ? 'None' : String.join(appliedMultipliers, ', ');
         details.put('multiplierDescription', multiplierDescription);

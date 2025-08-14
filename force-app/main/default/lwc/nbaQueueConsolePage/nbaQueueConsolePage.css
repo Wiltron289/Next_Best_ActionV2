@@ -1,0 +1,58 @@
+.fit-height { height: 100%; }
+.two-col { align-items: stretch; }
+.console-wrapper { padding: 8px; position: relative; }
+.empty-state { padding: 24px; text-align: center; color: #666; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 16px; align-items: start; }
+.three-col .middle { background: #fff; border: 1px solid #e1e5e9; border-radius: 8px; }
+.left, .middle, .right { width: 100%; }
+.left, .right { background: #fff; border: 1px solid #e1e5e9; border-radius: 8px; }
+.left { /* ensure full track width */ justify-self: stretch; }
+.left, .middle, .right { height: var(--panel-height, 900px); overflow: hidden; }
+.left { display: flex; }
+.left c-nba-queue-widget { align-self: stretch; width: 100%; }
+.middle .panel, .right .panel { height: 100%; display: flex; flex-direction: column; }
+.panel-body { flex: 1 1 auto; overflow: auto; min-height: 0; }
+.header { display:flex; justify-content: space-between; align-items:center; padding: 16px; background: linear-gradient(135deg, #7e3dd4 0%, #1e0b3a 100%); color:#fff; border-radius:8px 8px 0 0; }
+.title { font-weight: 700; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.actions { display:flex; gap:8px; }
+.body { padding: 16px; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.row { display:flex; align-items:center; gap:12px; margin-bottom: 12px; }
+.icon { font-size: 1.25rem; color: #7e3dd4; }
+.main a { color: #7e3dd4; text-decoration: none; font-weight: 600; }
+.badges { display:flex; gap:8px; margin: 12px 0; }
+.badge { background:#e0ff00; color:#1e0b3a; padding:4px 8px; border-radius: 12px; font-weight: 700; font-size: 0.75rem; }
+.footer { display:flex; gap:12px; margin-top: 12px; }
+.btn { padding: 8px 16px; border-radius: 6px; border: 2px solid transparent; cursor:pointer; font-weight:700; }
+.btn.primary { background:#e0ff00; color:#1e0b3a; border-color:#e0ff00; }
+.btn.ghost { background:#fff; color:#6c757d; border-color:#e9ecef; }
+.btn.refresh { background: rgba(255,255,255,0.15); color:#fff; border-color: rgba(255,255,255,0.25); }
+.form { border-top:1px solid #e9ecef; padding: 16px; }
+.form-row { display:flex; flex-direction:column; gap:6px; margin-bottom: 12px; }
+.form-row label { font-weight:600; color:#1e0b3a; font-size: 0.875rem; }
+.form-row select, .form-row textarea { border:1px solid #e9ecef; border-radius:6px; padding:8px; }
+.form-actions { display:flex; gap:12px; justify-content:flex-end; }
+.panel { background:#ffffff; border: 1px solid #e1e5e9; border-radius: 8px; padding: 16px; box-sizing: border-box; }
+.panel + .panel { border-top: 1px solid #e9ecef; }
+.panel-title { font-weight:700; margin-bottom: 8px; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color:#1e0b3a; }
+.panel-banner { display:flex; justify-content: space-between; align-items:center; padding: 12px 16px; background: linear-gradient(135deg, #7e3dd4 0%, #1e0b3a 100%); color:#fff; border-radius:8px; margin:-8px -8px 12px -8px; }
+.panel-banner-title { font-weight:700; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.panel-body { padding-top: 4px; }
+.field { display:flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e9ecef; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+.field:last-child { border-bottom: none; }
+.script { white-space: pre-wrap; background:#f8f9fa; border:1px solid #e9ecef; border-radius:6px; padding:12px; min-height: 300px; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color:#1e0b3a; }
+/* Right form theming: align with header gradient framing */
+.right .panel-title { color: #1e0b3a; }
+.right lightning-record-form { --slds-c-input-color-border: #e1e5e9; }
+
+/* Resizers for future adjustable UI (non-functional placeholders) */
+.col-resizer { position: absolute; top: 8px; bottom: 8px; width: 6px; cursor: col-resize; z-index: 5; background: transparent; }
+.col-resizer:hover { background: rgba(126,61,212,0.15); }
+.height-resizer { position: absolute; left: 8px; right: 8px; height: 8px; cursor: row-resize; z-index: 5; bottom: 4px; background: transparent; }
+.height-resizer:hover { background: rgba(126,61,212,0.15); }
+
+@media (max-width: 1024px) {
+  .two-col { grid-template-columns: 1fr; }
+  .left { width: 100%; }
+  .three-col .middle { display: none; }
+}
+

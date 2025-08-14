@@ -3,6 +3,21 @@
     <description>Permission set for NBA Queue users to access and manage NBA Queue records</description>
     <hasActivationRequired>false</hasActivationRequired>
     <label>NBA Queue User</label>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>NBA_Queue__c.Call_Script__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>NBA_Queue__c.Snoozed_Until__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>NBA_Queue__c.Dismissal_Category__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <objectPermissions>
         <allowCreate>true</allowCreate>
         <allowDelete>true</allowDelete>

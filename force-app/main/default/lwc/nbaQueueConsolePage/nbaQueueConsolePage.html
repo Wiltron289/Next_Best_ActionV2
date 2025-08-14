@@ -1,0 +1,85 @@
+<template>
+    <div class="console-wrapper">
+        <template if:false={hasItem}>
+            <div class="empty-state">You’re all caught up. No pending actions.</div>
+        </template>
+        <template if:true={hasItem}>
+            <div class="two-col three-col" style={gridStyle} onmousemove={handleGlobalMouseMove} onmouseup={handleGlobalMouseUp} onmouseleave={handleGlobalMouseUp}>
+                <div class="left">
+                    <c-nba-queue-widget panel-height={panelHeightPx} onnbaqueuechange={refreshItem}></c-nba-queue-widget>
+                </div>
+                <div class="col-resizer" style="left: calc(25% - 3px);" onmousedown={startResizeLeftMiddle}></div>
+                <div class="middle">
+                    <div class="panel fit-height">
+                        <div class="panel-banner">
+                            <div class="panel-banner-title">
+                                <template if:true={isEmailAction}>Email Composer</template>
+                                <template if:false={isEmailAction}>Call Script</template>
+                            </div>
+                        </div>
+                        <div class="panel-body">
+                            <template if:true={isEmailAction}>
+                                <div class="form-group">
+                                    <label>Template</label>
+                                    <lightning-combobox value={selectedTemplateId}
+                                                        options={emailTemplates}
+                                                        onchange={handleTemplateChange}
+                                                        placeholder="Select a template (optional)">
+                                    </lightning-combobox>
+                                </div>
+                                <div class="form-group">
+                                    <label>To</label>
+                                    <input type="email" class="nba-widget-form-input" value={emailTo} oninput={handleEmailToChange} />
+                                </div>
+                                <div class="form-group">
+                                    <label>Subject</label>
+                                    <input type="text" class="nba-widget-form-input" value={emailSubject} oninput={handleEmailSubjectChange} />
+                                </div>
+                                <div class="form-group">
+                                    <label>Body</label>
+                                    <textarea class="nba-widget-form-textarea" value={emailBody} oninput={handleEmailBodyChange} placeholder="Write your email..."></textarea>
+                                </div>
+                                <div style="display:flex; justify-content:flex-end; gap:8px;">
+                                    <lightning-button variant="brand" label="Send Email" onclick={sendEmail} disabled={isLoading}></lightning-button>
+                                </div>
+                            </template>
+                            <template if:false={isEmailAction}>
+                                <div class="script">{callScript}</div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-resizer" style="left: calc(50% - 3px);" onmousedown={startResizeMiddleRight}></div>
+                <div class="right">
+                    <div class="panel fit-height">
+                        <div class="panel-banner">
+                            <div class="panel-banner-title">{recordPanelTitle}</div>
+                        </div>
+                        <div class="panel-body">
+                        <template if:true={queueItem.Opportunity__c}>
+                            <lightning-record-form record-id={queueItem.Opportunity__c}
+                                                   object-api-name="Opportunity"
+                                                   mode="view"
+                                                   fields={opportunityFields}
+                                                   columns="2"
+                                                   density="compact">
+                            </lightning-record-form>
+                        </template>
+                        <template if:false={queueItem.Opportunity__c}>
+                            <lightning-record-form record-id={queueItem.Account__c}
+                                                   object-api-name="Account"
+                                                   mode="view"
+                                                   fields={accountFields}
+                                                   columns="2"
+                                                   density="compact">
+                            </lightning-record-form>
+                        </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="height-resizer" onmousedown={startResizeHeight}></div>
+            </div>
+        </template>
+    </div>
+</template>
+

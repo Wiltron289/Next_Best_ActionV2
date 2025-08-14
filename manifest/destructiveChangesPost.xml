@@ -1,8 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package xmlns="http://soap.sforce.com/2006/04/metadata">
     <types>
-        <members>NBA_Queue__c.View_Count__c</members>
+        <members>NBA_Queue__c.Active_Employees__c</members>
+        <members>NBA_Queue__c.Contact_Name__c</members>
+        <members>NBA_Queue__c.Contact_Phone__c</members>
+        <members>NBA_Queue__c.Feature_Usage__c</members>
+        <members>NBA_Queue__c.Inception_Switcher__c</members>
+        <members>NBA_Queue__c.Last_Call_Date__c</members>
+        <members>NBA_Queue__c.Model_Reason__c</members>
+        <members>NBA_Queue__c.Model_Version__c</members>
+        <members>NBA_Queue__c.Most_Recent_Payroll_Provider__c</members>
+        <members>NBA_Queue__c.Opportunity_Source__c</members>
+        <members>NBA_Queue__c.Opportunity_Stage__c</members>
         <name>CustomField</name>
     </types>
     <version>58.0</version>
-</Package> 
+    
+</Package>

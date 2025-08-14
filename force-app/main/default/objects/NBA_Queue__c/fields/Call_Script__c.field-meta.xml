@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Contact_Phone__c</fullName>
+    <fullName>Call_Script__c</fullName>
     <externalId>false</externalId>
-    <label>Contact Phone</label>
-    <required>false</required>
+    <label>Call Script</label>
+    <length>32768</length>
     <trackHistory>false</trackHistory>
     <trackTrending>false</trackTrending>
-    <type>Phone</type>
+    <type>LongTextArea</type>
+    <visibleLines>10</visibleLines>
 </CustomField>

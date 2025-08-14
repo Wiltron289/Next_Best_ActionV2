@@ -1,0 +1,10 @@
+{
+  "orgName": "NBA Queue Scratch",
+  "edition": "Enterprise",
+  "hasSampleData": false,
+  "settings": {
+    "lightningExperienceSettings": {
+      "enableS1DesktopEnabled": true
+    }
+  }
+}
