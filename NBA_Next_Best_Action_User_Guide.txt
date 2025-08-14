@@ -1,0 +1,120 @@
+Next Best Action (NBA) App — Guide for Sales Reps
+
+WHAT IT IS
+- The NBA app surfaces the best next account/opportunity to work on, explains why, and lets you take action quickly (call, update stage/next steps, or snooze/dismiss). It refreshes as you work so you always see the most relevant item.
+
+THE SCREEN
+- Two panels:
+  - Left: Action Widget (what to do now + Accept/Dismiss)
+  - Right: Record Details (key Opportunity info, grouped sections)
+- You can resize the columns. Each panel scrolls internally so buttons never get cut off.
+
+HOW ITEMS ARE CHOSEN (PRIORITY + MULTIPLIERS)
+- Items are ordered by a priority score, adjusted by recent signals:
+  - Web activity in last hour: 1.25x
+  - “Best time to call” within ±30 minutes of now: 1.2x
+  - Recent progression on the account:
+    - Within 7 days: 1.5x
+    - Within 30 days: 1.2x
+- What you’ll see:
+  - The adjusted score drives which item you get next.
+  - A note about applied multipliers is saved on the action (Priority_Multiplier_Applied__c).
+
+WHEN AN ITEM WILL NOT BE SERVED (EXCEPTION CRITERIA)
+- The app will skip an item if:
+  - The related Opportunity is in a closed state:
+    - Closed Won - Pending Implementation
+    - Closed Won
+    - Closed Lost
+    - Ran Payroll
+  - The Opportunity had a call already today (Last_Call_Date_Time__c is today)
+  - There’s a future follow-up date in the future (Future_Follow_Up_Date__c > today)
+  - There’s a scheduled Event (meeting/call) more than 15 minutes from now
+    - The item becomes eligible again 15 minutes before the meeting starts, or any time after it ends
+  - The Account’s payroll status is mid-process (Pending, Processing, Paid)
+  - The item is snoozed (see Snooze below) and its snooze time hasn’t passed yet
+
+ACCEPTING AN ACTION (FOR CALLS)
+- What happens when you click Accept:
+  - A completed Task is created for tracking.
+  - The dialer launches with the best number available (see “How we choose the phone number” below).
+  - The Call Disposition form opens.
+    - Fields and order:
+      - Phone Number Called
+      - Call Disposition
+      - Opportunity Stage Update
+      - Call Notes
+      - Next Step Date
+      - Next Step
+    - Stage Update defaults to the Opportunity’s current stage.
+    - If you choose “Connected - DM,” you must provide Next Step Date and Next Step, unless the stage you select is a closed state (Closed Won / Closed Lost / Closed Won - Pending Implementation).
+  - If you select “Closed Won - Pending Implementation,” the Project Initiation Wizard flow opens for that Opportunity.
+
+- What gets written back when you complete the disposition:
+  - To the NBA record:
+    - Status becomes Accepted
+    - Multiplier notes saved to Priority_Multiplier_Applied__c
+    - Next step fields (Next_Step_Date__c, Next_Steps__c) if provided
+  - To the Opportunity (if related):
+    - StageName updates if you chose a stage
+    - Next Step Date (Next_Step_Date__c) and Next Step (NextStep) if provided
+    - Call Notes are added to the TOP of Description with a timestamp (newest at the top)
+
+- When the dial starts:
+  - Opportunity.Last_Call_Date_Time__c is set to now
+  - If Opportunity.First_Call_Date_Time__c is blank, it’s set to now (only once)
+
+DISMISSING OR SNOOZING AN ACTION
+- Open Dismiss and choose one:
+  - Call Scheduled
+    - You pick the date/time of the scheduled call
+    - The item is paused until 15 minutes before that time
+    - Status becomes Snoozed, Snoozed_Until__c is set
+  - Time Zone
+    - You choose how many hours to delay
+    - The item won’t surface until that time passes
+  - Other
+    - Enter a reason, and the item is dismissed immediately
+- The Dismiss/Snooze panel scrolls internally; buttons remain visible.
+
+HOW WE CHOOSE THE PHONE NUMBER
+- If the NBA item has an Opportunity:
+  - If the stage is “New Opportunity” or “Attempted,” and there’s a “Best Person to Call,” we use the Best Number to Call; otherwise we use the Opportunity’s Primary Contact phone.
+  - For all other stages, we use the Opportunity’s Primary Contact phone.
+- If there is no Opportunity:
+  - If “Best Person to Call” is set, we use that number; else we use the Account’s Primary Contact phone (or Account phone as final fallback).
+
+RECORD DETAILS (RIGHT PANEL)
+- Three collapsible sections with purple headers (you can expand/collapse):
+  - Opportunity Details
+    - Name, Stage, Close Date, Primary Contact, Account Business Category, Account Admin Links, Current Payroll, Description
+  - Payroll Details
+    - Payroll Buyer Stage, Payroll Risk Level, Fed Auth Finish, Bank Connect Finish, Pay Sched Finish, Last Progression Time, Account Blocked Reason
+  - Next Step and Future Follow Up Details
+    - Next Step Date, Next Step, Future Follow-Up Date, Future Follow-Up Reason
+- Inline edits are allowed. Changes here update the record immediately.
+
+STATUSES YOU’LL SEE
+- Pending: eligible to be served next
+- In Progress: you accepted and are working it (always allowed to complete)
+- Snoozed: paused until Snoozed_Until__c
+- Accepted: disposition saved or email sent (completed)
+- Dismissed: removed with a reason
+
+REFRESH BEHAVIOR
+- The app auto-refreshes every 30 seconds.
+- Use the refresh button on the widget whenever you want instant updates.
+
+PERMISSIONS
+- You’ll be assigned the NBA_Queue_User permission set to ensure access to the required fields and features.
+
+IF SOMETHING DOESN’T LOOK RIGHT
+- Try a hard refresh of your browser tab.
+- If an item is appearing when you know a future meeting exists, check the meeting’s Start time—items are blocked only until 15 minutes before the meeting.
+
+SUMMARY
+- Items are prioritized with multipliers for recency signals and best call window.
+- Items are skipped for closed stages, today’s prior call, future follow-ups, future events, payroll processing, and snooze windows.
+- Accept logs a completed Task, launches the dialer, and updates Opportunity/NBA; “Closed Won - Pending Implementation” launches the setup flow.
+- Dismiss supports Snooze (scheduled or time-zone) and “Other” with a reason.
+- Record Details are grouped, collapsible, and inline-editable.
