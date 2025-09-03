@@ -10,6 +10,7 @@ THE SCREEN
 - You can resize the columns. Each panel scrolls internally so buttons never get cut off.
 - The widget header shows a countdown timer to the next auto-refresh.
 - Tabs in the widget: Contact Info, Product Usage, and Up Next (a preview of what you'll likely see next).
+ - For Lead-based items, the right panel shows Lead Details (Company, Status, Email, Phone, etc.). Product Usage is hidden for Leads.
 
 HOW ITEMS ARE CHOSEN (PRIORITY + MULTIPLIERS)
 - Items are ordered by a priority score, adjusted by recent signals:
@@ -39,8 +40,7 @@ WHEN AN ITEM WILL NOT BE SERVED (EXCEPTION CRITERIA)
 ACCEPTING AN ACTION (FOR CALLS)
 - What happens when you click Accept:
   - The dialer launches with the best number available (see “How we choose the phone number” below).
-  - The dialer launches with the best number available (see “How we choose the phone number” below).
-  - The Call Disposition form opens.
+  - The Call Disposition form opens shortly after dialing (about 700ms delay) to avoid interfering with the dial click.
     - Fields and order:
       - Phone Number Called
       - Call Disposition
@@ -49,7 +49,7 @@ ACCEPTING AN ACTION (FOR CALLS)
       - Next Step Date
       - Next Step
     - Stage Update defaults to the Opportunity’s current stage.
-    - If you choose “Connected - DM,” you must provide Next Step Date and Next Step, unless the stage you select is a closed state (Closed Won / Closed Lost / Closed Won - Pending Implementation).
+    - If you choose “Connected - DM,” you must provide Next Step Date and Next Step. For Opportunities, these are not required when you also choose a closed stage (Closed Won / Closed Lost / Closed Won - Pending Implementation). For Leads, they are required when the disposition is Connected - DM.
   - If you select “Closed Won - Pending Implementation,” the Project Initiation Wizard flow opens for that Opportunity. The widget does not change the stage; the flow handles it.
   - If you select “Closed Lost,” the Closed Lost flow opens for that Opportunity. The widget does not change the stage; the flow handles it.
 
@@ -80,6 +80,8 @@ DISMISSING OR SNOOZING AN ACTION
 - The Dismiss/Snooze panel scrolls internally; buttons remain visible and the sticky footer is a bit shorter for more room.
 
 HOW WE CHOOSE THE PHONE NUMBER
+- If the NBA item has a Lead:
+  - Use Best Number to Call if set; otherwise use Lead Phone (fallback to Lead MobilePhone).
 - If the NBA item has an Opportunity:
   - If the stage is “New Opportunity” or “Attempted,” and there’s a “Best Person to Call,” we use the Best Number to Call; otherwise we use the Opportunity’s Primary Contact phone.
   - For all other stages, we use the Opportunity’s Primary Contact phone.
@@ -99,13 +101,13 @@ RECORD DETAILS (RIGHT PANEL)
 
 STATUSES YOU’LL SEE
 - Pending: eligible to be served next
-- In Progress: you accepted and are working it (always allowed to complete)
+- Accepted (In Progress): you accepted and are working it; not re-served while in progress
+- Completed: disposition saved (or finalized after a closing-stage flow)
 - Snoozed: paused until Snoozed_Until__c
-- Accepted: disposition saved or email sent (completed)
 - Dismissed: removed with a reason
 
 REFRESH BEHAVIOR
-- The app auto-refreshes every 30 seconds.
+- The app auto-refreshes every 5 minutes.
 - The widget header shows a countdown to the next auto-refresh.
 - Use the refresh button on the widget whenever you want instant updates.
 
@@ -124,7 +126,8 @@ ELIGIBILITY CHECKLIST (WHY AN ITEM MAY NOT APPEAR)
 - There’s a meeting/call scheduled more than 15 minutes from now
 - Account payroll is mid-process (Pending, Processing, or Paid)
 - Item is Snoozed and the Snoozed Until time hasn’t passed
-- Item is assigned to someone else or not in Pending/In Progress/Snoozed
+- Item is assigned to someone else (Sales_Rep__c mismatch) or not in Pending
+- Item is Accepted (in progress) and waiting for disposition to be saved
 - Tip: Admins can see the “Not Surfaced Reasons” field on the NBA record for diagnostic details
 
 SUMMARY

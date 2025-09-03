@@ -15,6 +15,11 @@ The NBA (Next Best Action) Queue is a Salesforce Lightning Web Component (LWC) s
   - `TalkdeskActivityLinker` (after insert on `talkdesk__Talkdesk_Activity__c`) – links recent activities to NBA items by phone within 20 minutes and matching `Sales_Rep__c` to `talkdesk__User__c`.
   - `NBAQueueBacklink` (after update on `NBA_Queue__c`) – links when the NBA item completes first and the activity arrives later.
 - Added allowlist for Talkdesk users via List Custom Setting `Allowed_Talkdesk_User__c` and `TalkdeskAllowedUserRefresher` (Schedulable) to refresh daily; both triggers filter by this allowlist when populated.
+- Lead support end-to-end:
+  - New `Lead__c` lookup on `NBA_Queue__c`; permission set and queries updated
+  - Lead-aware phone resolution and Accept flow; Talkdesk launch reliability with delayed disposition form
+  - Lead Status update and Next Steps written back on disposition save (Apex `saveNextStepsWithLead`)
+  - Mogli context refresh for Lead items via `nbaleadchange`
 - LWC updates to `nbaQueueWidget`:
   - Added Up Next tab showing the next action preview.
   - Added countdown timer to next auto-refresh.
@@ -23,7 +28,11 @@ The NBA (Next Best Action) Queue is a Salesforce Lightning Web Component (LWC) s
   - Stage selector defaults to the Opportunity’s current stage.
   - Selecting "Closed Won - Pending Implementation" or "Closed Lost" launches a screen flow and does not update the stage from the widget.
   - Flow launches use direct `/flow/...` URLs; flows include a `flowRedirect` screen component to return to the NBA app.
-- `nbaQueueConsolePage` updated to include `Opportunity.First_PayDay__c` in Record Details (Payroll section).
+- `nbaQueueConsolePage` aligned with widget:
+  - Lead-aware navigation/display and email seeding
+  - Lead Details section; hides Product Usage for Leads
+  - Phone resolution and Talkdesk launch with tel: fallback; ~700ms disposition form delay
+  - Up Next preview supports Leads
 - `flowRedirect` LWC added for reliable navigation back to the app from screen flows.
 - Removed obsolete `projectInitiationHost` LWC and all references.
 
@@ -67,11 +76,8 @@ The NBA (Next Best Action) Queue is a Salesforce Lightning Web Component (LWC) s
   - Up Next tab (preview of the next action)
   - Manual refresh capability
 
-#### 4. **NBAQueueEventPublisher.cls**
-- **Purpose**: Publishes platform events for real-time updates
-- **Events**:
-  - `NBA_Queue_Update__e` - New queue items
-  - Item status updates
+#### 4. Removed: NBAQueueEventPublisher
+Event publisher class and references removed to simplify architecture.
 
 #### 5. **Talkdesk Linking (Triggers + Custom Setting)**
 - `TalkdeskActivityLinker.trigger` – Links `talkdesk__Talkdesk_Activity__c` inserts to recent NBA items by normalized phone, within a 20-minute window, matching `Sales_Rep__c` to `talkdesk__User__c`, and optionally filtered by allowlist.
@@ -183,9 +189,7 @@ When a queue item is accepted:
 - **Compact Design**: Minimal white space, Homebase branding
 
 ### 3. **Real-time Updates**
-- Platform events for live updates
-- Automatic refresh on status changes
-- Manual refresh capability
+- Automatic refresh every 5 minutes; manual refresh available
 
 ## Integration Points
 
