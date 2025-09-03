@@ -150,6 +150,7 @@ public class NBAQueueManager {
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c,
+                       Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
@@ -168,12 +169,19 @@ public class NBAQueueManager {
             System.debug('Pending and In Progress NBA_Queue__c records for user: ' + items.size());
             
             if (!items.isEmpty()) {
+                // Preload blocked opportunities with future events to avoid per-record queries
+                Set<Id> oppIds = new Set<Id>();
+                for (NBA_Queue__c item : items) if (item.Opportunity__c != null) oppIds.add(item.Opportunity__c);
+                Set<Id> blockedOppIds = getOpportunitiesBlockedByFutureEvents(oppIds);
                 // Filter out items that should be skipped
                 List<NBA_Queue__c> filteredItems = new List<NBA_Queue__c>();
                 
                 for(NBA_Queue__c item : items) {
-                    if (shouldSkipQueueItem(item)) {
-                        System.debug('Skipping item ' + item.Id + ' due to filtering rules');
+                    String reason = getSkipReason(item, blockedOppIds);
+                    if (reason != null) {
+                        System.debug('Skipping item ' + item.Id + ' due to: ' + reason);
+                        // Removed per-item DML to avoid DML limit during filtering
+                        // Not_Surfaced_Reasons__c can be populated via a separate async job if needed
                         continue;
                     }
                     filteredItems.add(item);
@@ -254,6 +262,7 @@ public class NBAQueueManager {
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description,
+                       Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
@@ -272,12 +281,17 @@ public class NBAQueueManager {
             System.debug('Pending and In Progress NBA_Queue__c records for user: ' + items.size());
             
             if (!items.isEmpty()) {
+                // Preload blocked opportunities with future events to avoid per-record queries
+                Set<Id> oppIds = new Set<Id>();
+                for (NBA_Queue__c item : items) if (item.Opportunity__c != null) oppIds.add(item.Opportunity__c);
+                Set<Id> blockedOppIds = getOpportunitiesBlockedByFutureEvents(oppIds);
                 // Filter out items that should be skipped
                 List<NBA_Queue__c> filteredItems = new List<NBA_Queue__c>();
                 
                 for(NBA_Queue__c item : items) {
-                    if (shouldSkipQueueItem(item)) {
-                        System.debug('Skipping item ' + item.Id + ' due to filtering rules');
+                    String reason = getSkipReason(item, blockedOppIds);
+                    if (reason != null) {
+                        // Removed per-item DML to avoid DML limit during filtering
                         continue;
                     }
                     filteredItems.add(item);
@@ -298,7 +312,8 @@ public class NBAQueueManager {
                     NBA_Queue__c selectedItem = filteredItems[0];
                     Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(selectedItem);
                     
-                    // Update last viewed date when item is served to user
+                    // Clear not surfaced reasons and update last viewed date when served
+                    try { update new NBA_Queue__c(Id = selectedItem.Id, Not_Surfaced_Reasons__c = null); } catch (Exception e) {}
                     updateItemLastViewedDate(selectedItem);
                     
                     System.debug('Returning item: ' + selectedItem.Id + ' - ' + selectedItem.Subject__c);
@@ -328,6 +343,125 @@ public class NBAQueueManager {
             System.debug('ERROR in getNextQueueItemWithDetails: ' + e.getMessage());
             System.debug('Stack trace: ' + e.getStackTraceString());
             throw new AuraHandledException('Error retrieving queue items: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String, Object>> listNotSurfacedItems(Id userId, Integer limitSize) {
+        try {
+            Integer lim = (limitSize == null || limitSize <= 0) ? 50 : limitSize;
+            // Pull candidate items similar to next-item query
+            List<NBA_Queue__c> items = [
+                SELECT Id, Account__c, Account__r.Name,
+                       Opportunity__c, Opportunity__r.Name, Opportunity__r.StageName,
+                       Status__c, Priority_Score__c, Subject__c, Action_Type__c,
+                       Snoozed_Until__c, Account__r.Payroll_Status__c,
+                       Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c
+                FROM NBA_Queue__c
+                WHERE Sales_Rep__c = :userId
+                AND Status__c IN ('Pending', 'Snoozed')
+                AND (Status__c != 'Snoozed' OR Snoozed_Until__c <= :System.now())
+                ORDER BY Priority_Score__c DESC, Due_Date__c ASC
+                LIMIT :lim
+            ];
+
+            Set<Id> oppIds = new Set<Id>();
+            for (NBA_Queue__c item : items) if (item.Opportunity__c != null) oppIds.add(item.Opportunity__c);
+            Set<Id> blockedOppIds = getOpportunitiesBlockedByFutureEvents(oppIds);
+
+            List<Map<String, Object>> out = new List<Map<String, Object>>();
+            for (NBA_Queue__c i : items) {
+                String reason = getSkipReason(i, blockedOppIds);
+                if (reason != null) {
+                    Map<String, Object> row = new Map<String, Object>();
+                    row.put('id', (String)i.Id);
+                    row.put('subject', i.Subject__c);
+                    row.put('reason', reason);
+                    row.put('actionType', i.Action_Type__c);
+                    row.put('priority', i.Priority_Score__c);
+                    row.put('accountId', i.Account__c);
+                    row.put('accountName', i.Account__r != null ? i.Account__r.Name : null);
+                    row.put('opportunityId', i.Opportunity__c);
+                    row.put('opportunityName', i.Opportunity__r != null ? i.Opportunity__r.Name : null);
+                    out.add(row);
+                }
+            }
+            return out;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error listing not-surfaced items: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static Map<String, Object> getUpNextItem(Id userId, Id excludeQueueItemId) {
+        Map<String, Object> result = new Map<String, Object>();
+        try {
+            // Pull candidate items with the same fields and filters used for next item selection
+            List<NBA_Queue__c> items = [
+                SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
+                       Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
+                       Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
+                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
+                       Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
+                       Opportunity__c, Opportunity__r.Name, Opportunity__r.StageName, 
+                       Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description,
+                       Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
+                       Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
+                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
+                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
+                       Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
+                       Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
+                       Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
+                       Implementation_Project__c, Implementation_Project__r.Name,
+                       Call_Script__c
+                FROM NBA_Queue__c 
+                WHERE Sales_Rep__c = :userId
+                AND Status__c IN ('Pending', 'In Progress', 'Snoozed')
+                AND (Status__c != 'Snoozed' OR Snoozed_Until__c <= :System.now())
+                ORDER BY Status__c ASC, Priority_Score__c DESC, Due_Date__c ASC
+            ];
+
+            if (items.isEmpty()) {
+                result.put('upNext', null);
+                return result;
+            }
+
+            // Preload blocked opportunities with future events to avoid per-record queries
+            Set<Id> oppIds = new Set<Id>();
+            for (NBA_Queue__c item : items) if (item.Opportunity__c != null) oppIds.add(item.Opportunity__c);
+            Set<Id> blockedOppIds = getOpportunitiesBlockedByFutureEvents(oppIds);
+
+            // Apply same filtering rules
+            List<NBA_Queue__c> filteredItems = new List<NBA_Queue__c>();
+            for (NBA_Queue__c item : items) {
+                if (getSkipReason(item, blockedOppIds) != null) {
+                    continue;
+                }
+                filteredItems.add(item);
+            }
+
+            if (filteredItems.isEmpty()) {
+                result.put('upNext', null);
+                return result;
+            }
+
+            // Sort by adjusted priority using the same comparator
+            filteredItems.sort(new PriorityScoreComparator());
+
+            // Pick the first item that is not the currently displayed one
+            NBA_Queue__c nextItem = null;
+            for (NBA_Queue__c item : filteredItems) {
+                if (excludeQueueItemId == null || item.Id != excludeQueueItemId) {
+                    nextItem = item;
+                    break;
+                }
+            }
+
+            result.put('upNext', nextItem);
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving up-next item: ' + e.getMessage());
         }
     }
     
@@ -432,6 +566,17 @@ public class NBAQueueManager {
             throw new AuraHandledException('Error retrieving opportunity primary contact: ' + e.getMessage());
         }
     }
+
+    @AuraEnabled(cacheable=true)
+    public static Id getAccountIdForOpportunity(Id opportunityId) {
+        try {
+            if (opportunityId == null) return null;
+            Opportunity o = [SELECT AccountId FROM Opportunity WHERE Id = :opportunityId LIMIT 1];
+            return o != null ? o.AccountId : null;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving Account for Opportunity: ' + e.getMessage());
+        }
+    }
     
     @AuraEnabled
     public static Map<String, Object> getAccountPrimaryContact(Id accountId) {
@@ -457,6 +602,159 @@ public class NBAQueueManager {
             return result;
         } catch (Exception e) {
             throw new AuraHandledException('Error retrieving account primary contact: ' + e.getMessage());
+        }
+    }
+
+    // Consolidated contact + phone resolver for a single round trip
+    @AuraEnabled(cacheable=true)
+    public static Map<String, Object> resolvePrimaryContactForQueueItem(Id queueItemId) {
+        Map<String, Object> result = new Map<String, Object>();
+        if (queueItemId == null) {
+            return result;
+        }
+        try {
+            NBA_Queue__c qi = [
+                SELECT Id,
+                       Best_Person_to_Call__c,
+                       Best_Person_to_Call__r.Name,
+                       Best_Person_to_Call__r.Email,
+                       Best_Person_to_Call__r.Phone,
+                       Best_Person_to_Call__r.MobilePhone,
+                       Best_Number_to_Call__c,
+                       Opportunity__c,
+                       Opportunity__r.StageName,
+                       Opportunity__r.Primary_Contact__c,
+                       Opportunity__r.Primary_Contact__r.Name,
+                       Opportunity__r.Primary_Contact__r.Email,
+                       Opportunity__r.Primary_Contact__r.Phone,
+                       Opportunity__r.Primary_Contact__r.MobilePhone,
+                       Account__c,
+                       Account__r.Phone,
+                       Account__r.Primary_Contact__c,
+                       Account__r.Primary_Contact__r.Name,
+                       Account__r.Primary_Contact__r.Email,
+                       Account__r.Primary_Contact__r.Phone,
+                       Account__r.Primary_Contact__r.MobilePhone
+                FROM NBA_Queue__c
+                WHERE Id = :queueItemId
+                LIMIT 1
+            ];
+
+            String stage = (qi.Opportunity__r != null) ? qi.Opportunity__r.StageName : null;
+            Boolean isEarlyOppStage = (stage != null && (stage == 'New Opportunity' || stage == 'Attempted'));
+
+            // Decide which person we should use and which phone to return
+            Id contactId;
+            String contactName;
+            String contactEmail;
+            String phone = null;
+            String phoneSource = null;
+
+            // 1) Opportunity present
+            if (qi.Opportunity__c != null) {
+                if (isEarlyOppStage && qi.Best_Person_to_Call__c != null) {
+                    // Early stage: prefer NBA Best Person/Number when specified
+                    contactId = qi.Best_Person_to_Call__c;
+                    contactName = qi.Best_Person_to_Call__r != null ? qi.Best_Person_to_Call__r.Name : null;
+                    contactEmail = qi.Best_Person_to_Call__r != null ? qi.Best_Person_to_Call__r.Email : null;
+                    // Prefer explicit Best_Number_to_Call__c; fall back to person's phone
+                    if (qi.Best_Number_to_Call__c != null) {
+                        phone = normalizePhone(qi.Best_Number_to_Call__c);
+                        phoneSource = 'NBA_Best_Number_to_Call__c';
+                    }
+                    if (phone == null && qi.Best_Person_to_Call__r != null) {
+                        phone = normalizePhone(qi.Best_Person_to_Call__r.Phone != null ? qi.Best_Person_to_Call__r.Phone : qi.Best_Person_to_Call__r.MobilePhone);
+                        phoneSource = 'NBA_Best_Person_to_Call__r';
+                    }
+                } else {
+                    // Other stages: use Opportunity primary contact
+                    contactId = qi.Opportunity__r != null ? qi.Opportunity__r.Primary_Contact__c : null;
+                    contactName = (qi.Opportunity__r != null && qi.Opportunity__r.Primary_Contact__r != null) ? qi.Opportunity__r.Primary_Contact__r.Name : null;
+                    contactEmail = (qi.Opportunity__r != null && qi.Opportunity__r.Primary_Contact__r != null) ? qi.Opportunity__r.Primary_Contact__r.Email : null;
+                    if (qi.Opportunity__r != null && qi.Opportunity__r.Primary_Contact__r != null) {
+                        phone = normalizePhone(qi.Opportunity__r.Primary_Contact__r.Phone != null ? qi.Opportunity__r.Primary_Contact__r.Phone : qi.Opportunity__r.Primary_Contact__r.MobilePhone);
+                        phoneSource = 'Opportunity.Primary_Contact__r';
+                    }
+                }
+            } else {
+                // No opportunity: prefer NBA Best Person/Number if present
+                if (qi.Best_Person_to_Call__c != null) {
+                    contactId = qi.Best_Person_to_Call__c;
+                    contactName = qi.Best_Person_to_Call__r != null ? qi.Best_Person_to_Call__r.Name : null;
+                    contactEmail = qi.Best_Person_to_Call__r != null ? qi.Best_Person_to_Call__r.Email : null;
+                    if (qi.Best_Number_to_Call__c != null) {
+                        phone = normalizePhone(qi.Best_Number_to_Call__c);
+                        phoneSource = 'NBA_Best_Number_to_Call__c';
+                    }
+                    if (phone == null && qi.Best_Person_to_Call__r != null) {
+                        phone = normalizePhone(qi.Best_Person_to_Call__r.Phone != null ? qi.Best_Person_to_Call__r.Phone : qi.Best_Person_to_Call__r.MobilePhone);
+                        phoneSource = 'NBA_Best_Person_to_Call__r';
+                    }
+                }
+                // Fallback to Account primary contact
+                if (contactId == null && qi.Account__r != null) {
+                    contactId = qi.Account__r.Primary_Contact__c;
+                    contactName = qi.Account__r.Primary_Contact__r != null ? qi.Account__r.Primary_Contact__r.Name : null;
+                    contactEmail = qi.Account__r.Primary_Contact__r != null ? qi.Account__r.Primary_Contact__r.Email : null;
+                    if (qi.Account__r.Primary_Contact__r != null) {
+                        phone = normalizePhone(qi.Account__r.Primary_Contact__r.Phone != null ? qi.Account__r.Primary_Contact__r.Phone : qi.Account__r.Primary_Contact__r.MobilePhone);
+                        phoneSource = 'Account.Primary_Contact__r';
+                    }
+                }
+            }
+
+            // Final fallback to Account.Phone if needed
+            if (phone == null && qi.Account__r != null && qi.Account__r.Phone != null) {
+                phone = normalizePhone(qi.Account__r.Phone);
+                phoneSource = 'Account.Phone';
+            }
+
+            if (contactId != null) result.put('contactId', (String)contactId);
+            if (contactName != null) result.put('contactName', contactName);
+            if (contactEmail != null) result.put('contactEmail', contactEmail);
+            if (phone != null) result.put('contactPhone', phone);
+            if (phoneSource != null) result.put('phoneSource', phoneSource);
+
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error resolving contact/phone: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static Id getQueueBestPerson(Id queueItemId) {
+        try {
+            if (queueItemId == null) return null;
+            NBA_Queue__c qi = [SELECT Best_Person_to_Call__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            return qi != null ? qi.Best_Person_to_Call__c : null;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error retrieving Best Person to Call: ' + e.getMessage());
+        }
+    }
+
+    // Helper: normalize raw phone to E.164 when possible (assumes US if 10 digits)
+    private static String normalizePhone(String raw) {
+        if (raw == null) return null;
+        String digits = raw.replaceAll('[^0-9]', '');
+        if (digits == null || digits == '') return null;
+        if (digits.length() == 10) digits = '1' + digits;
+        return '+' + digits;
+    }
+
+    @AuraEnabled
+    public static void markOpportunityCallTimes(Id opportunityId) {
+        if (opportunityId == null) return;
+        try {
+            Opportunity opp = [SELECT Id, First_Call_Date_Time__c FROM Opportunity WHERE Id = :opportunityId LIMIT 1];
+            Datetime nowTs = System.now();
+            opp.Last_Call_Date_Time__c = nowTs;
+            if (opp.First_Call_Date_Time__c == null) {
+                opp.First_Call_Date_Time__c = nowTs;
+            }
+            update opp;
+        } catch (Exception e) {
+            // Swallow to avoid blocking the UI/dial in case of FLS or other issues
+            System.debug('Error updating Opportunity call times: ' + e.getMessage());
         }
     }
 
@@ -513,6 +811,14 @@ public class NBAQueueManager {
         return out;
     }
 
+    // Helper: ensure text fits in a field by trimming from the start (keeps most recent notes)
+    @TestVisible private static String truncateFromStart(String input, Integer maxLen) {
+        if (input == null) return null;
+        if (maxLen == null || maxLen <= 0) return input;
+        if (input.length() <= maxLen) return input;
+        return input.substring(input.length() - maxLen);
+    }
+
     // Note: We intentionally avoid server-side render calls to keep compatibility; we send using setTemplateId instead
 
     @AuraEnabled
@@ -547,7 +853,7 @@ public class NBAQueueManager {
             
             NBA_Queue__c queueItem = [SELECT Id, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c,
                                              Subject__c, Description__c, Due_Date__c, Action_Type__c,
-                                             Priority_Score__c, Sales_Rep__c, Opportunity__c, Best_Time_to_Call__c
+                                             Priority_Score__c, Sales_Rep__c, Opportunity__c, Lead__c, Best_Time_to_Call__c, Best_Number_to_Call__c
                                       FROM NBA_Queue__c 
                                       WHERE Id = :queueItemId];
             
@@ -571,16 +877,76 @@ public class NBAQueueManager {
                 } else {
                     System.debug('No primary contact found for opportunity: ' + queueItem.Opportunity__c);
                 }
+            } else if (queueItem.Lead__c != null) {
+                whoId = queueItem.Lead__c;
+                System.debug('Lead WhoId set: ' + whoId);
             }
             
             // Use Sales_Rep__c directly
             Id taskOwnerId = queueItem.Sales_Rep__c;
             
+            // Determine dialed number (normalize to E.164 when possible)
+            String dialed = null;
+            try {
+                // 1) Prefer explicit Best_Number_to_Call__c when present
+                if (queueItem.Best_Number_to_Call__c != null) {
+                    String digits = queueItem.Best_Number_to_Call__c.replaceAll('[^0-9]', '');
+                    if (digits != null && digits != '') {
+                        if (digits.length() == 10) digits = '1' + digits; // assume US default
+                        dialed = '+' + digits;
+                    }
+                }
+                // 2) Fallback to Opportunity Primary Contact phone
+                if (dialed == null && queueItem.Opportunity__c != null) {
+                    Opportunity o = [SELECT Primary_Contact__r.Phone, Primary_Contact__r.MobilePhone FROM Opportunity WHERE Id = :queueItem.Opportunity__c LIMIT 1];
+                    String raw = (o.Primary_Contact__r != null && o.Primary_Contact__r.Phone != null) ? o.Primary_Contact__r.Phone : (o.Primary_Contact__r != null ? o.Primary_Contact__r.MobilePhone : null);
+                    if (raw != null) {
+                        String digits = raw.replaceAll('[^0-9]', '');
+                        if (digits != null && digits != '') {
+                            if (digits.length() == 10) digits = '1' + digits;
+                            dialed = '+' + digits;
+                        }
+                    }
+                }
+                // 2b) Fallback to Lead phone when present
+                if (dialed == null && queueItem.Lead__c != null) {
+                    Lead l = [SELECT Phone, MobilePhone FROM Lead WHERE Id = :queueItem.Lead__c LIMIT 1];
+                    String rawLead = (l.Phone != null) ? l.Phone : l.MobilePhone;
+                    if (rawLead != null) {
+                        String d2 = rawLead.replaceAll('[^0-9]', '');
+                        if (d2 != null && d2 != '') {
+                            if (d2.length() == 10) d2 = '1' + d2;
+                            dialed = '+' + d2;
+                        }
+                    }
+                }
+                // 3) Fallback to Account Primary Contact or Account phone
+                if (dialed == null && queueItem.Account__c != null) {
+                    Account a = [SELECT Primary_Contact__r.Phone, Primary_Contact__r.MobilePhone, Phone FROM Account WHERE Id = :queueItem.Account__c LIMIT 1];
+                    String raw = (a.Primary_Contact__r != null && a.Primary_Contact__r.Phone != null) ? a.Primary_Contact__r.Phone : (a.Primary_Contact__r != null && a.Primary_Contact__r.MobilePhone != null ? a.Primary_Contact__r.MobilePhone : a.Phone);
+                    if (raw != null) {
+                        String digits = raw.replaceAll('[^0-9]', '');
+                        if (digits != null && digits != '') {
+                            if (digits.length() == 10) digits = '1' + digits;
+                            dialed = '+' + digits;
+                        }
+                    }
+                }
+                // Best-effort pre-insert stamp of dialed number (non-blocking)
+                try {
+                    if (dialed != null) {
+                        update new NBA_Queue__c(Id = queueItem.Id, Number_Dialed__c = dialed);
+                    }
+                } catch (Exception ePre) {
+                    System.debug('Pre-insert dialed update skipped: ' + ePre.getMessage());
+                }
+            } catch (Exception e) {}
+
             // Create standard Task
             Task newTask = new Task(
                 Subject = 'Next Best Action: ' + queueItem.Action_Type__c,
                 Description = buildTaskDescription(queueItem, additionalNotes),
-                WhatId = queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c,
+                WhatId = (whoId == null) ? (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c) : (queueItem.Lead__c != null ? null : (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c)),
                 WhoId = whoId,
                 OwnerId = taskOwnerId,
                 ActivityDate = queueItem.Due_Date__c,
@@ -592,6 +958,15 @@ public class NBAQueueManager {
             
             insert newTask;
             System.debug('Task created successfully: ' + newTask.Id);
+            
+            // Non-blocking: best-effort stamp dialed number after Task insert
+            try {
+                if (dialed != null) {
+                    update new NBA_Queue__c(Id = queueItem.Id, Number_Dialed__c = dialed);
+                }
+            } catch (Exception e2) {
+                System.debug('Dialed number update failed (non-blocking): ' + e2.getMessage());
+            }
             
             // Update queue item status and actioned date
             queueItem.Status__c = 'In Progress';
@@ -688,7 +1063,7 @@ public class NBAQueueManager {
         update callTask;
         
         // Update the NBA Queue record with the disposition and notes
-        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, 
+        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, Lead__c,
                                          Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Last_Progression_Time__c, 
                                           Best_Time_to_Call__c, Next_Step_Date__c, Next_Steps__c
                                   FROM NBA_Queue__c WHERE Id = :queueItemId];
@@ -696,7 +1071,8 @@ public class NBAQueueManager {
         // Update Rep_Notes__c with call notes
         if (String.isNotBlank(callNotes)) {
             String existingNotes = queueItem.Rep_Notes__c != null ? queueItem.Rep_Notes__c : '';
-            queueItem.Rep_Notes__c = existingNotes + '\n\nCall Notes: ' + callNotes;
+            String combined = existingNotes + '\n\nCall Notes: ' + callNotes;
+            queueItem.Rep_Notes__c = truncateFromStart(combined, 32768);
         }
         
         // Update Call_Disposition__c with disposition
@@ -716,29 +1092,142 @@ public class NBAQueueManager {
         update queueItem;
         System.debug('Queue item completed with multiplier: ' + multiplierDescription);
         
-        // Update the Opportunity Description field if there's a related opportunity
-        if (queueItem.Opportunity__c != null && String.isNotBlank(callNotes)) {
+        // Update related Opportunity fields upon acceptance (Last/First Call timestamps and Description)
+        if (queueItem.Opportunity__c != null) {
             try {
-                Opportunity opp = [SELECT Id, Description FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
-                
-                // Append call notes to existing description on a new line
-                String currentDescription = opp.Description != null ? opp.Description : '';
-                String timestamp = DateTime.now().format('MM/dd/yyyy HH:mm:ss');
-                String newCallNotes = '\n\n--- Call Notes (' + timestamp + ') ---\n' + callNotes;
-                
-                opp.Description = currentDescription + newCallNotes;
+                Opportunity opp = [SELECT Id, Description, First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
+                // Stamp Last Call now; seed First Call once
+                Datetime nowTs = System.now();
+                opp.Last_Call_Date_Time__c = nowTs;
+                if (opp.First_Call_Date_Time__c == null) {
+                    opp.First_Call_Date_Time__c = nowTs;
+                }
+                // Prepend newest call notes (if provided) to Description
+                if (String.isNotBlank(callNotes)) {
+                    String currentDescription = opp.Description != null ? opp.Description : '';
+                    String timestamp = DateTime.now().format('MM/dd/yyyy HH:mm:ss');
+                    String newCallNotes = '--- Call Notes (' + timestamp + ') ---\n' + callNotes;
+                    opp.Description = String.isBlank(currentDescription)
+                        ? newCallNotes
+                        : newCallNotes + '\n\n' + currentDescription;
+                }
                 update opp;
-                System.debug('Updated Opportunity Description for ID: ' + opp.Id + ' - Appended call notes');
             } catch (Exception e) {
-                System.debug('Error updating Opportunity Description: ' + e.getMessage());
+                System.debug('Error updating Opportunity on acceptance: ' + e.getMessage());
+            }
+        } else if (queueItem.Lead__c != null) {
+            try {
+                Lead l = [SELECT Id, Description FROM Lead WHERE Id = :queueItem.Lead__c LIMIT 1];
+                if (String.isNotBlank(callNotes)) {
+                    String currentDescription = l.Description != null ? l.Description : '';
+                    String timestamp = DateTime.now().format('MM/dd/yyyy HH:mm:ss');
+                    String newCallNotes = '--- Call Notes (' + timestamp + ') ---\n' + callNotes;
+                    l.Description = String.isBlank(currentDescription) ? newCallNotes : newCallNotes + '\n\n' + currentDescription;
+                }
+                update l;
+            } catch (Exception e) {
+                System.debug('Error updating Lead on acceptance: ' + e.getMessage());
             }
         }
     }
 
+    // New: Update call disposition with option to finalize the NBA Queue item later (two-phase submit)
     @AuraEnabled
-    public static void saveNextSteps(Id queueItemId, Date nextStepDate, String nextSteps, String newOpportunityStage) {
+    public static void updateCallDispositionWithQueueIdOptions(Id taskId, Id queueItemId, String disposition, String callNotes, Boolean finalize) {
+        // Update the task same as existing method
+        Task callTask = [SELECT Id, Description, CallDisposition FROM Task WHERE Id = :taskId];
+        if (String.isNotBlank(disposition)) {
+            callTask.CallDisposition = disposition;
+        }
+        String existingDescription = callTask.Description != null ? callTask.Description : '';
+        String updatedDescription = existingDescription;
+        if (String.isNotBlank(disposition)) {
+            updatedDescription += '\n\nCall Disposition: ' + disposition;
+        }
+        if (String.isNotBlank(callNotes)) {
+            updatedDescription += '\n\nCall Notes: ' + callNotes;
+        }
+        callTask.Description = updatedDescription;
+        update callTask;
+
+        // Update the NBA Queue record with the disposition and notes
+        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, Lead__c,
+                                          Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Last_Progression_Time__c, 
+                                           Best_Time_to_Call__c, Next_Step_Date__c, Next_Steps__c
+                                   FROM NBA_Queue__c WHERE Id = :queueItemId];
+
+        if (String.isNotBlank(callNotes)) {
+            String existingNotes = queueItem.Rep_Notes__c != null ? queueItem.Rep_Notes__c : '';
+            String combined = existingNotes + '\n\nCall Notes: ' + callNotes;
+            queueItem.Rep_Notes__c = truncateFromStart(combined, 32768);
+        }
+        if (String.isNotBlank(disposition)) {
+            queueItem.Call_Disposition__c = disposition;
+        }
+
+        // Calculate multiplier description for when we later finalize
+        Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(queueItem);
+        String multiplierDescription = (String) scoreDetails.get('multiplierDescription');
+
+        // If finalize requested, mark Accepted/Completed; else leave In Progress
+        if (finalize == true) {
+            queueItem.Status__c = 'Accepted';
+            queueItem.Completed_Date__c = System.now();
+            queueItem.Priority_Multiplier_Applied__c = multiplierDescription;
+        }
+        update queueItem;
+
+        // Update related Opportunity fields upon acceptance only when finalizing
+        if (finalize == true && queueItem.Opportunity__c != null) {
+            try {
+                Opportunity opp = [SELECT Id, Description, First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
+                Datetime nowTs = System.now();
+                opp.Last_Call_Date_Time__c = nowTs;
+                if (opp.First_Call_Date_Time__c == null) {
+                    opp.First_Call_Date_Time__c = nowTs;
+                }
+                if (String.isNotBlank(callNotes)) {
+                    String currentDescription = opp.Description != null ? opp.Description : '';
+                    String timestamp = DateTime.now().format('MM/dd/yyyy HH:mm:ss');
+                    String newCallNotes = '--- Call Notes (' + timestamp + ') ---\n' + callNotes;
+                    opp.Description = String.isBlank(currentDescription)
+                        ? newCallNotes
+                        : newCallNotes + '\n\n' + currentDescription;
+                }
+                update opp;
+            } catch (Exception e) {
+                System.debug('Error updating Opportunity on acceptance (options): ' + e.getMessage());
+            }
+        } else if (finalize == true && queueItem.Lead__c != null) {
+            try {
+                Lead l = [SELECT Id, Description FROM Lead WHERE Id = :queueItem.Lead__c LIMIT 1];
+                if (String.isNotBlank(callNotes)) {
+                    String currentDescription = l.Description != null ? l.Description : '';
+                    String timestamp = DateTime.now().format('MM/dd/yyyy HH:mm:ss');
+                    String newCallNotes = '--- Call Notes (' + timestamp + ') ---\n' + callNotes;
+                    l.Description = String.isBlank(currentDescription) ? newCallNotes : newCallNotes + '\n\n' + currentDescription;
+                }
+                update l;
+            } catch (Exception e) {
+                System.debug('Error updating Lead on acceptance (options): ' + e.getMessage());
+            }
+        }
+    }
+
+    // New: Finalize an NBA Queue item (mark Accepted and stamp Completed_Date__c)
+    @AuraEnabled
+    public static void finalizeQueueItem(Id queueItemId) {
+        if (queueItemId == null) return;
+        NBA_Queue__c qi = [SELECT Id, Status__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+        qi.Status__c = 'Accepted';
+        qi.Completed_Date__c = System.now();
+        update qi;
+    }
+
+    @AuraEnabled
+    public static void saveNextStepsWithLead(Id queueItemId, Date nextStepDate, String nextSteps, String newOpportunityStage, String newLeadStatus) {
         // Update NBA Queue and related Opportunity with next steps and stage
-        NBA_Queue__c queueItem = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId];
+        NBA_Queue__c queueItem = [SELECT Id, Opportunity__c, Lead__c FROM NBA_Queue__c WHERE Id = :queueItemId];
 
         if (nextStepDate != null) {
             queueItem.Next_Step_Date__c = nextStepDate;
@@ -749,10 +1238,16 @@ public class NBAQueueManager {
         update queueItem;
 
         if (queueItem.Opportunity__c != null) {
-            Opportunity opp = [SELECT Id, Next_Step_Date__c, NextStep, StageName FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
-            if (nextStepDate != null) {
-                opp.Next_Step_Date__c = nextStepDate;
-            }
+            Opportunity opp = [SELECT Id, NextStep, StageName FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
+            // Conditionally set custom date field if it exists in the org
+            try {
+                if (nextStepDate != null) {
+                    Map<String, Schema.SObjectField> fmap = Schema.getGlobalDescribe().get('Opportunity').getDescribe().fields.getMap();
+                    if (fmap.containsKey('Next_Step_Date__c')) {
+                        opp.put('Next_Step_Date__c', nextStepDate);
+                    }
+                }
+            } catch (Exception e) {}
             if (String.isNotBlank(nextSteps)) {
                 opp.NextStep = nextSteps;
             }
@@ -760,6 +1255,22 @@ public class NBAQueueManager {
                 opp.StageName = newOpportunityStage;
             }
             update opp;
+        } else {
+            // Lead path
+            try {
+                Id leadId = (Id) queueItem.get('Lead__c');
+                if (leadId != null) {
+                    Lead l = [SELECT Id, Status FROM Lead WHERE Id = :leadId LIMIT 1];
+                    // Apply Next Step fields if present
+                    try {
+                        Map<String, Schema.SObjectField> fmap = Schema.getGlobalDescribe().get('Lead').getDescribe().fields.getMap();
+                        if (nextStepDate != null && fmap.containsKey('Next_Step_Date__c')) l.put('Next_Step_Date__c', nextStepDate);
+                        if (String.isNotBlank(nextSteps) && fmap.containsKey('Next_Step__c')) l.put('Next_Step__c', nextSteps);
+                    } catch (Exception e2) {}
+                    if (String.isNotBlank(newLeadStatus)) l.Status = newLeadStatus;
+                    update l;
+                }
+            } catch (Exception e) {}
         }
     }
 
@@ -768,7 +1279,10 @@ public class NBAQueueManager {
         Schema.DescribeFieldResult dfr = Opportunity.StageName.getDescribe();
         List<String> stages = new List<String>();
         for (Schema.PicklistEntry pe : dfr.getPicklistValues()) {
-            stages.add(pe.getLabel());
+            if (pe.isActive()) {
+                // Return the picklist values (not labels) so they match Opportunity.StageName
+                stages.add(pe.getValue());
+            }
         }
         return stages;
     }
@@ -815,23 +1329,23 @@ public class NBAQueueManager {
         }
     }
 
-    // Helper method to determine if a queue item should be skipped based on filtering rules
-    private static Boolean shouldSkipQueueItem(NBA_Queue__c item) {
-        // In Progress items should never be excluded - reps need to complete their work
-        if (item.Status__c == 'In Progress') {
-            System.debug('Item is In Progress - skipping all exclusion logic to allow completion');
-            return false;
-        }
-        
-        // Skip if Opportunity Stage is one of the specified stages
+    // Return a human-readable reason why an item should be skipped; null if eligible
+    @TestVisible private static String getSkipReason(NBA_Queue__c item, Set<Id> blockedOppIds) {
+        // 1) Hard blocks: these always exclude, even if the item is In Progress
         if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.StageName != null) {
             String stage = item.Opportunity__r.StageName.toLowerCase();
             if (stage == 'closed won - pending implementation' || 
                 stage == 'closed lost' || 
                 stage == 'ran payroll') {
-                System.debug('Skipping item due to Opportunity stage: ' + item.Opportunity__r.StageName);
-                return true;
+                System.debug('Skipping item due to Opportunity stage (hard block): ' + item.Opportunity__r.StageName);
+                return 'Opportunity stage is ' + item.Opportunity__r.StageName;
             }
+        }
+
+        // 2) Allow In Progress items to bypass the remaining (soft) exclusions so reps can complete work
+        if (item.Status__c == 'In Progress') {
+            System.debug('Item is In Progress - bypassing soft exclusions to allow completion');
+            return null;
         }
         
         // Skip if Opportunity Last_Call_Date_Time__c is today
@@ -842,7 +1356,7 @@ public class NBAQueueManager {
             
             if (lastCallDate == today) {
                 System.debug('Skipping item due to last call being today: ' + lastCallTime);
-                return true;
+                return 'Already called today';
             }
         }
         
@@ -853,8 +1367,13 @@ public class NBAQueueManager {
             
             if (futureFollowUpDate > today) {
                 System.debug('Skipping item due to future follow-up date: ' + futureFollowUpDate);
-                return true;
+                return 'Future follow-up date is set to ' + String.valueOf(futureFollowUpDate);
             }
+        }
+        // Skip if this opportunity has a future Event beyond the 15-minute window
+        if (item.Opportunity__c != null && blockedOppIds != null && blockedOppIds.contains(item.Opportunity__c)) {
+            System.debug('Skipping item due to future scheduled Event > 15 minutes for Opp: ' + item.Opportunity__c);
+            return 'Future meeting scheduled (>15 minutes)';
         }
         
         // Skip if Account Payroll_Status__c contains specific values
@@ -864,11 +1383,31 @@ public class NBAQueueManager {
                 payrollStatus == 'processing' || 
                 payrollStatus == 'paid') {
                 System.debug('Skipping item due to payroll status: ' + item.Account__r.Payroll_Status__c);
-                return true;
+                return 'Account is in payroll status: ' + item.Account__r.Payroll_Status__c;
             }
         }
         
-        return false;
+        return null;
+    }
+
+    // Helper: get Opportunity IDs that have an Event starting later than now + 15 minutes
+    @TestVisible private static Set<Id> getOpportunitiesBlockedByFutureEvents(Set<Id> opportunityIds) {
+        Set<Id> blocked = new Set<Id>();
+        if (opportunityIds == null || opportunityIds.isEmpty()) return blocked;
+        // Query Events in bulk; use grouping to keep it efficient
+        for (AggregateResult ar : [
+            SELECT WhatId wid, MIN(StartDateTime) minStart
+            FROM Event
+            WHERE WhatId IN :opportunityIds AND IsDeleted = false AND StartDateTime > :System.now()
+            GROUP BY WhatId
+        ]) {
+            Id wid = (Id) ar.get('wid');
+            Datetime minStart = (Datetime) ar.get('minStart');
+            if (minStart != null && minStart > System.now().addMinutes(120)) {
+                blocked.add(wid);
+            }
+        }
+        return blocked;
     }
 
 
@@ -972,5 +1511,21 @@ public class NBAQueueManager {
         }
     }
 
+    @AuraEnabled(cacheable=true)
+    public static List<String> getLeadStatusNames() {
+        List<String> out = new List<String>();
+        try {
+            Schema.DescribeFieldResult dfr = Lead.Status.getDescribe();
+            for (Schema.PicklistEntry pe : dfr.getPicklistValues()) {
+                if (pe.isActive()) out.add(pe.getValue());
+            }
+        } catch (Exception e) {}
+        return out;
+    }
+
+    @AuraEnabled
+    public static void saveNextSteps(Id queueItemId, Date nextStepDate, String nextSteps, String newOpportunityStage) {
+        saveNextStepsWithLead(queueItemId, nextStepDate, nextSteps, newOpportunityStage, null);
+    }
 
 }

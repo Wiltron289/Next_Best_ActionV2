@@ -8,7 +8,7 @@
             <value></value>
         </criteriaItems>
         <label>NBA Queue Sales Rep Rule</label>
-        <accessLevel>Read</accessLevel>
+        <accessLevel>Edit</accessLevel>
         <sharedTo>
             <allInternalUsers/>
         </sharedTo>

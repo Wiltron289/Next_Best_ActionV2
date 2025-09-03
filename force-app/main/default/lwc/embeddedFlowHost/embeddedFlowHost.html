@@ -1,0 +1,10 @@
+<template>
+    <div class="host">
+        <template if:true={debug}>
+            <div class="status">{statusText}</div>
+        </template>
+        <lightning-flow onstatuschange={handleStatusChange}></lightning-flow>
+    </div>
+</template>
+
+

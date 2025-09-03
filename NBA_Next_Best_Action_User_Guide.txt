@@ -8,6 +8,8 @@ THE SCREEN
   - Left: Action Widget (what to do now + Accept/Dismiss)
   - Right: Record Details (key Opportunity info, grouped sections)
 - You can resize the columns. Each panel scrolls internally so buttons never get cut off.
+- The widget header shows a countdown timer to the next auto-refresh.
+- Tabs in the widget: Contact Info, Product Usage, and Up Next (a preview of what you'll likely see next).
 
 HOW ITEMS ARE CHOSEN (PRIORITY + MULTIPLIERS)
 - Items are ordered by a priority score, adjusted by recent signals:
@@ -36,7 +38,7 @@ WHEN AN ITEM WILL NOT BE SERVED (EXCEPTION CRITERIA)
 
 ACCEPTING AN ACTION (FOR CALLS)
 - What happens when you click Accept:
-  - A completed Task is created for tracking.
+  - The dialer launches with the best number available (see “How we choose the phone number” below).
   - The dialer launches with the best number available (see “How we choose the phone number” below).
   - The Call Disposition form opens.
     - Fields and order:
@@ -48,15 +50,16 @@ ACCEPTING AN ACTION (FOR CALLS)
       - Next Step
     - Stage Update defaults to the Opportunity’s current stage.
     - If you choose “Connected - DM,” you must provide Next Step Date and Next Step, unless the stage you select is a closed state (Closed Won / Closed Lost / Closed Won - Pending Implementation).
-  - If you select “Closed Won - Pending Implementation,” the Project Initiation Wizard flow opens for that Opportunity.
+  - If you select “Closed Won - Pending Implementation,” the Project Initiation Wizard flow opens for that Opportunity. The widget does not change the stage; the flow handles it.
+  - If you select “Closed Lost,” the Closed Lost flow opens for that Opportunity. The widget does not change the stage; the flow handles it.
 
 - What gets written back when you complete the disposition:
   - To the NBA record:
-    - Status becomes Accepted
+    - Status moves to In Progress when you start, and becomes Accepted when you submit the disposition
     - Multiplier notes saved to Priority_Multiplier_Applied__c
     - Next step fields (Next_Step_Date__c, Next_Steps__c) if provided
   - To the Opportunity (if related):
-    - StageName updates if you chose a stage
+    - StageName updates if you chose a stage, except when you chose “Closed Won - Pending Implementation” or “Closed Lost” (flows handle those)
     - Next Step Date (Next_Step_Date__c) and Next Step (NextStep) if provided
     - Call Notes are added to the TOP of Description with a timestamp (newest at the top)
 
@@ -70,12 +73,11 @@ DISMISSING OR SNOOZING AN ACTION
     - You pick the date/time of the scheduled call
     - The item is paused until 15 minutes before that time
     - Status becomes Snoozed, Snoozed_Until__c is set
-  - Time Zone
-    - You choose how many hours to delay
-    - The item won’t surface until that time passes
+  - Snooze 3 Hours
+    - One-click snooze; the item won’t surface until 3 hours have passed
   - Other
     - Enter a reason, and the item is dismissed immediately
-- The Dismiss/Snooze panel scrolls internally; buttons remain visible.
+- The Dismiss/Snooze panel scrolls internally; buttons remain visible and the sticky footer is a bit shorter for more room.
 
 HOW WE CHOOSE THE PHONE NUMBER
 - If the NBA item has an Opportunity:
@@ -83,13 +85,14 @@ HOW WE CHOOSE THE PHONE NUMBER
   - For all other stages, we use the Opportunity’s Primary Contact phone.
 - If there is no Opportunity:
   - If “Best Person to Call” is set, we use that number; else we use the Account’s Primary Contact phone (or Account phone as final fallback).
+- The number actually dialed is saved back to the NBA item in “Number Dialed.”
 
 RECORD DETAILS (RIGHT PANEL)
 - Three collapsible sections with purple headers (you can expand/collapse):
   - Opportunity Details
     - Name, Stage, Close Date, Primary Contact, Account Business Category, Account Admin Links, Current Payroll, Description
   - Payroll Details
-    - Payroll Buyer Stage, Payroll Risk Level, Fed Auth Finish, Bank Connect Finish, Pay Sched Finish, Last Progression Time, Account Blocked Reason
+    - First Pay Day, Payroll Buyer Stage, Payroll Risk Level, Fed Auth Finish, Bank Connect Finish, Pay Sched Finish, Last Progression Time, Account Blocked Reason
   - Next Step and Future Follow Up Details
     - Next Step Date, Next Step, Future Follow-Up Date, Future Follow-Up Reason
 - Inline edits are allowed. Changes here update the record immediately.
@@ -103,6 +106,7 @@ STATUSES YOU’LL SEE
 
 REFRESH BEHAVIOR
 - The app auto-refreshes every 30 seconds.
+- The widget header shows a countdown to the next auto-refresh.
 - Use the refresh button on the widget whenever you want instant updates.
 
 PERMISSIONS
@@ -112,9 +116,20 @@ IF SOMETHING DOESN’T LOOK RIGHT
 - Try a hard refresh of your browser tab.
 - If an item is appearing when you know a future meeting exists, check the meeting’s Start time—items are blocked only until 15 minutes before the meeting.
 
+ELIGIBILITY CHECKLIST (WHY AN ITEM MAY NOT APPEAR)
+- Opportunity is in a closed/blocked stage:
+  - Closed Won - Pending Implementation, Closed Lost, or Ran Payroll
+- Opportunity already had a call today
+- Future follow-up date is set in the future
+- There’s a meeting/call scheduled more than 15 minutes from now
+- Account payroll is mid-process (Pending, Processing, or Paid)
+- Item is Snoozed and the Snoozed Until time hasn’t passed
+- Item is assigned to someone else or not in Pending/In Progress/Snoozed
+- Tip: Admins can see the “Not Surfaced Reasons” field on the NBA record for diagnostic details
+
 SUMMARY
 - Items are prioritized with multipliers for recency signals and best call window.
 - Items are skipped for closed stages, today’s prior call, future follow-ups, future events, payroll processing, and snooze windows.
-- Accept logs a completed Task, launches the dialer, and updates Opportunity/NBA; “Closed Won - Pending Implementation” launches the setup flow.
+- Accept launches the dialer, opens disposition, and updates Opportunity/NBA; “Closed Won - Pending Implementation” and “Closed Lost” launch flows that handle stage changes.
 - Dismiss supports Snooze (scheduled or time-zone) and “Other” with a reason.
 - Record Details are grouped, collapsible, and inline-editable.

@@ -24,8 +24,9 @@
 }
 
 .nba-widget-form-active {
-    height: auto !important;
-    min-height: 400px;
+    height: var(--panel-height) !important;
+    min-height: 0;
+    overflow: hidden;
 }
 
 /* Blinking animation for new actions */
@@ -61,6 +62,15 @@
     display: flex;
     gap: 8px;
     align-items: center;
+}
+
+.nba-widget-countdown {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #ffffff;
+    opacity: 0.85;
+    margin-right: 6px;
 }
 
 .nba-widget-title {
@@ -399,7 +409,12 @@
 .nba-widget-form-section {
     background: #f8f9fa;
     border-top: 1px solid #e9ecef;
-    padding: 20px;
+    padding: 14px; /* reduce vertical footprint ~30% */
+    display: flex;
+    flex-direction: column;
+    /* Make the sticky bar smaller and allow internal scroll */
+    max-height: calc(var(--panel-height) - 200px);
+    overflow: hidden;
 }
 
 .nba-widget-form-header {
@@ -440,7 +455,9 @@
 .nba-widget-form-content {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    flex: 1 1 auto;
+    overflow-y: auto; /* scrollable content */
 }
 
 .nba-widget-form-field {
@@ -510,9 +527,13 @@
 
 .nba-widget-form-actions {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     justify-content: flex-end;
-    margin-top: 20px;
+    margin-top: 12px;
+    position: sticky;
+    bottom: 0;
+    background: #f8f9fa;
+    padding-top: 8px;
 }
 
 .nba-widget-form-cancel,
@@ -561,7 +582,7 @@
 .nba-widget-footer {
     display: flex;
     gap: 12px;
-    padding: 20px;
+    padding: 17px; /* ~15% shorter from 20px */
     background: #f8f9fa;
     border-top: 1px solid #e9ecef;
     border-radius: 0 0 8px 8px;

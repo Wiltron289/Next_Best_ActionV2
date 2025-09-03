@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MessageChannel xmlns="http://soap.sforce.com/2006/04/metadata">
+    <masterLabel>NBA Opportunity Context</masterLabel>
+    <isExposed>true</isExposed>
+    <description>Publishes the active Opportunity Id from the NBA app page</description>
+    <lightningMessageFields>
+        <fieldName>recordId</fieldName>
+        <description>Opportunity Id</description>
+    </lightningMessageFields>
+</MessageChannel>
+
+

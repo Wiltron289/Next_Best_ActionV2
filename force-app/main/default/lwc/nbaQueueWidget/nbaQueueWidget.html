@@ -16,6 +16,7 @@
             <div class="nba-widget-header">
                 <div class="nba-widget-title">Next Best Action</div>
                 <div class="nba-widget-header-actions">
+                    <div class="nba-widget-countdown" title="Time until next auto-refresh">Refresh in {refreshCountdown}s</div>
                     <button class="nba-widget-refresh-btn" onclick={handleManualRefresh} title="Refresh Queue">
                         <span class="nba-widget-refresh-icon">🔄</span>
                     </button>
@@ -48,6 +49,9 @@
                     <template if:true={queueItem.Opportunity__c}>
                         <span class="nba-widget-badge nba-widget-badge-opportunity">{opportunityStage}</span>
                     </template>
+                    <template if:true={queueItem.Lead__c}>
+                        <span class="nba-widget-badge">{leadSource}</span>
+                    </template>
                 </div>
 
                 <div class="nba-widget-row nba-widget-badges-row">
@@ -58,29 +62,44 @@
                         <span class="nba-widget-badge">{companyAgeMonths} months old</span>
                     </template>
                 </div>
-                <div class="nba-widget-tabs">
-                    <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
-                    <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
-                </div>
-                <!-- Removed Opportunity details panel: this content now lives on the right panel of the console page -->
+                <template if:false={showEmbeddedFlow}>
+                    <div class="nba-widget-tabs">
+                        <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
+                        <template if:false={queueItem.Lead__c}>
+                            <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
+                        </template>
+                        <button value="upnext" onclick={handleTabChange} class={upNextTabClass}>Up Next</button>
+                        <button value="notsurfaced" onclick={handleTabChange} class={notSurfacedTabClass}>Not Surfaced</button>
+                    </div>
+                </template>
+                
+                <template if:false={showEmbeddedFlow}>
                 <template if:true={isContactTab}>
                     <div class="nba-widget-contact">
-                        <template if:true={displayContactPerson}>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Best Person to Call</span>
-                                <span class="nba-widget-detail-value">
-                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={handleContactClick} data-contact-id={displayContactId}>
-                                        {displayContactPerson}
-                                    </a>
-                                </span>
-                            </div>
-
-                            <template if:true={displayContactEmail}>
+                        <template if:false={queueItem.Lead__c}>
+                            <template if:true={displayContactPerson}>
                                 <div class="nba-widget-detail-row">
-                                    <span class="nba-widget-detail-label">Contact Email</span>
-                                    <span class="nba-widget-detail-value">{displayContactEmail}</span>
+                                    <span class="nba-widget-detail-label">Best Person to Call</span>
+                                    <span class="nba-widget-detail-value">
+                                        <a href="javascript:void(0);" class="nba-widget-link" onclick={handleContactClick} data-contact-id={displayContactId}>
+                                            {displayContactPerson}
+                                        </a>
+                                    </span>
                                 </div>
+
+                                <template if:true={displayContactEmail}>
+                                    <div class="nba-widget-detail-row">
+                                        <span class="nba-widget-detail-label">Contact Email</span>
+                                        <span class="nba-widget-detail-value">{displayContactEmail}</span>
+                                    </div>
+                                </template>
                             </template>
+                        </template>
+                        <template if:true={queueItem.Lead__c}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Lead Email</span>
+                                <span class="nba-widget-detail-value">{displayContactEmail}</span>
+                            </div>
                         </template>
                         <template if:true={displayContactPhone}>
                             <div class="nba-widget-detail-row">
@@ -201,6 +220,75 @@
                         </template>
                     </div>
                 </template>
+                <template if:true={isUpNextTab}>
+                    <div class="nba-widget-overview">
+                        <div class="nba-widget-row nba-widget-main-row">
+                            <span class="nba-widget-icon">📞</span>
+                            <span class="nba-widget-main-text">
+                                <template if:true={upNextItem}>
+                                    <template if:true={isUpNextLead}>Lead Call for&nbsp;</template>
+                                    <template if:true={isUpNextOpp}>Opportunity Call for&nbsp;</template>
+                                    <template if:true={isUpNextAccount}>Account Call for&nbsp;</template>
+                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={handleUpNextRecordClick}
+                                       data-id={upNextRecordId} data-object={upNextObjectApiName}>
+                                        <template if:true={isUpNextLead}>
+                                            {upNextItem.Lead__r.Name}
+                                        </template>
+                                        <template if:true={isUpNextOpp}>
+                                            {upNextItem.Opportunity__r.Name}
+                                        </template>
+                                        <template if:true={isUpNextAccount}>
+                                            {upNextItem.Account__r.Name}
+                                        </template>
+                                    </a>
+                                </template>
+                                <template if:false={upNextItem}>
+                                    No upcoming item.
+                                </template>
+                            </span>
+                        </div>
+                    </div>
+                </template>
+                <template if:true={isNotSurfacedTab}>
+                    <div class="nba-widget-overview">
+                        <template if:true={notSurfaced.length}>
+                            <template for:each={notSurfaced} for:item="row">
+                                <div key={row.id} class="nba-widget-row">
+                                    <span class="nba-widget-icon">🚫</span>
+                                    <span class="nba-widget-main-text">
+                                        <template if:true={row.opportunityId}>
+                                            <a href="javascript:void(0);" class="nba-widget-link" onclick={handleNotSurfacedRecordClick} data-id={row.opportunityId}>
+                                                {row.opportunityName}
+                                            </a>
+                                        </template>
+                                        <template if:false={row.opportunityId}>
+                                            <a href="javascript:void(0);" class="nba-widget-link" onclick={handleNotSurfacedRecordClick} data-id={row.accountId}>
+                                                {row.accountName}
+                                            </a>
+                                        </template>
+                                        — {row.reason}
+                                    </span>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={notSurfaced.length}>
+                            <div class="nba-widget-contact-placeholder">Nothing is being filtered out right now.</div>
+                        </template>
+                    </div>
+                </template>
+                </template>
+
+                <!-- Embedded Flow Host (inline rendering as overlay) -->
+                <template if:true={showEmbeddedFlow}>
+                    <div class="nba-widget-embedded-flow">
+                        <c-embedded-flow-host flow-api-name={embeddedFlowApiName}
+                                              record-id={embeddedFlowRecordId}
+                                              queue-item-id={embeddedFlowQueueItemId}
+                                              debug="false"
+                                              onflowcomplete={handleEmbeddedFlowComplete}>
+                        </c-embedded-flow-host>
+                    </div>
+                </template>
             </div>
             
             <!-- Call Disposition Form -->
@@ -229,6 +317,16 @@
                                 <label for="stage-update">Opportunity Stage Update</label>
                                 <select id="stage-update" class="nba-widget-form-select" onchange={handleStageChange} value={selectedStage}>
                                     <template for:each={opportunityStageOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </template>
+                        <template if:true={queueItem.Lead__c}>
+                            <div class="nba-widget-form-field">
+                                <label for="lead-status-update">Lead Status Update</label>
+                                <select id="lead-status-update" class="nba-widget-form-select" onchange={handleLeadStatusChange} value={selectedLeadStatus}>
+                                    <template for:each={leadStatusOptions} for:item="opt">
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                     </template>
                                 </select>
@@ -283,8 +381,8 @@
                         </template>
                         <template if:true={isTimeZoneSnooze}>
                             <div class="nba-widget-form-field">
-                                <label for="snooze-hours">Snooze for how many hours?</label>
-                                <input id="snooze-hours" type="number" min="1" class="nba-widget-form-textarea" oninput={handleSnoozeHoursChange} />
+                                <label>Snooze Duration</label>
+                                <div class="nba-widget-form-value">3 hours</div>
                             </div>
                         </template>
                         <template if:true={isOtherDismissal}>
@@ -303,7 +401,8 @@
                 </div>
             </template>
 
-            <!-- Footer Actions (only show when no forms are active) -->
+            <!-- Footer Actions (only show when no forms are active and flow not visible) -->
+            <template if:false={showEmbeddedFlow}>
             <template if:false={showCallDispositionForm}>
                 <template if:false={showDismissForm}>
                     <div class="nba-widget-footer">
@@ -311,6 +410,7 @@
                         <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>Accept</button>
                     </div>
                 </template>
+            </template>
             </template>
         </div>
     </template>

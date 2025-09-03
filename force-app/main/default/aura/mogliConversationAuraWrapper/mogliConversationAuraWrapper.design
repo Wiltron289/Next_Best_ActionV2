@@ -1,0 +1,5 @@
+<design:component>
+    <design:attribute name="testRecordId" label="Test Record Id" description="Optional static Contact or Opportunity Id to force Mogli to render for testing."/>
+    <design:attribute name="debug" label="Show Debug Line" description="Show the resolved Opportunity and Person Ids under the component."/>
+</design:component>
+

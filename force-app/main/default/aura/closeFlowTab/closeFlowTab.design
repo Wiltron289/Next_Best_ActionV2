@@ -1,0 +1,7 @@
+<design:component>
+    <design:attribute name="delayMs" label="Delay (ms)" description="Delay before closing the tab (milliseconds)"/>
+    <design:attribute name="debug" label="Debug Mode" description="Show status/debug text on screen"/>
+</design:component>
+
+
+

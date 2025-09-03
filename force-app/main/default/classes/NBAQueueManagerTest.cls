@@ -276,6 +276,132 @@ public class NBAQueueManagerTest {
     }
 
     @isTest
+    static void testGetUpNextItemExcludesCurrent() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+
+        // Create two pending items with different priorities
+        NBA_Queue__c firstItem = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 100,
+            Subject__c = 'NBA: UpNext First',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id
+        );
+        NBA_Queue__c secondItem = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 90,
+            Subject__c = 'NBA: UpNext Second',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id
+        );
+        insert new List<NBA_Queue__c>{ firstItem, secondItem };
+
+        Test.startTest();
+        Map<String, Object> upNext = NBAQueueManager.getUpNextItem(salesRep.Id, firstItem.Id);
+        Test.stopTest();
+
+        NBA_Queue__c nextItem = (NBA_Queue__c) upNext.get('upNext');
+        System.assertNotEquals(null, nextItem, 'Should return an up next item');
+        System.assertEquals(secondItem.Id, nextItem.Id, 'Up next should exclude the current item');
+    }
+
+    @isTest
+    static void testFinalizeQueueItemSetsAccepted() {
+        NBA_Queue__c item = [SELECT Id, Status__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+        Test.startTest();
+        NBAQueueManager.finalizeQueueItem(item.Id);
+        Test.stopTest();
+        NBA_Queue__c updated = [SELECT Status__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :item.Id];
+        System.assertEquals('Accepted', updated.Status__c);
+        System.assertNotEquals(null, updated.Completed_Date__c);
+    }
+
+    @isTest
+    static void testGetOpportunityPrimaryContactNull() {
+        Test.startTest();
+        Map<String, Object> res = NBAQueueManager.getOpportunityPrimaryContact(null);
+        Test.stopTest();
+        System.assertEquals(true, res.isEmpty(), 'Null input should return empty result');
+    }
+
+    @isTest
+    static void testGetAccountPrimaryContactNoPrimary() {
+        Account a = new Account(Name = 'No Primary');
+        insert a;
+        Test.startTest();
+        Map<String, Object> res = NBAQueueManager.getAccountPrimaryContact(a.Id);
+        Test.stopTest();
+        System.assertEquals(true, res.isEmpty(), 'No primary contact should return empty');
+    }
+
+    @isTest
+    static void testGetOpportunityStageNamesNotEmpty() {
+        Test.startTest();
+        List<String> stages = NBAQueueManager.getOpportunityStageNames();
+        Test.stopTest();
+        System.assert(stages != null && stages.size() > 0, 'Stage list should not be empty');
+    }
+
+    @isTest
+    static void testSendQueueEmailWithTemplateValidation() {
+        NBA_Queue__c item = [SELECT Id FROM NBA_Queue__c LIMIT 1];
+        Boolean threw = false;
+        Test.startTest();
+        try {
+            NBAQueueManager.sendQueueEmailWithTemplate(item.Id, null, null, null, null);
+        } catch (Exception e) {
+            threw = true;
+        }
+        Test.stopTest();
+        System.assert(threw, 'Should validate required inputs');
+    }
+
+    @isTest
+    static void testSkipDueToStageClosedLost() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Opportunity closedLost = new Opportunity(
+            Name = 'Closed Lost Opp', StageName = 'Closed Lost', CloseDate = Date.today(), AccountId = acct.Id, OwnerId = salesRep.Id,
+            Source__c = 'Outbound', Loss_Reason__c = 'Other'
+        );
+        insert closedLost;
+        NBA_Queue__c skipItem = new NBA_Queue__c(
+            Account__c = acct.Id, Action_Type__c = 'Call', Priority_Score__c = 50, Subject__c = 'Skip Stage', Status__c = 'Pending', Sales_Rep__c = salesRep.Id, Opportunity__c = closedLost.Id
+        );
+        // Also create a valid item that should be served
+        NBA_Queue__c okItem = new NBA_Queue__c(
+            Account__c = acct.Id, Action_Type__c = 'Call', Priority_Score__c = 40, Subject__c = 'OK', Status__c = 'Pending', Sales_Rep__c = salesRep.Id
+        );
+        insert new List<NBA_Queue__c>{ skipItem, okItem };
+        Test.startTest();
+        NBA_Queue__c nextItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        Test.stopTest();
+        System.assertNotEquals(skipItem.Id, nextItem.Id, 'Should not serve Closed Lost opportunity item');
+    }
+
+    @isTest
+    static void testSkipDueToPayrollStatus() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = new Account(Name='Payroll Pending', Payroll_Status__c = 'Pending');
+        insert acct;
+        Opportunity opp = new Opportunity(Name='Opp P', StageName='Qualification', CloseDate=Date.today().addDays(5), AccountId=acct.Id, OwnerId=salesRep.Id, Source__c='Outbound');
+        insert opp;
+        NBA_Queue__c skipItem = new NBA_Queue__c(Account__c=acct.Id, Action_Type__c='Call', Priority_Score__c=60, Subject__c='Skip Payroll', Status__c='Pending', Sales_Rep__c=salesRep.Id, Opportunity__c=opp.Id);
+        // Valid item
+        Account acct2 = new Account(Name='OK');
+        insert acct2;
+        NBA_Queue__c okItem = new NBA_Queue__c(Account__c=acct2.Id, Action_Type__c='Call', Priority_Score__c=55, Subject__c='OK2', Status__c='Pending', Sales_Rep__c=salesRep.Id);
+        insert new List<NBA_Queue__c>{ skipItem, okItem };
+        Test.startTest();
+        NBA_Queue__c nextItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        Test.stopTest();
+        System.assertEquals(okItem.Id, nextItem.Id, 'Item with payroll pending should be skipped');
+    }
+
+    @isTest
     static void testAssignQueueItems() {
         Account acct = [SELECT Id, Name FROM Account LIMIT 1];
 
@@ -762,4 +888,223 @@ public class NBAQueueManagerTest {
         System.assertEquals(inProgressItem.Id, returnedItem.Id, 'Should return the In Progress item');
         System.assertEquals('In Progress', returnedItem.Status__c, 'Item should remain In Progress');
     }
+
+	// New: Event blocking logic tests
+	@isTest
+	static void testEventBlockingSkipsFutureEvent() {
+		User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+		Account acct = [SELECT Id FROM Account LIMIT 1];
+
+		// Create a new Opp and NBA item that should be blocked by a future Event (> 15 min)
+		Opportunity oppFuture = new Opportunity(
+			Name = 'Opp - Future Event',
+			StageName = 'Qualification',
+			CloseDate = Date.today().addDays(10),
+			AccountId = acct.Id,
+			OwnerId = salesRep.Id,
+			Source__c = 'Outbound'
+		);
+		insert oppFuture;
+
+		NBA_Queue__c blockedItem = new NBA_Queue__c(
+			Account__c = acct.Id,
+			Action_Type__c = 'Call',
+			Priority_Score__c = 100,
+			Subject__c = 'NBA: Call - Future Event Block',
+			Status__c = 'Pending',
+			Sales_Rep__c = salesRep.Id,
+			Opportunity__c = oppFuture.Id
+		);
+		insert blockedItem;
+
+		// Create a future Event > 15 minutes from now
+		Datetime startTs = System.now().addHours(3);
+		Event ev = new Event(
+			Subject = 'Future Meeting',
+			StartDateTime = startTs,
+			EndDateTime = startTs.addMinutes(30),
+			WhatId = oppFuture.Id
+		);
+		insert ev;
+
+		Test.startTest();
+		NBA_Queue__c nextItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+		Test.stopTest();
+
+		// Should not serve the blocked item
+		System.assertNotEquals(blockedItem.Id, nextItem.Id, 'Item with future Event >15 min should be skipped');
+	}
+
+	@isTest
+	static void testEventBlockingAllowsWithin15Min() {
+		User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+		Account acct = [SELECT Id FROM Account LIMIT 1];
+
+		Opportunity oppSoon = new Opportunity(
+			Name = 'Opp - Event Soon',
+			StageName = 'Qualification',
+			CloseDate = Date.today().addDays(5),
+			AccountId = acct.Id,
+			OwnerId = salesRep.Id,
+			Source__c = 'Outbound'
+		);
+		insert oppSoon;
+
+		NBA_Queue__c soonItem = new NBA_Queue__c(
+			Account__c = acct.Id,
+			Action_Type__c = 'Call',
+			Priority_Score__c = 95,
+			Subject__c = 'NBA: Call - Event Soon',
+			Status__c = 'Pending',
+			Sales_Rep__c = salesRep.Id,
+			Opportunity__c = oppSoon.Id
+		);
+		insert soonItem;
+
+		// Event starts within 10 minutes (should be eligible)
+		Datetime startTs = System.now().addMinutes(10);
+		insert new Event(Subject='Soon Meeting', StartDateTime=startTs, EndDateTime=startTs.addMinutes(30), WhatId=oppSoon.Id);
+
+		Test.startTest();
+		NBA_Queue__c nextItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+		Test.stopTest();
+
+		System.assertEquals(soonItem.Id, nextItem.Id, 'Item with event within 15 minutes should be eligible');
+	}
+
+	// New: Snooze tests
+	@isTest
+	static void testSnoozeCallScheduled() {
+		NBA_Queue__c item = [SELECT Id FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+		Datetime scheduled = System.now().addHours(4);
+		Test.startTest();
+		NBAQueueManager.snoozeQueueItem(item.Id, 'Call Scheduled', scheduled, null);
+		Test.stopTest();
+		NBA_Queue__c updated = [SELECT Status__c, Snoozed_Until__c FROM NBA_Queue__c WHERE Id = :item.Id];
+		System.assertEquals('Snoozed', updated.Status__c);
+		System.assertEquals(scheduled.addMinutes(-15), updated.Snoozed_Until__c, 'Should snooze until 15 minutes before scheduled time');
+	}
+
+	@isTest
+	static void testSnoozeTimeZoneThreeHours() {
+		NBA_Queue__c item = [SELECT Id FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+		Test.startTest();
+		NBAQueueManager.snoozeQueueItem(item.Id, 'Time Zone', null, 3);
+		Test.stopTest();
+		NBA_Queue__c updated = [SELECT Status__c, Snoozed_Until__c FROM NBA_Queue__c WHERE Id = :item.Id];
+		System.assertEquals('Snoozed', updated.Status__c);
+		System.assert(updated.Snoozed_Until__c >= System.now().addHours(3).addMinutes(-1), 'Snoozed until should be ~3 hours ahead');
+	}
+
+	// New: Call time stamps helper
+	@isTest
+	static void testMarkOpportunityCallTimes() {
+		Opportunity opp = [SELECT Id, First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity LIMIT 1];
+		// First invocation
+		Test.startTest();
+		NBAQueueManager.markOpportunityCallTimes(opp.Id);
+		Test.stopTest();
+		Opportunity after = [SELECT First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity WHERE Id = :opp.Id];
+		System.assertNotEquals(null, after.Last_Call_Date_Time__c, 'Last call should be set');
+		System.assertNotEquals(null, after.First_Call_Date_Time__c, 'First call should be seeded on first run');
+		Datetime first = after.First_Call_Date_Time__c;
+		// Second invocation (outside a second Test.startTest block)
+		NBAQueueManager.markOpportunityCallTimes(opp.Id);
+		Opportunity after2 = [SELECT First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity WHERE Id = :opp.Id];
+		System.assertEquals(first, after2.First_Call_Date_Time__c, 'First call should not change once set');
+	}
+
+	// New: Next steps + stage write-back
+	@isTest
+	static void testSaveNextStepsAndStage() {
+		NBA_Queue__c item = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Status__c != 'Dismissed' LIMIT 1];
+		Date nextDate = Date.today().addDays(5);
+		String steps = 'Send follow-up proposal';
+		String stage = 'Proposal/Price Quote';
+		Test.startTest();
+		NBAQueueManager.saveNextSteps(item.Id, nextDate, steps, stage);
+		Test.stopTest();
+		NBA_Queue__c qi = [SELECT Next_Step_Date__c, Next_Steps__c FROM NBA_Queue__c WHERE Id = :item.Id];
+		System.assertEquals(nextDate, qi.Next_Step_Date__c);
+		System.assertEquals(steps, qi.Next_Steps__c);
+		Opportunity opp = [SELECT NextStep, StageName FROM Opportunity WHERE Id = :item.Opportunity__c];
+		System.assertEquals(steps, opp.NextStep);
+		System.assertEquals(stage, opp.StageName);
+	}
+
+	// New: Email send sets Accepted
+	@isTest
+	static void testSendQueueEmailSetsAccepted() {
+		NBA_Queue__c item = [SELECT Id, Status__c, Account__c, Opportunity__c FROM NBA_Queue__c WHERE Status__c = 'Pending' LIMIT 1];
+		String toAddr = 'test@example.com';
+		Test.startTest();
+		NBAQueueManager.sendQueueEmail(item.Id, toAddr, 'Subject', '<p>Body</p>');
+		Test.stopTest();
+		NBA_Queue__c updated = [SELECT Status__c FROM NBA_Queue__c WHERE Id = :item.Id];
+		System.assertEquals('Accepted', updated.Status__c, 'Email send should mark item Accepted');
+	}
+
+	@isTest
+	static void testListNotSurfacedItemsReturnsPayrollReason() {
+		User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+		// Create an account in a blocked payroll status
+		Account acct = new Account(Name='NS Payroll Pending Acct', Payroll_Status__c='Pending');
+		insert acct;
+		// Create a pending NBA item for this user and account
+		NBA_Queue__c ns = new NBA_Queue__c(
+			Account__c = acct.Id,
+			Action_Type__c = 'Call',
+			Priority_Score__c = 10,
+			Subject__c = 'NS Payroll Pending',
+			Status__c = 'Pending',
+			Sales_Rep__c = salesRep.Id
+		);
+		insert ns;
+		Test.startTest();
+		List<Map<String, Object>> rows = NBAQueueManager.listNotSurfacedItems(salesRep.Id, 25);
+		Test.stopTest();
+		Boolean found = false;
+		for (Map<String, Object> r : rows) {
+			if ((String)r.get('subject') == 'NS Payroll Pending') {
+				found = true;
+				System.assertNotEquals(null, r.get('reason'), 'Reason should be populated');
+			}
+		}
+		System.assert(found, 'Should include the not-surfaced item with a reason');
+	}
+
+	// New coverage for helper methods added during Mogli integration
+	@isTest
+	static void testGetAccountIdForOpportunity() {
+		Opportunity opp = [SELECT Id, AccountId FROM Opportunity LIMIT 1];
+		Test.startTest();
+		Id accId = NBAQueueManager.getAccountIdForOpportunity(opp.Id);
+		Test.stopTest();
+		System.assertEquals(opp.AccountId, accId, 'Should return the AccountId for the Opportunity');
+	}
+
+	@isTest
+	static void testGetQueueBestPerson() {
+		// Create a contact and queue item with Best_Person_to_Call__c
+		Account acct = new Account(Name='Best Person Test');
+		insert acct;
+		Contact c = new Contact(FirstName='Best', LastName='Person', AccountId=acct.Id);
+		insert c;
+		User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+		NBA_Queue__c qi = new NBA_Queue__c(
+			Account__c = acct.Id,
+			Action_Type__c = 'Call',
+			Priority_Score__c = 10,
+			Subject__c = 'Has Best Person',
+			Status__c = 'Pending',
+			Sales_Rep__c = salesRep.Id,
+			Best_Person_to_Call__c = c.Id
+		);
+		insert qi;
+
+		Test.startTest();
+		Id best = NBAQueueManager.getQueueBestPerson(qi.Id);
+		Test.stopTest();
+		System.assertEquals(c.Id, best, 'Should return Best_Person_to_Call__c value');
+	}
 }

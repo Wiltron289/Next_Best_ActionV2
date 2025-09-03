@@ -1,0 +1,20 @@
+<aura:component implements="flexipage:availableForAllPageTypes,lightning:availableForFlowScreens" access="global">
+    <aura:attribute name="delayMs" type="Integer" access="global" default="700" description="Delay before closing (ms)"/>
+    <aura:attribute name="debug" type="Boolean" access="global" default="false" description="Enable status/debug output"/>
+    <aura:attribute name="status" type="String" access="global" default="Initializing..." description="Runtime status output"/>
+
+    <lightning:workspaceAPI aura:id="workspace"/>
+    <aura:handler name="init" value="{!this}" action="{!c.init}"/>
+
+    <div class="slds-p-around_small slds-text-body_small slds-text-color_weak">
+        {!v.status}
+    </div>
+
+    <aura:if isTrue="{!v.debug}">
+        <div class="slds-p-horizontal_small slds-text-body_x-small slds-text-color_weak">
+            Debug mode enabled. Delay: {!v.delayMs}ms
+        </div>
+    </aura:if>
+</aura:component>
+
+

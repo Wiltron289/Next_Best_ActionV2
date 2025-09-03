@@ -1,55 +1,31 @@
 <template>
     <div class="console-wrapper">
         <template if:false={hasItem}>
-            <div class="empty-state">You’re all caught up. No pending actions.</div>
+            <div class="empty-state">You're all caught up. No pending actions.</div>
         </template>
         <template if:true={hasItem}>
-            <div class="two-col three-col" style={gridStyle} onmousemove={handleGlobalMouseMove} onmouseup={handleGlobalMouseUp} onmouseleave={handleGlobalMouseUp}>
+            <div class="two-col" style={gridStyle} onmousemove={handleGlobalMouseMove} onmouseup={handleGlobalMouseUp} onmouseleave={handleGlobalMouseUp}>
                 <div class="left">
-                    <c-nba-queue-widget panel-height={panelHeightPx} onnbaqueuechange={refreshItem}></c-nba-queue-widget>
-                </div>
-                <div class="col-resizer" style="left: calc(25% - 3px);" onmousedown={startResizeLeftMiddle}></div>
-                <div class="middle">
-                    <div class="panel fit-height">
-                        <div class="panel-banner">
-                            <div class="panel-banner-title">
-                                <template if:true={isEmailAction}>Email Composer</template>
-                                <template if:false={isEmailAction}>Call Script</template>
+                    <c-nba-queue-widget panel-height={panelHeightPx}
+                                        onnbaqueuechange={refreshItem}
+                                        onopenembeddedflow={handleOpenEmbeddedFlow}
+                                        style="width:100%; align-self: stretch;"></c-nba-queue-widget>
+                    <template if:true={embeddedFlowVisible}>
+                        <div class="panel-section flow-section">
+                            <div class="panel-banner">
+                                <div class="panel-banner-title">Flow</div>
                             </div>
+                            <c-embedded-flow-host flow-api-name={embeddedFlowApi}
+                                                  record-id={embeddedFlowRecordId}
+                                                  queue-item-id={embeddedFlowQueueItemId}
+                                                  debug={debugFlow}
+                                                  onflowstatus={handleFlowStatus}
+                                                  onflowcomplete={handleEmbeddedFlowComplete}>
+                            </c-embedded-flow-host>
                         </div>
-                        <div class="panel-body">
-                            <template if:true={isEmailAction}>
-                                <div class="form-group">
-                                    <label>Template</label>
-                                    <lightning-combobox value={selectedTemplateId}
-                                                        options={emailTemplates}
-                                                        onchange={handleTemplateChange}
-                                                        placeholder="Select a template (optional)">
-                                    </lightning-combobox>
-                                </div>
-                                <div class="form-group">
-                                    <label>To</label>
-                                    <input type="email" class="nba-widget-form-input" value={emailTo} oninput={handleEmailToChange} />
-                                </div>
-                                <div class="form-group">
-                                    <label>Subject</label>
-                                    <input type="text" class="nba-widget-form-input" value={emailSubject} oninput={handleEmailSubjectChange} />
-                                </div>
-                                <div class="form-group">
-                                    <label>Body</label>
-                                    <textarea class="nba-widget-form-textarea" value={emailBody} oninput={handleEmailBodyChange} placeholder="Write your email..."></textarea>
-                                </div>
-                                <div style="display:flex; justify-content:flex-end; gap:8px;">
-                                    <lightning-button variant="brand" label="Send Email" onclick={sendEmail} disabled={isLoading}></lightning-button>
-                                </div>
-                            </template>
-                            <template if:false={isEmailAction}>
-                                <div class="script">{callScript}</div>
-                            </template>
-                        </div>
-                    </div>
+                    </template>
                 </div>
-                <div class="col-resizer" style="left: calc(50% - 3px);" onmousedown={startResizeMiddleRight}></div>
+                <div class="col-resizer" style="left: calc(50% - 3px);" onmousedown={startResizeLeftRight}></div>
                 <div class="right">
                     <div class="panel fit-height">
                         <div class="panel-banner">
@@ -57,22 +33,89 @@
                         </div>
                         <div class="panel-body">
                         <template if:true={queueItem.Opportunity__c}>
-                            <lightning-record-form record-id={queueItem.Opportunity__c}
-                                                   object-api-name="Opportunity"
-                                                   mode="view"
-                                                   fields={opportunityFields}
-                                                   columns="2"
-                                                   density="compact">
-                            </lightning-record-form>
+                            <div class="panel-section">
+                                <div class="panel-banner collapsible" onclick={toggleOppDetails}>
+                                    <div class="panel-banner-title">Opportunity Details</div>
+                                    <span class={oppChevronClass}>⌄</span>
+                                </div>
+                                <template if:false={oppDetailsCollapsed}>
+                                    <lightning-record-form record-id={queueItem.Opportunity__c}
+                                                           object-api-name="Opportunity"
+                                                           mode="view"
+                                                           fields={opportunityDetailsFields}
+                                                           columns="2"
+                                                           density="compact">
+                                    </lightning-record-form>
+                                    <div class="slds-grid slds-wrap slds-p-top_small">
+                                        <div class="slds-col slds-size_1-of-2 slds-p-right_small">
+                                            <div class="slds-form-element">
+                                                <label class="slds-form-element__label">Current Payroll</label>
+                                                <div class="slds-form-element__control">
+                                                    <div class="slds-form-element__static">{currentPayrollDisplay}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="panel-section">
+                                <div class="panel-banner collapsible" onclick={togglePayrollDetails}>
+                                    <div class="panel-banner-title">Payroll Details</div>
+                                    <span class={payrollChevronClass}>⌄</span>
+                                </div>
+                                <template if:false={payrollDetailsCollapsed}>
+                                    <lightning-record-form record-id={queueItem.Opportunity__c}
+                                                           object-api-name="Opportunity"
+                                                           mode="view"
+                                                           fields={opportunityPayrollFields}
+                                                           columns="2"
+                                                           density="compact">
+                                    </lightning-record-form>
+                                </template>
+                            </div>
+                            <div class="panel-section">
+                                <div class="panel-banner collapsible" onclick={toggleNextFollow}>
+                                    <div class="panel-banner-title">Next Step and Future Follow Up Details</div>
+                                    <span class={nextFollowChevronClass}>⌄</span>
+                                </div>
+                                <template if:false={nextFollowCollapsed}>
+                                    <lightning-record-form record-id={queueItem.Opportunity__c}
+                                                           object-api-name="Opportunity"
+                                                           mode="view"
+                                                           fields={opportunityNextFollowUpFields}
+                                                           columns="2"
+                                                           density="compact">
+                                    </lightning-record-form>
+                                </template>
+                            </div>
                         </template>
+                        
+                        <!-- Lead Details section -->
+                        <template if:true={queueItem.Lead__c}>
+                            <div class="panel-section">
+                                <div class="panel-banner">
+                                    <div class="panel-banner-title">Lead Details</div>
+                                </div>
+                                <lightning-record-form record-id={queueItem.Lead__c}
+                                                       object-api-name="Lead"
+                                                       mode="view"
+                                                       fields={leadDetailsFields}
+                                                       columns="2"
+                                                       density="compact">
+                                </lightning-record-form>
+                            </div>
+                        </template>
+                        
                         <template if:false={queueItem.Opportunity__c}>
-                            <lightning-record-form record-id={queueItem.Account__c}
-                                                   object-api-name="Account"
-                                                   mode="view"
-                                                   fields={accountFields}
-                                                   columns="2"
-                                                   density="compact">
-                            </lightning-record-form>
+                            <template if:false={queueItem.Lead__c}>
+                                <lightning-record-form record-id={queueItem.Account__c}
+                                                       object-api-name="Account"
+                                                       mode="view"
+                                                       fields={accountFields}
+                                                       columns="2"
+                                                       density="compact">
+                                </lightning-record-form>
+                            </template>
                         </template>
                         </div>
                     </div>
@@ -82,4 +125,3 @@
         </template>
     </div>
 </template>
-

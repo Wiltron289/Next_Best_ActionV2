@@ -36,6 +36,11 @@
                 <default>false</default>
                 <label>Snoozed</label>
             </value>
+            <value>
+                <fullName>Archive</fullName>
+                <default>false</default>
+                <label>Archive</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

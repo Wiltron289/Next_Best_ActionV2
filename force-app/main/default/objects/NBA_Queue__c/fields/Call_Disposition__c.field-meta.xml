@@ -36,6 +36,11 @@
                 <default>false</default>
                 <label>Not Interested</label>
             </value>
+            <value>
+                <fullName>Invalid Number</fullName>
+                <default>false</default>
+                <label>Invalid Number</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField> 
