@@ -1,88 +1,94 @@
 # NBA Queue Project
 
-A Salesforce Lightning Web Component (LWC) widget that displays "Next Best Action" records for sales representatives. The widget shows NBA records filtered by the current user and provides functionality to accept or dismiss actions.
+Salesforce Lightning components for surfacing "Next Best Action" (NBA) items to sales reps. The solution now supports both Opportunity- and Lead-based actions, with a console layout that embeds the interactive widget.
 
-## Features
+## Features (Current)
 
-- **Next Best Action Display**: Shows the highest priority NBA record for the current sales rep
-- **Opportunity Integration**: Displays related Opportunity information including stage, source, and field values
-- **Activity Timeline**: Shows recent activities (Tasks and Events) for the related Opportunity
-- **Accept Action**: Creates a Task and shows call disposition modal for call actions
-- **Dismiss Action**: Allows users to dismiss actions with a reason
-- **Real-time Updates**: Auto-refreshes every 30 seconds
-- **Responsive Design**: Modern UI with tabs for details and activity
+- **Lead + Opportunity Support**: Actions may relate to a Lead, Opportunity, or Account.
+- **Console Page + Widget**: The console page LWC hosts record details; the widget drives Accept/Dismiss and inline flows.
+- **Reliable Click-to-Dial**: Accept launches Talkdesk (DOM click + tel: fallback); disposition form opens ~700ms later to avoid race conditions.
+- **Disposition + Writebacks**:
+  - Opportunities: updates Stage (except when closing flows are launched), Next Steps/Date, and notes.
+  - Leads: updates Lead Status, Next Steps/Date, and appends call notes to Lead Description.
+- **Up Next + Not Surfaced**: Preview the next item; see why items are filtered out.
+- **Auto-Refresh**: Refreshes every 5 minutes (countdown visible in the widget); refresh pauses while forms are open.
+- **Mogli Context Refresh**: Mogli Aura wrapper refreshes when the current Lead/Opportunity context changes.
 
 ## Components
+
+### NBA Queue Console Page (`nbaQueueConsolePage`)
+- **Location**: `force-app/main/default/lwc/nbaQueueConsolePage/`
+- **Purpose**: Two-column console layout. Left side embeds the widget; right side shows record details (Lead/Opportunity/Account) and an email panel.
 
 ### NBA Queue Widget (`nbaQueueWidget`)
 - **Location**: `force-app/main/default/lwc/nbaQueueWidget/`
 - **Purpose**: Main widget component that displays NBA records
 - **Features**:
-  - Displays Account and Opportunity information
-  - Shows badges for employees, company age, and use cases
-  - Opportunity details tab with field values from related Opportunity
-  - Activity tab showing recent Tasks and Events
-  - Accept/Skip buttons with proper workflows
+  - Displays Lead/Opportunity/Account action context and contact info
+  - Tabs: Contact Info, Product Usage (hidden for Leads), Up Next, Not Surfaced
+  - Accept/Skip with call disposition and optional flow launch
+  - Inline flow host overlay for closed stages (Project Initiation / Closed Lost)
 
 ### NBA Queue Manager (`NBAQueueManager`)
 - **Location**: `force-app/main/default/classes/NBAQueueManager.cls`
 - **Purpose**: Apex controller for NBA queue operations
 - **Key Methods**:
-  - `getNextQueueItem()`: Gets the next NBA record for a user
-  - `acceptAction()`: Accepts an NBA action and creates a Task
-  - `dismissAction()`: Dismisses an NBA action with reason
-  - `getOpportunityActivities()`: Gets recent activities for an Opportunity
-  - `updateCallDisposition()`: Updates call disposition and notes
+  - `getNextQueueItemWithDetails()`, `getUpNextItem()`: Retrieves current and next items with filters and scoring
+  - `acceptAction()`: Creates Task (WhoId Lead/Contact, WhatId Opp/Account as valid)
+  - `dismissAction()`: Snooze/dismiss with reason/category
+  - `updateCallDispositionWithQueueId()` and `...Options()`: Saves disposition; can defer finalize for flows
+  - `saveNextSteps` / `saveNextStepsWithLead`: Writes Stage or Lead Status and Next Steps/Date
+  - `getOpportunityStageNames()`, `getLeadStatusNames()`: Active picklist values for LWCs
 
-### NBA Queue Event Publisher (`NBAQueueEventPublisher`)
-- **Location**: `force-app/main/default/classes/NBAQueueEventPublisher.cls`
-- **Purpose**: Publishes platform events for real-time updates
+### Embedded Flow Host (`embeddedFlowHost`)
+- **Location**: `force-app/main/default/lwc/embeddedFlowHost/`
+- **Purpose**: Lightweight wrapper around `lightning-flow` to run closing-stage flows inline from the widget.
+
+### Talkdesk Linking
+- **Triggers**: `TalkdeskActivityLinker.trigger`, `NBAQueueBacklink.trigger`
+- **Schedulable**: `TalkdeskAllowedUserRefresher` to maintain an allowlist
 
 ## Custom Object: NBA_Queue__c
 
 ### Key Fields
-- `Account__c`: Lookup to Account
-- `Opportunity__c`: Lookup to Opportunity
-- `Sales_Rep__c`: Lookup to User (Sales Rep)
-- `Action_Type__c`: Picklist (Call, Email, Meeting, etc.)
-- `Priority_Score__c`: Number (0-100)
-- `Status__c`: Picklist (Pending, Accepted, Dismissed)
-- `Dismissed_Reason__c`: Long Text Area (reason for dismissal)
-- `Model_Reason__c`: Text Area (AI-generated reason)
-- `Due_Date__c`: Date
-- `Subject__c`: Text
+- `Account__c`, `Opportunity__c`, `Lead__c`
+- `Sales_Rep__c`
+- `Action_Type__c`
+- `Priority_Score__c`, `Due_Date__c`, `Subject__c`
+- `Status__c` (Pending, Accepted/In Progress, Completed, Dismissed)
+- `Snoozed_Until__c`, `Dismissed_Reason__c`
+- `Number_Dialed__c`, `Talkdesk_Activity__c`
+- `Not_Surfaced_Reasons__c`
 
 ## Setup Instructions
 
-1. **Deploy the project**:
+1. **Deploy**
    ```bash
-   ./deploy.sh your-org-alias
+   sf project deploy start --source-dir force-app/main/default --target-org <alias>
    ```
 
-2. **Add the widget to Lightning pages**:
-   - Edit a Lightning page
-   - Add the "NBA Queue Widget" component
-   - Configure the panel height if needed
+2. **Assign Permission Set**
+   - `NBA_Queue_User` to all users of the app (includes Lead FLS and required fields)
 
-3. **Set up NBA records**:
-   - Use the sample CSV file: `nba_queue_varied_sample.csv`
-   - Import via Data Loader or similar tool
+3. **Add to Lightning App**
+   - Add the `nbaQueueConsolePage` to your Lightning app/page (or place the `nbaQueueWidget` directly if preferred)
+   - Ensure Talkdesk components are available for click-to-dial
 
-## Sample Data
+4. (Optional) **Talkdesk allowlist job**
+   - Schedule `TalkdeskAllowedUserRefresher` if you use the allowlist
 
-The project includes a sample CSV file (`nba_queue_varied_sample.csv`) with example NBA records for testing.
+## Refresh & Flows
 
-## External Integration
+- Auto-refresh every 5 minutes; countdown is visible; refresh is paused while forms are open.
+- Selecting a closing Opportunity stage (Closed Won - Pending Implementation / Closed Lost) launches a flow inline via the widget; the item finalizes on flow completion.
 
-The `samples/` directory contains example code for integrating external ML models with the NBA Queue system:
+## Notes
 
-- `external_integration.py`: Python script demonstrating how to push recommendations from external priority models to Salesforce
-- `requirements.txt`: Python dependencies for the integration script
+- Platform event publisher has been removed; the system relies on periodic refresh and UI events.
 
 ## Dependencies
 
 - Salesforce Lightning Web Components
-- Platform Events (for real-time updates)
 - Standard Task and Event objects (for activity tracking)
 
 ## Browser Support
