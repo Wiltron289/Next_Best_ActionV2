@@ -67,8 +67,7 @@ public class NBAQueueManager {
         assignQueueItems(queueItems);
         insert queueItems;
         
-        // Publish platform events for real-time updates
-        NBAQueueEventPublisher.publishQueueUpdate(queueItems, 'New');
+        // Event publishing removed
     }
     
     private static void assignQueueItems(List<NBA_Queue__c> items) {
@@ -975,7 +974,7 @@ public class NBAQueueManager {
             System.debug('Queue item updated successfully');
             
             // Publish platform event for real-time updates
-            NBAQueueEventPublisher.publishItemStatusUpdate(queueItem.Id, taskOwnerId, 'Updated');
+            // Event publishing removed
             
             // Return task ID for call disposition tracking
             return newTask.Id;
@@ -997,7 +996,7 @@ public class NBAQueueManager {
         update queueItem;
         
         // Publish platform event for real-time updates
-        NBAQueueEventPublisher.publishItemStatusUpdate(queueItem.Id, queueItem.Sales_Rep__c, 'Updated');
+        // Event publishing removed
     }
     
     @AuraEnabled
@@ -1034,7 +1033,7 @@ public class NBAQueueManager {
         update queueItem;
         
         // Publish platform event for real-time updates
-        NBAQueueEventPublisher.publishItemStatusUpdate(queueItem.Id, queueItem.Sales_Rep__c, 'Updated');
+        // Event publishing removed
     }
     
     @AuraEnabled

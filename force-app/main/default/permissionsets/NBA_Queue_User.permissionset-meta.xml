@@ -90,8 +90,5 @@
         <apexClass>NBAQueueManager</apexClass>
         <enabled>true</enabled>
     </classAccesses>
-    <classAccesses>
-        <apexClass>NBAQueueEventPublisher</apexClass>
-        <enabled>true</enabled>
-    </classAccesses>
+    
 </PermissionSet> 

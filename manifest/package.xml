@@ -3,8 +3,6 @@
     <types>
         <members>NBAQueueManager</members>
         <members>NBAQueueManagerTest</members>
-        <members>NBAQueueEventPublisher</members>
-        <members>NBAQueueEventPublisherTest</members>
         <name>ApexClass</name>
     </types>
     <types>

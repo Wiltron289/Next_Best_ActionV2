@@ -3,7 +3,6 @@ Set<String> jobNames = new Set<String>{
     'Talkdesk Allowed User Refresh',
     'Talkdesk_Reconcile_Daily_Backfill',
     'NBA Queue Manager',
-    'NBA Queue Event Publisher',
     'TalkdeskActivityLinker',
     'Talkdesk Reconcile Daily Backfill'
 };
@@ -24,7 +23,7 @@ Set<String> classNames = new Set<String>{
     'TalkdeskReconcileDailyBackfill',
     'TalkdeskReconcileDailyBackfill',
     'NBAQueueManager',
-    'NBAQueueEventPublisher'
+    
 };
 for (AsyncApexJob j : [SELECT Id, Status, ApexClass.Name FROM AsyncApexJob WHERE Status IN ('Queued','Processing','Preparing') AND ApexClass.Name IN :classNames]) {
     try {
