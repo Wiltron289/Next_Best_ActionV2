@@ -39,13 +39,10 @@
                                     <span class={oppChevronClass}>⌄</span>
                                 </div>
                                 <template if:false={oppDetailsCollapsed}>
-                                    <lightning-record-form record-id={queueItem.Opportunity__c}
+                                    <c-two-col-record-view record-id={queueItem.Opportunity__c}
                                                            object-api-name="Opportunity"
-                                                           mode="view"
-                                                           fields={opportunityDetailsFields}
-                                                           columns="2"
-                                                           density="compact">
-                                    </lightning-record-form>
+                                                           fields={opportunityDetailsFields}>
+                                    </c-two-col-record-view>
                                     <div class="slds-grid slds-wrap slds-p-top_small">
                                         <div class="slds-col slds-size_1-of-2 slds-p-right_small">
                                             <div class="slds-form-element">
@@ -64,13 +61,10 @@
                                     <span class={payrollChevronClass}>⌄</span>
                                 </div>
                                 <template if:false={payrollDetailsCollapsed}>
-                                    <lightning-record-form record-id={queueItem.Opportunity__c}
+                                    <c-two-col-record-view record-id={queueItem.Opportunity__c}
                                                            object-api-name="Opportunity"
-                                                           mode="view"
-                                                           fields={opportunityPayrollFields}
-                                                           columns="2"
-                                                           density="compact">
-                                    </lightning-record-form>
+                                                           fields={opportunityPayrollFields}>
+                                    </c-two-col-record-view>
                                 </template>
                             </div>
                             <div class="panel-section">
@@ -79,13 +73,10 @@
                                     <span class={nextFollowChevronClass}>⌄</span>
                                 </div>
                                 <template if:false={nextFollowCollapsed}>
-                                    <lightning-record-form record-id={queueItem.Opportunity__c}
+                                    <c-two-col-record-view record-id={queueItem.Opportunity__c}
                                                            object-api-name="Opportunity"
-                                                           mode="view"
-                                                           fields={opportunityNextFollowUpFields}
-                                                           columns="2"
-                                                           density="compact">
-                                    </lightning-record-form>
+                                                           fields={opportunityNextFollowUpFields}>
+                                    </c-two-col-record-view>
                                 </template>
                             </div>
                             <!-- Removed Account Links block; links moved to Widget Product Info -->
@@ -97,25 +88,19 @@
                                 <div class="panel-banner">
                                     <div class="panel-banner-title">Lead Details</div>
                                 </div>
-                                <lightning-record-form record-id={queueItem.Lead__c}
+                                <c-two-col-record-view record-id={queueItem.Lead__c}
                                                        object-api-name="Lead"
-                                                       mode="view"
-                                                       fields={leadDetailsFields}
-                                                       columns="2"
-                                                       density="compact">
-                                </lightning-record-form>
+                                                       fields={leadDetailsFields}>
+                                </c-two-col-record-view>
                             </div>
                         </template>
                         
                         <template if:false={queueItem.Opportunity__c}>
                             <template if:false={queueItem.Lead__c}>
-                                <lightning-record-form record-id={queueItem.Account__c}
+                                <c-two-col-record-view record-id={queueItem.Account__c}
                                                        object-api-name="Account"
-                                                       mode="view"
-                                                       fields={accountFields}
-                                                       columns="2"
-                                                       density="compact">
-                                </lightning-record-form>
+                                                       fields={accountFields}>
+                                </c-two-col-record-view>
                             </template>
                         </template>
                         </div>
