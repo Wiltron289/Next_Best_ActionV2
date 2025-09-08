@@ -1052,7 +1052,7 @@ public class NBAQueueManager {
                 WhatId = (whoId == null) ? (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c) : (queueItem.Lead__c != null ? null : (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c)),
                 WhoId = whoId,
                 OwnerId = taskOwnerId,
-                ActivityDate = queueItem.Due_Date__c,
+                ActivityDate = Date.today(),
                 Status = 'Completed',  // Mark as completed when accepted
                 Priority = mapPriorityToTask(queueItem.Priority_Score__c)
             );
