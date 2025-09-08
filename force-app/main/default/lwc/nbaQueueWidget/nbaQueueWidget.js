@@ -527,7 +527,11 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         return !!(this.queueItem && this.queueItem.Opportunity__c);
     }
     get isFutureFollowUpStage() {
-        const norm = (this.selectedStage || '').toLowerCase().trim();
+        const norm = (this.selectedStage || '')
+            .toLowerCase()
+            .replace(/[-_]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
         return norm === 'future follow up';
     }
     get hasLead() {
@@ -771,7 +775,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         });
 
         // Decide if a flow must run (Closed Lost or Closed Won - Pending Implementation)
-        const norm2 = (this.selectedStage || '').toLowerCase().trim();
+        const norm2 = (this.selectedStage || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
         const isClosedWonPending2 = norm2.includes('closed won') && norm2.includes('pending');
         const isClosedLost2 = norm2 === 'closed lost';
         const isFutureFollowUp2 = norm2 === 'future follow up';
@@ -796,7 +800,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             .then(async () => {
                 // Save next steps and/or stage if provided
                 try {
-                    const norm = (this.selectedStage || '').toLowerCase().trim();
+                    const norm = (this.selectedStage || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
                     const isClosedWonPending = norm.includes('closed won') && norm.includes('pending');
                     const isClosedLost = norm === 'closed lost';
                     const isFutureFollowUp = norm === 'future follow up';
