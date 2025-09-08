@@ -1492,11 +1492,33 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         if (!id) { this.upcomingActivities = []; this.pastActivities = []; return; }
         try {
             const data = await getActivities({ recordId: id });
-            this.upcomingActivities = Array.isArray(data?.upcoming) ? data.upcoming : [];
-            this.pastActivities = Array.isArray(data?.past) ? data.past : [];
+            const up = Array.isArray(data?.upcoming) ? data.upcoming : [];
+            const past = Array.isArray(data?.past) ? data.past : [];
+            this.upcomingActivities = up.map((row) => ({
+                ...row,
+                display: this.formatActivityDisplay(row)
+            }));
+            this.pastActivities = past.map((row) => ({
+                ...row,
+                display: this.formatActivityDisplay(row)
+            }));
         } catch (e) {
             this.upcomingActivities = [];
             this.pastActivities = [];
+        }
+    }
+
+    formatActivityDisplay(row) {
+        const subject = row?.subject || '';
+        const dateVal = row?.start || row?.date || null;
+        if (!dateVal) return subject;
+        try {
+            const d = new Date(dateVal);
+            const opts = { month: '2-digit', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' };
+            const formatted = d.toLocaleString(undefined, opts);
+            return `${subject} — ${formatted}`;
+        } catch (e) {
+            return `${subject}`;
         }
     }
 

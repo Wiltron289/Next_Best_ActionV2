@@ -221,6 +221,13 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
             }
             // Deprecated: no embedded flow host
             this.showProjectFlow = false;
+            // Ask the embedded widget to refresh activities if visible on Activity tab
+            try {
+                const widget = this.template.querySelector('c-nba-queue-widget');
+                if (widget && typeof widget.loadActivities === 'function') {
+                    widget.loadActivities();
+                }
+            } catch (e) {}
             if (this.queueItem?.Opportunity__c) {
                 try {
                     this.opportunityPrimaryContact = await getOpportunityPrimaryContact({ opportunityId: this.queueItem.Opportunity__c });
