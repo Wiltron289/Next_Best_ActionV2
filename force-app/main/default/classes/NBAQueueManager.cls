@@ -361,10 +361,9 @@ public class NBAQueueManager {
         Set<Id> whoIds = new Set<Id>();
         String prefix = String.valueOf(recordId).left(3);
         if (prefix == '006') { // Opportunity
+            // Base strictly on Opportunity: WhatId = Opportunity; include Opp Contacts via OCR as WhoIds
             whatIds.add(recordId);
             try {
-                Opportunity o = [SELECT Id, AccountId FROM Opportunity WHERE Id = :recordId LIMIT 1];
-                if (o.AccountId != null) whatIds.add(o.AccountId);
                 for (OpportunityContactRole ocr : [SELECT ContactId FROM OpportunityContactRole WHERE OpportunityId = :recordId AND ContactId != null LIMIT 200]) {
                     whoIds.add(ocr.ContactId);
                 }
