@@ -356,14 +356,41 @@ public class NBAQueueManager {
         if (recordId == null) return out;
         Date today = Date.today();
         Date ninetyDaysAgo = today.addDays(-90);
-        // Upcoming Events/Tasks (Status not Completed and due today or future)
-        for (Task t : [SELECT Id, Subject, ActivityDate, Status, WhatId, WhoId
+        // Build context: include related Account and Contacts for Opportunities, Contacts for Accounts, Lead itself for Leads
+        Set<Id> whatIds = new Set<Id>();
+        Set<Id> whoIds = new Set<Id>();
+        String prefix = String.valueOf(recordId).left(3);
+        if (prefix == '006') { // Opportunity
+            whatIds.add(recordId);
+            try {
+                Opportunity o = [SELECT Id, AccountId FROM Opportunity WHERE Id = :recordId LIMIT 1];
+                if (o.AccountId != null) whatIds.add(o.AccountId);
+                for (OpportunityContactRole ocr : [SELECT ContactId FROM OpportunityContactRole WHERE OpportunityId = :recordId AND ContactId != null LIMIT 200]) {
+                    whoIds.add(ocr.ContactId);
+                }
+            } catch (Exception e) {}
+        } else if (prefix == '001') { // Account
+            whatIds.add(recordId);
+            for (Contact c : [SELECT Id FROM Contact WHERE AccountId = :recordId LIMIT 500]) {
+                whoIds.add(c.Id);
+            }
+        } else if (prefix == '00Q') { // Lead
+            whoIds.add(recordId);
+            whatIds.add(recordId); // defensive, in case of WhatId usage
+        } else {
+            // Fallback: use as both What and Who
+            whatIds.add(recordId);
+            whoIds.add(recordId);
+        }
+
+        // Upcoming Tasks (not completed, due today or future)
+        for (Task t : [SELECT Id, Subject, ActivityDate, Status
                        FROM Task
-                       WHERE (WhatId = :recordId OR WhoId = :recordId)
+                       WHERE ((WhatId IN :whatIds) OR (WhoId IN :whoIds))
                        AND Status != 'Completed'
                        AND ActivityDate >= :today
                        ORDER BY ActivityDate ASC
-                       LIMIT 200]) {
+                       LIMIT 300]) {
             Map<String, Object> row = new Map<String, Object>();
             row.put('type', 'Task');
             row.put('id', (String)t.Id);
@@ -372,12 +399,13 @@ public class NBAQueueManager {
             row.put('status', t.Status);
             out.get('upcoming').add(row);
         }
-        for (Event e : [SELECT Id, Subject, StartDateTime, EndDateTime, WhatId, WhoId
+        // Upcoming Events
+        for (Event e : [SELECT Id, Subject, StartDateTime, EndDateTime
                         FROM Event
-                        WHERE (WhatId = :recordId OR WhoId = :recordId)
+                        WHERE ((WhatId IN :whatIds) OR (WhoId IN :whoIds))
                         AND StartDateTime >= :DateTime.newInstance(today, Time.newInstance(0,0,0,0))
                         ORDER BY StartDateTime ASC
-                        LIMIT 200]) {
+                        LIMIT 300]) {
             Map<String, Object> row = new Map<String, Object>();
             row.put('type', 'Event');
             row.put('id', (String)e.Id);
@@ -386,14 +414,14 @@ public class NBAQueueManager {
             row.put('end', e.EndDateTime);
             out.get('upcoming').add(row);
         }
-        // Past Tasks/Events within last 90 days (Completed or in past)
-        for (Task t2 : [SELECT Id, Subject, ActivityDate, Status, WhatId, WhoId
+        // Past Tasks within last 90 days
+        for (Task t2 : [SELECT Id, Subject, ActivityDate, Status
                         FROM Task
-                        WHERE (WhatId = :recordId OR WhoId = :recordId)
+                        WHERE ((WhatId IN :whatIds) OR (WhoId IN :whoIds))
                         AND ActivityDate >= :ninetyDaysAgo
                         AND ActivityDate < :today
                         ORDER BY ActivityDate DESC
-                        LIMIT 200]) {
+                        LIMIT 300]) {
             Map<String, Object> row = new Map<String, Object>();
             row.put('type', 'Task');
             row.put('id', (String)t2.Id);
@@ -402,13 +430,14 @@ public class NBAQueueManager {
             row.put('status', t2.Status);
             out.get('past').add(row);
         }
-        for (Event e2 : [SELECT Id, Subject, StartDateTime, EndDateTime, WhatId, WhoId
+        // Past Events within last 90 days
+        for (Event e2 : [SELECT Id, Subject, StartDateTime, EndDateTime
                          FROM Event
-                         WHERE (WhatId = :recordId OR WhoId = :recordId)
+                         WHERE ((WhatId IN :whatIds) OR (WhoId IN :whoIds))
                          AND StartDateTime >= :DateTime.newInstance(ninetyDaysAgo, Time.newInstance(0,0,0,0))
                          AND StartDateTime < :DateTime.newInstance(today, Time.newInstance(0,0,0,0))
                          ORDER BY StartDateTime DESC
-                         LIMIT 200]) {
+                         LIMIT 300]) {
             Map<String, Object> row = new Map<String, Object>();
             row.put('type', 'Event');
             row.put('id', (String)e2.Id);
