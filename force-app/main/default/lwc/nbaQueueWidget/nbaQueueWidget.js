@@ -1494,10 +1494,15 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             const data = await getActivities({ recordId: id });
             const up = Array.isArray(data?.upcoming) ? data.upcoming : [];
             const past = Array.isArray(data?.past) ? data.past : [];
-            this.upcomingActivities = up.map((row) => ({
-                ...row,
-                display: this.formatActivityDisplay(row)
-            }));
+            this.upcomingActivities = up.map((row) => {
+                const isOverdue = this.isOverdue(row);
+                return {
+                    ...row,
+                    display: this.formatActivityDisplay(row),
+                    isOverdue,
+                    overdueStyle: isOverdue ? 'color:#c23934;' : ''
+                };
+            });
             this.pastActivities = past.map((row) => ({
                 ...row,
                 display: this.formatActivityDisplay(row)
@@ -1505,6 +1510,17 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         } catch (e) {
             this.upcomingActivities = [];
             this.pastActivities = [];
+        }
+    }
+
+    isOverdue(row) {
+        try {
+            const dt = row?.date || row?.start || null;
+            if (!dt) return false;
+            const due = new Date(dt).getTime();
+            return due < Date.now();
+        } catch (e) {
+            return false;
         }
     }
 
