@@ -516,6 +516,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         if (this.queueItem?.Lead__c) {
             return this.callDisposition === 'Connected - DM';
         }
+		// Hide Next Step fields when stage is Future Follow-Up
+		if (this.isFutureFollowUpStage) {
+			return false;
+		}
 		return this.callDisposition === 'Connected - DM' && !closedStages.includes(this.selectedStage);
     }
 
