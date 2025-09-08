@@ -224,17 +224,17 @@
                 <template if:true={isActivityTab}>
                     <div class="nba-widget-activity">
                         <template if:true={activityRecordId}>
-                            <div class="slds-p-vertical_small">
-                                <div class="slds-text-title_caps slds-p-bottom_x-small">Upcoming Activity</div>
-                                <lightning-related-list parent-record-id={activityRecordId}
-                                                       related-list-id="OpenActivities">
-                                </lightning-related-list>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Upcoming Activity</span>
+                                <span class="nba-widget-detail-value">
+                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={openOpenActivities}>View</a>
+                                </span>
                             </div>
-                            <div class="slds-p-vertical_small">
-                                <div class="slds-text-title_caps slds-p-bottom_x-small">Past Activity</div>
-                                <lightning-related-list parent-record-id={activityRecordId}
-                                                       related-list-id="ActivityHistory">
-                                </lightning-related-list>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Past Activity</span>
+                                <span class="nba-widget-detail-value">
+                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={openActivityHistory}>View</a>
+                                </span>
                             </div>
                         </template>
                         <template if:false={activityRecordId}>

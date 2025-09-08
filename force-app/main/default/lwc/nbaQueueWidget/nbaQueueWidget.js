@@ -1466,6 +1466,26 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         return this.queueItem.Opportunity__c || this.queueItem.Account__c || this.queueItem.Lead__c || null;
     }
 
+    openOpenActivities = () => {
+        const id = this.activityRecordId;
+        if (!id) return;
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: { recordId: id, actionName: 'view' },
+            state: { tabName: 'related' }
+        });
+    }
+
+    openActivityHistory = () => {
+        const id = this.activityRecordId;
+        if (!id) return;
+        this[NavigationMixin.Navigate]({
+            type: 'standard__recordPage',
+            attributes: { recordId: id, actionName: 'view' },
+            state: { tabName: 'related' }
+        });
+    }
+
     async loadNotSurfaced() {
         try {
             const rows = await listNotSurfacedItems({ userId: this.currentUserId, limitSize: 50 });
