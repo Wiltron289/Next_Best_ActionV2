@@ -623,6 +623,15 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
         return this.queueItem.Opportunity__r?.Current_Payroll_Integration__c || '';
     }
 
+    get queueNextStepDateDisplay() {
+        try {
+            const d = this.queueItem?.Next_Step_Date__c;
+            if (!d) return '';
+            const dt = new Date(d);
+            return dt.toLocaleDateString();
+        } catch (e) { return ''; }
+    }
+
     // Up Next helpers
     handleUpNextRecordClick = () => {
         if (!this.upNextItem) return;
