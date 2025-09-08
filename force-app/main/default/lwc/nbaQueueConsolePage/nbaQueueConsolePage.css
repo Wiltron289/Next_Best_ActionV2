@@ -52,6 +52,16 @@
   --slds-c-input-color-border: #e1e5e9;
   --slds-c-form-element-spacing-block-start: 0.25rem;
   --slds-c-form-element-spacing-block-end: 0.25rem;
+  --slds-c-form-element-label-font-weight: 600;
+}
+
+/* Tighten single-column label/value spacing */
+.right .slds-form-element {
+  margin-bottom: 0.25rem;
+}
+.right .slds-form-element__control,
+.right .slds-form-element__static {
+  min-height: auto;
 }
 
 /* Mogli conversation container styling */

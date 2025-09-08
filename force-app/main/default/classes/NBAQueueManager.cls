@@ -144,6 +144,7 @@ public class NBAQueueManager {
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
                        Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
+                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c,
                        Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
                         Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
@@ -256,6 +257,7 @@ public class NBAQueueManager {
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
                        Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
+                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c,
                        Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
                        Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
@@ -345,6 +347,79 @@ public class NBAQueueManager {
         }
     }
 
+    // Activities fetcher for widget Activity tab (upcoming + last 90 days)
+    @AuraEnabled(cacheable=true)
+    public static Map<String, List<Map<String, Object>>> getActivities(Id recordId) {
+        Map<String, List<Map<String, Object>>> out = new Map<String, List<Map<String, Object>>>();
+        out.put('upcoming', new List<Map<String, Object>>());
+        out.put('past', new List<Map<String, Object>>());
+        if (recordId == null) return out;
+        Date today = Date.today();
+        Date ninetyDaysAgo = today.addDays(-90);
+        // Upcoming Events/Tasks (Status not Completed and due today or future)
+        for (Task t : [SELECT Id, Subject, ActivityDate, Status, WhatId, WhoId
+                       FROM Task
+                       WHERE (WhatId = :recordId OR WhoId = :recordId)
+                       AND Status != 'Completed'
+                       AND ActivityDate >= :today
+                       ORDER BY ActivityDate ASC
+                       LIMIT 200]) {
+            Map<String, Object> row = new Map<String, Object>();
+            row.put('type', 'Task');
+            row.put('id', (String)t.Id);
+            row.put('subject', t.Subject);
+            row.put('date', t.ActivityDate);
+            row.put('status', t.Status);
+            out.get('upcoming').add(row);
+        }
+        for (Event e : [SELECT Id, Subject, StartDateTime, EndDateTime, WhatId, WhoId
+                        FROM Event
+                        WHERE (WhatId = :recordId OR WhoId = :recordId)
+                        AND StartDateTime >= :DateTime.newInstance(today, Time.newInstance(0,0,0,0))
+                        ORDER BY StartDateTime ASC
+                        LIMIT 200]) {
+            Map<String, Object> row = new Map<String, Object>();
+            row.put('type', 'Event');
+            row.put('id', (String)e.Id);
+            row.put('subject', e.Subject);
+            row.put('start', e.StartDateTime);
+            row.put('end', e.EndDateTime);
+            out.get('upcoming').add(row);
+        }
+        // Past Tasks/Events within last 90 days (Completed or in past)
+        for (Task t2 : [SELECT Id, Subject, ActivityDate, Status, WhatId, WhoId
+                        FROM Task
+                        WHERE (WhatId = :recordId OR WhoId = :recordId)
+                        AND ActivityDate >= :ninetyDaysAgo
+                        AND ActivityDate < :today
+                        ORDER BY ActivityDate DESC
+                        LIMIT 200]) {
+            Map<String, Object> row = new Map<String, Object>();
+            row.put('type', 'Task');
+            row.put('id', (String)t2.Id);
+            row.put('subject', t2.Subject);
+            row.put('date', t2.ActivityDate);
+            row.put('status', t2.Status);
+            out.get('past').add(row);
+        }
+        for (Event e2 : [SELECT Id, Subject, StartDateTime, EndDateTime, WhatId, WhoId
+                         FROM Event
+                         WHERE (WhatId = :recordId OR WhoId = :recordId)
+                         AND StartDateTime >= :DateTime.newInstance(ninetyDaysAgo, Time.newInstance(0,0,0,0))
+                         AND StartDateTime < :DateTime.newInstance(today, Time.newInstance(0,0,0,0))
+                         ORDER BY StartDateTime DESC
+                         LIMIT 200]) {
+            Map<String, Object> row = new Map<String, Object>();
+            row.put('type', 'Event');
+            row.put('id', (String)e2.Id);
+            row.put('subject', e2.Subject);
+            row.put('start', e2.StartDateTime);
+            row.put('end', e2.EndDateTime);
+            out.get('past').add(row);
+        }
+        return out;
+    }
+
     @AuraEnabled(cacheable=true)
     public static List<Map<String, Object>> listNotSurfacedItems(Id userId, Integer limitSize) {
         try {
@@ -400,6 +475,7 @@ public class NBAQueueManager {
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
                        Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
+                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c,
                        Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
                        Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.StageName, 

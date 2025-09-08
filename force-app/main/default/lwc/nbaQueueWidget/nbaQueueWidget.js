@@ -6,6 +6,7 @@ import { loadStyle } from 'lightning/platformResourceLoader';
 import PlusJakartaSans from '@salesforce/resourceUrl/PlusJakartaSans';
 import getNextQueueItemWithDetails from '@salesforce/apex/NBAQueueManager.getNextQueueItemWithDetails';
 import getUpNextItem from '@salesforce/apex/NBAQueueManager.getUpNextItem';
+import getActivities from '@salesforce/apex/NBAQueueManager.getActivities';
 import listNotSurfacedItems from '@salesforce/apex/NBAQueueManager.listNotSurfacedItems';
 import markAsViewed from '@salesforce/apex/NBAQueueManager.markAsViewed';
 import acceptAction from '@salesforce/apex/NBAQueueManager.acceptAction';
@@ -1426,6 +1427,9 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         if (this.isNotSurfacedTab) {
             this.loadNotSurfaced();
         }
+        if (this.isActivityTab) {
+            this.loadActivities();
+        }
     }
 
     get isContactTab() {
@@ -1464,6 +1468,22 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     get activityRecordId() {
         if (!this.queueItem) return null;
         return this.queueItem.Opportunity__c || this.queueItem.Account__c || this.queueItem.Lead__c || null;
+    }
+
+    @track upcomingActivities = [];
+    @track pastActivities = [];
+
+    async loadActivities() {
+        const id = this.activityRecordId;
+        if (!id) { this.upcomingActivities = []; this.pastActivities = []; return; }
+        try {
+            const data = await getActivities({ recordId: id });
+            this.upcomingActivities = Array.isArray(data?.upcoming) ? data.upcoming : [];
+            this.pastActivities = Array.isArray(data?.past) ? data.past : [];
+        } catch (e) {
+            this.upcomingActivities = [];
+            this.pastActivities = [];
+        }
     }
 
     openOpenActivities = () => {

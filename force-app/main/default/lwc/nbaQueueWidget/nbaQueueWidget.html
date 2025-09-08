@@ -224,17 +224,33 @@
                 <template if:true={isActivityTab}>
                     <div class="nba-widget-activity">
                         <template if:true={activityRecordId}>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Upcoming Activity</span>
-                                <span class="nba-widget-detail-value">
-                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={openOpenActivities}>View</a>
-                                </span>
+                            <div class="slds-p-vertical_small">
+                                <div class="slds-text-title_caps slds-p-bottom_x-small">Upcoming Activity</div>
+                                <template if:true={upcomingActivities.length}>
+                                    <template for:each={upcomingActivities} for:item="row">
+                                        <div key={row.id} class="nba-widget-row">
+                                            <span class="nba-widget-icon">🗓️</span>
+                                            <span class="nba-widget-main-text">{row.subject} — {row.date}{row.start}</span>
+                                        </div>
+                                    </template>
+                                </template>
+                                <template if:false={upcomingActivities.length}>
+                                    <div class="nba-widget-contact-placeholder">No upcoming activity.</div>
+                                </template>
                             </div>
-                            <div class="nba-widget-detail-row">
-                                <span class="nba-widget-detail-label">Past Activity</span>
-                                <span class="nba-widget-detail-value">
-                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={openActivityHistory}>View</a>
-                                </span>
+                            <div class="slds-p-vertical_small">
+                                <div class="slds-text-title_caps slds-p-bottom_x-small">Past Activity (90 days)</div>
+                                <template if:true={pastActivities.length}>
+                                    <template for:each={pastActivities} for:item="row">
+                                        <div key={row.id} class="nba-widget-row">
+                                            <span class="nba-widget-icon">✅</span>
+                                            <span class="nba-widget-main-text">{row.subject} — {row.date}{row.start}</span>
+                                        </div>
+                                    </template>
+                                </template>
+                                <template if:false={pastActivities.length}>
+                                    <div class="nba-widget-contact-placeholder">No recent activity.</div>
+                                </template>
                             </div>
                         </template>
                         <template if:false={activityRecordId}>

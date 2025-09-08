@@ -91,15 +91,25 @@
                             <!-- Account Actions for Opportunity context -->
                             <div class="panel-section">
                                 <div class="panel-banner">
-                                    <div class="panel-banner-title">Account Actions</div>
+                                    <div class="panel-banner-title">Account Links</div>
                                 </div>
-                                <lightning-record-form record-id={queueItem.Account__c}
-                                                       object-api-name="Account"
-                                                       mode="view"
-                                                       fields={accountActionFields}
-                                                       columns="2"
-                                                       density="compact">
-                                </lightning-record-form>
+                                <div class="slds-p-horizontal_small slds-p-vertical_x-small">
+                                    <template if:true={queueItem.Account__r.Check_Console_Link__c}>
+                                        <div class="slds-p-vertical_x-small">
+                                            <a href={queueItem.Account__r.Check_Console_Link__c} target="_blank" class="slds-text-link">Check Console</a>
+                                        </div>
+                                    </template>
+                                    <template if:true={queueItem.Account__r.Admin_Link__c}>
+                                        <div class="slds-p-vertical_x-small">
+                                            <a href={queueItem.Account__r.Admin_Link__c} target="_blank" class="slds-text-link">Admin</a>
+                                        </div>
+                                    </template>
+                                    <template if:true={queueItem.Account__r.Reactive_Admin_Link__c}>
+                                        <div class="slds-p-vertical_x-small">
+                                            <a href={queueItem.Account__r.Reactive_Admin_Link__c} target="_blank" class="slds-text-link">Reactive Admin</a>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
                         </template>
                         

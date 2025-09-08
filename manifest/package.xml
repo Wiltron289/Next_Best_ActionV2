@@ -7,6 +7,7 @@
     </types>
     <types>
         <members>nbaQueueWidget</members>
+        <members>nbaQueueConsolePage</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>
