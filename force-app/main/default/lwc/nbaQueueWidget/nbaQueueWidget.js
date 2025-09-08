@@ -20,6 +20,7 @@ import getAccountPrimaryContact from '@salesforce/apex/NBAQueueManager.getAccoun
 import getAccountPhoneNumber from '@salesforce/apex/NBAQueueManager.getAccountPhoneNumber';
 import saveNextSteps from '@salesforce/apex/NBAQueueManager.saveNextSteps';
 import saveNextStepsWithLead from '@salesforce/apex/NBAQueueManager.saveNextStepsWithLead';
+import saveFutureFollowUp from '@salesforce/apex/NBAQueueManager.saveFutureFollowUp';
 import getOpportunityStageNames from '@salesforce/apex/NBAQueueManager.getOpportunityStageNames';
 import getLeadStatusNames from '@salesforce/apex/NBAQueueManager.getLeadStatusNames';
 import finalizeQueueItem from '@salesforce/apex/NBAQueueManager.finalizeQueueItem';
@@ -57,6 +58,8 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     @track isBlinking = false; // For alerting when new action comes in
     @track nextStepDate = '';
     @track nextSteps = '';
+    @track futureFollowUpDate = '';
+    @track futureFollowUpReason = '';
     @track selectedStage = '';
     @track stageOptions = [];
     @track leadStatusOptions = [];
@@ -523,6 +526,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     get hasOpportunity() {
         return !!(this.queueItem && this.queueItem.Opportunity__c);
     }
+    get isFutureFollowUpStage() {
+        const norm = (this.selectedStage || '').toLowerCase().trim();
+        return norm === 'future follow up';
+    }
     get hasLead() {
         return !!(this.queueItem && this.queueItem.Lead__c);
     }
@@ -721,6 +728,8 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     handleNextStepDateChange = (event) => { this.nextStepDate = event.target.value; }
     handleNextStepsChange = (event) => { this.nextSteps = event.target.value; }
     handleStageChange = (event) => { this.selectedStage = event.target.value; }
+    handleFutureDateChange = (event) => { this.futureFollowUpDate = event.target.value; }
+    handleFutureReasonChange = (event) => { this.futureFollowUpReason = event.target.value; }
     handleLeadStatusChange = (event) => { this.selectedLeadStatus = event.target.value; }
 
     handleCallDispositionSave() {
@@ -765,6 +774,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         const norm2 = (this.selectedStage || '').toLowerCase().trim();
         const isClosedWonPending2 = norm2.includes('closed won') && norm2.includes('pending');
         const isClosedLost2 = norm2 === 'closed lost';
+        const isFutureFollowUp2 = norm2 === 'future follow up';
         const flowRequired = this.hasOpportunity && (isClosedWonPending2 || isClosedLost2);
 
         const savePromise = flowRequired
@@ -789,12 +799,19 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                     const norm = (this.selectedStage || '').toLowerCase().trim();
                     const isClosedWonPending = norm.includes('closed won') && norm.includes('pending');
                     const isClosedLost = norm === 'closed lost';
+                    const isFutureFollowUp = norm === 'future follow up';
                     const stageToSave = (this.hasOpportunity && (isClosedWonPending || isClosedLost))
                         ? null
                         : (this.hasOpportunity ? (this.selectedStage || null) : null);
 
-                    // Only save next steps when the dynamic condition is met
-                    if (this.showNextStepsFields) {
+                    // Save Future Follow Up
+                    if (this.hasOpportunity && isFutureFollowUp) {
+                        await saveFutureFollowUp({
+                            queueItemId: this.selectedItem.Id,
+                            futureFollowUpDate: this.futureFollowUpDate ? new Date(this.futureFollowUpDate) : null,
+                            futureFollowUpReason: this.futureFollowUpReason || null
+                        });
+                    } else if (this.showNextStepsFields) {
                         if (this.queueItem?.Lead__c) {
                             await saveNextStepsWithLead({
                                 queueItemId: this.selectedItem.Id,

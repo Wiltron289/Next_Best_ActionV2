@@ -397,6 +397,18 @@
                                 <textarea id="next-step" class="nba-widget-form-textarea" oninput={handleNextStepsChange} value={nextSteps} placeholder="Enter next step..."></textarea>
                             </div>
                         </template>
+                        <template if:true={hasOpportunity}>
+                            <template if:true={isFutureFollowUpStage}>
+                                <div class="nba-widget-form-field">
+                                    <label for="ffu-date">Future Follow Up Date</label>
+                                    <input type="date" id="ffu-date" class="nba-widget-form-textarea" oninput={handleFutureDateChange} value={futureFollowUpDate} />
+                                </div>
+                                <div class="nba-widget-form-field">
+                                    <label for="ffu-reason">Future Follow Up Reason</label>
+                                    <textarea id="ffu-reason" class="nba-widget-form-textarea" oninput={handleFutureReasonChange} value={futureFollowUpReason} placeholder="Enter reason..."></textarea>
+                                </div>
+                            </template>
+                        </template>
                         <div class="nba-widget-form-actions">
                             <button class="nba-widget-form-cancel" onclick={closeCallDispositionForm}>Cancel</button>
                             <button class="nba-widget-form-save" onclick={handleCallDispositionSave} disabled={isLoading}>

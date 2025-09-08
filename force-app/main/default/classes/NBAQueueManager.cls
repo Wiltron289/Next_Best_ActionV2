@@ -347,6 +347,25 @@ public class NBAQueueManager {
         }
     }
 
+    @AuraEnabled
+    public static void saveFutureFollowUp(Id queueItemId, Date futureFollowUpDate, String futureFollowUpReason) {
+        if (queueItemId == null) return;
+        NBA_Queue__c qi = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+        if (qi.Opportunity__c == null) return;
+        Opportunity opp = [SELECT Id FROM Opportunity WHERE Id = :qi.Opportunity__c LIMIT 1];
+        try {
+            if (futureFollowUpDate != null) {
+                opp.put('Future_Follow_Up_Date__c', futureFollowUpDate);
+            }
+            if (String.isNotBlank(futureFollowUpReason)) {
+                opp.put('Future_Follow_Up_Reason__c', futureFollowUpReason);
+            }
+        } catch (Exception e) {
+            // Defensive in case fields don't exist in org
+        }
+        update opp;
+    }
+
     // Activities fetcher for widget Activity tab (upcoming + last 90 days)
     @AuraEnabled(cacheable=true)
     public static Map<String, List<Map<String, Object>>> getActivities(Id recordId) {
