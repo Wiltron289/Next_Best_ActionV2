@@ -66,7 +66,7 @@
                     <div class="nba-widget-tabs">
                         <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
                         <template if:false={queueItem.Lead__c}>
-                            <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
+                            <button value="product" onclick={handleTabChange} class={productTabClass}>Product Info</button>
                         </template>
                         <button value="activity" onclick={handleTabChange} class={activityTabClass}>Activity</button>
                         <button value="upnext" onclick={handleTabChange} class={upNextTabClass}>Up Next</button>
@@ -122,6 +122,19 @@
                 </template>
                 <template if:true={isProductTab}>
                     <div class="nba-widget-product">
+                        <template if:true={hasAnyAccountLinks}>
+                            <div class="nba-widget-row" style="gap:8px; flex-wrap: wrap;">
+                                <template if:true={checkConsoleLink}>
+                                    <a href={checkConsoleLink} target="_blank" class="nba-widget-link slds-button slds-button_neutral">Check Console</a>
+                                </template>
+                                <template if:true={adminLink}>
+                                    <a href={adminLink} target="_blank" class="nba-widget-link slds-button slds-button_neutral">Admin</a>
+                                </template>
+                                <template if:true={reactiveAdminLink}>
+                                    <a href={reactiveAdminLink} target="_blank" class="nba-widget-link slds-button slds-button_neutral">Reactive Admin</a>
+                                </template>
+                            </div>
+                        </template>
                         <template if:true={hasProductUsage}>
                             <div class="nba-widget-product-grid">
                                 <template if:true={queueItem.Break_Preferences_Engaged__c}>

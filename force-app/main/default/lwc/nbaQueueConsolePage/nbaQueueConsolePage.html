@@ -88,29 +88,7 @@
                                     </lightning-record-form>
                                 </template>
                             </div>
-                            <!-- Account Actions for Opportunity context -->
-                            <div class="panel-section">
-                                <div class="panel-banner">
-                                    <div class="panel-banner-title">Account Links</div>
-                                </div>
-                                <div class="slds-p-horizontal_small slds-p-vertical_x-small">
-                                    <template if:true={queueItem.Account__r.Check_Console_Link__c}>
-                                        <div class="slds-p-vertical_x-small">
-                                            <a href={queueItem.Account__r.Check_Console_Link__c} target="_blank" class="slds-text-link">Check Console</a>
-                                        </div>
-                                    </template>
-                                    <template if:true={queueItem.Account__r.Admin_Link__c}>
-                                        <div class="slds-p-vertical_x-small">
-                                            <a href={queueItem.Account__r.Admin_Link__c} target="_blank" class="slds-text-link">Admin</a>
-                                        </div>
-                                    </template>
-                                    <template if:true={queueItem.Account__r.Reactive_Admin_Link__c}>
-                                        <div class="slds-p-vertical_x-small">
-                                            <a href={queueItem.Account__r.Reactive_Admin_Link__c} target="_blank" class="slds-text-link">Reactive Admin</a>
-                                        </div>
-                                    </template>
-                                </div>
-                            </div>
+                            <!-- Removed Account Links block; links moved to Widget Product Info -->
                         </template>
                         
                         <!-- Lead Details section -->

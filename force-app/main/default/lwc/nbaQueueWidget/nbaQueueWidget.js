@@ -1177,6 +1177,20 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         return this.queueItem?.Opportunity__r?.Account_Product_Switcher_Data__c;
     }
 
+    // Account links for Product Info
+    get checkConsoleLink() {
+        return this.queueItem?.Account__r?.Check_Console_Link__c || '';
+    }
+    get adminLink() {
+        return this.queueItem?.Account__r?.Admin_Link__c || '';
+    }
+    get reactiveAdminLink() {
+        return this.queueItem?.Account__r?.Reactive_Admin_Link__c || '';
+    }
+    get hasAnyAccountLinks() {
+        return !!(this.checkConsoleLink || this.adminLink || this.reactiveAdminLink);
+    }
+
     get currentPayroll() {
         return this.queueItem?.Opportunity__r?.Account_Current_Payroll__c || '';
     }
