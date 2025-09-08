@@ -50,21 +50,13 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
     // Field sets for record details sections
     opportunityDetailsFields = [
         'Name', 'StageName',
-        'CloseDate', 'Primary_Contact__c',
-        'Account_Business_Category__c',
-        'Account_Reactive_Admin_Link__c', 'Account_Check_Console_Link__c',
-        'Description'
+        'CloseDate', 'Primary_Contact__c'
     ];
 
     opportunityPayrollFields = [
-        'Payroll_Buyer_Stage__c',
-        'Payroll_Risk_Level__c',
-        'Fed_Auth_Finish_Time__c',
-        'Bank_Connect_Finish__c',
-        'Pay_Sched_Finish__c',
-        'First_PayDay__c',
-        'Last_Progression_Time__c',
-        'Account_Blocked_Reason__c'
+        'Payroll_Buyer_Stage__c', 'Payroll_Risk_Level__c',
+        'Fed_Auth_Finish_Time__c', 'Bank_Connect_Finish__c',
+        'Pay_Sched_Finish__c', 'Last_Progression_Time__c'
     ];
 
     opportunityNextFollowUpFields = [
