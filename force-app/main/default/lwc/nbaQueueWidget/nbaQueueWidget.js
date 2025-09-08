@@ -1434,6 +1434,9 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     get isProductTab() {
         return this.activeTab === 'product';
     }
+    get isActivityTab() {
+        return this.activeTab === 'activity';
+    }
     get isUpNextTab() {
         return this.activeTab === 'upnext';
     }
@@ -1452,6 +1455,15 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     }
     get notSurfacedTabClass() {
         return this.isNotSurfacedTab ? 'nba-widget-tab active' : 'nba-widget-tab';
+    }
+    get activityTabClass() {
+        return this.isActivityTab ? 'nba-widget-tab active' : 'nba-widget-tab';
+    }
+
+    // Activity record context: use Opportunity if present; else Account; else Lead
+    get activityRecordId() {
+        if (!this.queueItem) return null;
+        return this.queueItem.Opportunity__c || this.queueItem.Account__c || this.queueItem.Lead__c || null;
     }
 
     async loadNotSurfaced() {

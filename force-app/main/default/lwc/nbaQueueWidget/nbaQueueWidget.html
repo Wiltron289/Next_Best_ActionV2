@@ -68,6 +68,7 @@
                         <template if:false={queueItem.Lead__c}>
                             <button value="product" onclick={handleTabChange} class={productTabClass}>Product Usage</button>
                         </template>
+                        <button value="activity" onclick={handleTabChange} class={activityTabClass}>Activity</button>
                         <button value="upnext" onclick={handleTabChange} class={upNextTabClass}>Up Next</button>
                         <button value="notsurfaced" onclick={handleTabChange} class={notSurfacedTabClass}>Not Surfaced</button>
                     </div>
@@ -217,6 +218,27 @@
                         </template>
                         <template if:false={hasProductUsage}>
                             <div class="nba-widget-product-placeholder">No product usage data available for this record.</div>
+                        </template>
+                    </div>
+                </template>
+                <template if:true={isActivityTab}>
+                    <div class="nba-widget-activity">
+                        <template if:true={activityRecordId}>
+                            <div class="slds-p-vertical_small">
+                                <div class="slds-text-title_caps slds-p-bottom_x-small">Upcoming Activity</div>
+                                <lightning-related-list parent-record-id={activityRecordId}
+                                                       related-list-id="OpenActivities">
+                                </lightning-related-list>
+                            </div>
+                            <div class="slds-p-vertical_small">
+                                <div class="slds-text-title_caps slds-p-bottom_x-small">Past Activity</div>
+                                <lightning-related-list parent-record-id={activityRecordId}
+                                                       related-list-id="ActivityHistory">
+                                </lightning-related-list>
+                            </div>
+                        </template>
+                        <template if:false={activityRecordId}>
+                            <div class="nba-widget-contact-placeholder">No activity to display.</div>
                         </template>
                     </div>
                 </template>

@@ -88,6 +88,19 @@
                                     </lightning-record-form>
                                 </template>
                             </div>
+                            <!-- Account Actions for Opportunity context -->
+                            <div class="panel-section">
+                                <div class="panel-banner">
+                                    <div class="panel-banner-title">Account Actions</div>
+                                </div>
+                                <lightning-record-form record-id={queueItem.Account__c}
+                                                       object-api-name="Account"
+                                                       mode="view"
+                                                       fields={accountActionFields}
+                                                       columns="2"
+                                                       density="compact">
+                                </lightning-record-form>
+                            </div>
                         </template>
                         
                         <!-- Lead Details section -->

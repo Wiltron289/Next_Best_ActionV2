@@ -76,12 +76,23 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
         'Name',
         'Phone',
         'Website',
-        'Employee_Count__c'
+        'Employee_Count__c',
+        // Account action links
+        'Check_Console_Link__c',
+        'Admin_Link__c',
+        'Reactive_Admin_Link__c'
     ];
 
     // Lead details fields for Lead-based NBA items
     leadDetailsFields = [
         'Company', 'Status', 'Email', 'Phone', 'Are_you__c', 'Number_of_Employees__c'
+    ];
+
+    // Account Actions (to display on Opportunity context as Account fields)
+    accountActionFields = [
+        'Check_Console_Link__c',
+        'Admin_Link__c',
+        'Reactive_Admin_Link__c'
     ];
 
     // Section toggles
