@@ -352,7 +352,7 @@ public class NBAQueueManager {
         if (queueItemId == null) return;
         NBA_Queue__c qi = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
         if (qi.Opportunity__c == null) return;
-        Opportunity opp = [SELECT Id FROM Opportunity WHERE Id = :qi.Opportunity__c LIMIT 1];
+        Opportunity opp = [SELECT Id, StageName FROM Opportunity WHERE Id = :qi.Opportunity__c LIMIT 1];
         try {
             if (futureFollowUpDate != null) {
                 opp.put('Future_Follow_Up_Date__c', futureFollowUpDate);
@@ -360,10 +360,32 @@ public class NBAQueueManager {
             if (String.isNotBlank(futureFollowUpReason)) {
                 opp.put('Future_Follow_Up_Reason__c', futureFollowUpReason);
             }
+            // Ensure stage is updated to Future Follow-Up
+            try {
+                opp.StageName = 'Future Follow-Up';
+            } catch (Exception eInner) {
+                // ignore if stage value not present in org
+            }
         } catch (Exception e) {
             // Defensive in case fields don't exist in org
         }
         update opp;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<String> getFutureFollowUpReasons() {
+        List<String> out = new List<String>();
+        try {
+            Schema.DescribeFieldResult dfr = Opportunity.Future_Follow_Up_Reason__c.getDescribe();
+            for (Schema.PicklistEntry pe : dfr.getPicklistValues()) {
+                if (pe.isActive()) {
+                    out.add(pe.getLabel());
+                }
+            }
+        } catch (Exception e) {
+            // field not present or not accessible
+        }
+        return out;
     }
 
     // Activities fetcher for widget Activity tab (upcoming + last 90 days)

@@ -22,6 +22,7 @@ import saveNextSteps from '@salesforce/apex/NBAQueueManager.saveNextSteps';
 import saveNextStepsWithLead from '@salesforce/apex/NBAQueueManager.saveNextStepsWithLead';
 import saveFutureFollowUp from '@salesforce/apex/NBAQueueManager.saveFutureFollowUp';
 import getOpportunityStageNames from '@salesforce/apex/NBAQueueManager.getOpportunityStageNames';
+import getFutureFollowUpReasons from '@salesforce/apex/NBAQueueManager.getFutureFollowUpReasons';
 import getLeadStatusNames from '@salesforce/apex/NBAQueueManager.getLeadStatusNames';
 import finalizeQueueItem from '@salesforce/apex/NBAQueueManager.finalizeQueueItem';
 import userId from '@salesforce/user/Id';
@@ -63,6 +64,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     @track selectedStage = '';
     @track stageOptions = [];
     @track leadStatusOptions = [];
+    @track futureFollowUpReasonOptions = [];
 
     // Embedded flow state
     @track showEmbeddedFlow = false;
@@ -89,6 +91,13 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         } else if (error) {
             console.error('Error loading opportunity stage names:', error);
             this.stageOptions = [];
+        }
+    }
+
+    @wire(getFutureFollowUpReasons)
+    wiredFfuReasons({ error, data }) {
+        if (data) {
+            this.futureFollowUpReasonOptions = (data || []).map(name => ({ label: name, value: name }));
         }
     }
 

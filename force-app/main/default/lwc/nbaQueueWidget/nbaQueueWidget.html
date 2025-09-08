@@ -405,7 +405,12 @@
                                 </div>
                                 <div class="nba-widget-form-field">
                                     <label for="ffu-reason">Future Follow Up Reason</label>
-                                    <textarea id="ffu-reason" class="nba-widget-form-textarea" oninput={handleFutureReasonChange} value={futureFollowUpReason} placeholder="Enter reason..."></textarea>
+                                    <select id="ffu-reason" class="nba-widget-form-select" onchange={handleFutureReasonChange} value={futureFollowUpReason}>
+                                        <option value="">-- Select Reason --</option>
+                                        <template for:each={futureFollowUpReasonOptions} for:item="opt">
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        </template>
+                                    </select>
                                 </div>
                             </template>
                         </template>
