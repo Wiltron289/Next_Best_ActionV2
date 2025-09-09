@@ -13,6 +13,8 @@ Salesforce Lightning components for surfacing "Next Best Action" (NBA) items to 
 - **Up Next + Not Surfaced**: Preview the next item; see why items are filtered out.
 - **Auto-Refresh**: Refreshes every 5 minutes (countdown visible in the widget); refresh pauses while forms are open.
 - **Mogli Context Refresh**: Mogli Aura wrapper refreshes when the current Lead/Opportunity context changes.
+- **Activity Tab**: Shows upcoming and past Tasks/Events (last 90 days) for the primary record, with locale-formatted dates and overdue highlighting.
+- **Product Info Tab**: Displays Account-level buttons (Admin Link, Reactive Admin Link, Check Console) using values from corresponding fields.
 
 ## Components
 
@@ -25,9 +27,10 @@ Salesforce Lightning components for surfacing "Next Best Action" (NBA) items to 
 - **Purpose**: Main widget component that displays NBA records
 - **Features**:
   - Displays Lead/Opportunity/Account action context and contact info
-  - Tabs: Contact Info, Product Usage (hidden for Leads), Up Next, Not Surfaced
+  - Tabs: Contact Info, Product Info (Account links), Activity, Up Next, Not Surfaced
   - Accept/Skip with call disposition and optional flow launch
   - Inline flow host overlay for closed stages (Project Initiation / Closed Lost)
+  - Future Follow-Up stage handling: selecting the “Future Follow-Up” stage shows Future Follow Up Date/Reason inputs, hides Next Step fields, and saves to Opportunity.
 
 ### NBA Queue Manager (`NBAQueueManager`)
 - **Location**: `force-app/main/default/classes/NBAQueueManager.cls`
@@ -81,10 +84,25 @@ Salesforce Lightning components for surfacing "Next Best Action" (NBA) items to 
 
 - Auto-refresh every 5 minutes; countdown is visible; refresh is paused while forms are open.
 - Selecting a closing Opportunity stage (Closed Won - Pending Implementation / Closed Lost) launches a flow inline via the widget; the item finalizes on flow completion.
+- Selecting the “Future Follow-Up” stage dynamically shows Future Follow Up fields and hides Next Step fields. The comparison is robust to hyphenation (e.g., “Future Follow-Up”).
 
 ## Notes
 
 - Platform event publisher has been removed; the system relies on periodic refresh and UI events.
+
+## Console Field Layout (Opportunity)
+
+- Opportunity Details
+  - Name / Stage
+  - Close Date / Primary Contact
+  - Rep Notes / Current Payroll
+- Payroll Details
+  - Payroll Buyer Stage / Payroll Risk Level
+  - Fed Auth Finish / Bank Connect Finish
+  - Pay Sched Finish / Last Progression Time
+- Next Steps and Future Follow Up Details
+  - Next Step Date / Next Step
+  - Future Follow Up Date / Future Follow Up Reason
 
 ## Dependencies
 
