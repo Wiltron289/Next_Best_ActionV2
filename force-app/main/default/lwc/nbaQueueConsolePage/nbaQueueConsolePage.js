@@ -50,21 +50,13 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
     // Field sets for record details sections
     opportunityDetailsFields = [
         'Name', 'StageName',
-        'CloseDate', 'Primary_Contact__c',
-        'Account_Business_Category__c',
-        'Account_Reactive_Admin_Link__c', 'Account_Check_Console_Link__c',
-        'Description'
+        'CloseDate', 'Primary_Contact__c'
     ];
 
     opportunityPayrollFields = [
-        'Payroll_Buyer_Stage__c',
-        'Payroll_Risk_Level__c',
-        'Fed_Auth_Finish_Time__c',
-        'Bank_Connect_Finish__c',
-        'Pay_Sched_Finish__c',
-        'First_PayDay__c',
-        'Last_Progression_Time__c',
-        'Account_Blocked_Reason__c'
+        'Payroll_Buyer_Stage__c', 'Payroll_Risk_Level__c',
+        'Fed_Auth_Finish_Time__c', 'Bank_Connect_Finish__c',
+        'Pay_Sched_Finish__c', 'Last_Progression_Time__c'
     ];
 
     opportunityNextFollowUpFields = [
@@ -221,6 +213,13 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
             }
             // Deprecated: no embedded flow host
             this.showProjectFlow = false;
+            // Ask the embedded widget to refresh activities if visible on Activity tab
+            try {
+                const widget = this.template.querySelector('c-nba-queue-widget');
+                if (widget && typeof widget.loadActivities === 'function') {
+                    widget.loadActivities();
+                }
+            } catch (e) {}
             if (this.queueItem?.Opportunity__c) {
                 try {
                     this.opportunityPrimaryContact = await getOpportunityPrimaryContact({ opportunityId: this.queueItem.Opportunity__c });
@@ -614,6 +613,15 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
         const fromQueue = this.queueItem.Current_Payroll_Provider__c;
         if (fromQueue) return fromQueue;
         return this.queueItem.Opportunity__r?.Current_Payroll_Integration__c || '';
+    }
+
+    get queueNextStepDateDisplay() {
+        try {
+            const d = this.queueItem?.Next_Step_Date__c;
+            if (!d) return '';
+            const dt = new Date(d);
+            return dt.toLocaleDateString();
+        } catch (e) { return ''; }
     }
 
     // Up Next helpers

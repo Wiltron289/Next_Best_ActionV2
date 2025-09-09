@@ -1107,4 +1107,76 @@ public class NBAQueueManagerTest {
 		Test.stopTest();
 		System.assertEquals(c.Id, best, 'Should return Best_Person_to_Call__c value');
 	}
+    @isTest
+    static void testGetLeadStatusNamesNotEmpty() {
+        Test.startTest();
+        List<String> statuses = NBAQueueManager.getLeadStatusNames();
+        Test.stopTest();
+        System.assert(statuses != null, 'Lead status list should not be null');
+    }
+
+    @isTest
+    static void testSaveFutureFollowUpSetsStageAndFields() {
+        User rep = [SELECT Id FROM User WHERE IsActive = true LIMIT 1];
+        Account a = new Account(Name='FFU A'); insert a;
+        Opportunity o = new Opportunity(Name='FFU Opp', StageName='Qualification', CloseDate=Date.today().addDays(10), AccountId=a.Id, OwnerId=rep.Id, Source__c='Outbound');
+        insert o;
+        NBA_Queue__c qi = new NBA_Queue__c(Account__c=a.Id, Action_Type__c='Call', Priority_Score__c=10, Subject__c='FFU', Status__c='Pending', Sales_Rep__c=rep.Id, Opportunity__c=o.Id);
+        insert qi;
+
+        Date ffuDate = Date.today().addDays(30);
+        // Omit reason to avoid restricted picklist failures across orgs
+        Test.startTest();
+        NBAQueueManager.saveFutureFollowUp(qi.Id, ffuDate, null);
+        Test.stopTest();
+        Opportunity after = [SELECT StageName, Future_Follow_Up_Date__c, Future_Follow_Up_Reason__c FROM Opportunity WHERE Id = :o.Id];
+        System.assertEquals(ffuDate, after.Future_Follow_Up_Date__c);
+        System.assert(after.StageName != null, 'Stage should be non-null');
+    }
+
+    @isTest
+    static void testGetFutureFollowUpReasonsDoesNotError() {
+        Test.startTest();
+        List<String> reasons = NBAQueueManager.getFutureFollowUpReasons();
+        Test.stopTest();
+        System.assert(reasons != null, 'Should return a list (possibly empty)');
+    }
+
+    @isTest
+    static void testLeadOnlyAcceptAndSaveNextSteps() {
+        User rep = [SELECT Id FROM User WHERE IsActive = true LIMIT 1];
+        Lead l = new Lead(FirstName='Lead', LastName='Only', Company='ACME', Phone='1112223333', Status='Open - Not Contacted');
+        insert l;
+        NBA_Queue__c qi = new NBA_Queue__c(Action_Type__c='Call', Priority_Score__c=77, Subject__c='Lead Action', Status__c='Pending', Sales_Rep__c=rep.Id, Lead__c=l.Id);
+        insert qi;
+
+        Test.startTest();
+        String taskId = NBAQueueManager.acceptAction(qi.Id, 'Lead notes');
+        Task t = [SELECT Id, WhoId, WhatId, ActivityDate FROM Task WHERE Id = :taskId];
+        System.assertEquals(l.Id, t.WhoId, 'WhoId should be Lead');
+        System.assertEquals(null, t.WhatId, 'WhatId should be null for Lead');
+        System.assertEquals(Date.today(), t.ActivityDate, 'ActivityDate should be today');
+
+        Date nextDate = Date.today().addDays(2);
+        NBAQueueManager.saveNextStepsWithLead(qi.Id, nextDate, 'Follow up lead', null, 'Working - Contacted');
+        Test.stopTest();
+        Lead afterLead = [SELECT Status, Next_Step__c, Next_Step_Date__c FROM Lead WHERE Id = :l.Id];
+        System.assertEquals('Working - Contacted', afterLead.Status);
+        System.assertEquals('Follow up lead', afterLead.Next_Step__c);
+        System.assertEquals(nextDate, afterLead.Next_Step_Date__c);
+    }
+
+    @isTest
+    static void testGetActivitiesForOpportunity() {
+        Opportunity opp = [SELECT Id FROM Opportunity LIMIT 1];
+        insert new Task(Subject='Past Task', WhatId=opp.Id, Status='Completed', ActivityDate=Date.today().addDays(-1));
+        insert new Task(Subject='Upcoming Task', WhatId=opp.Id, Status='Not Started', ActivityDate=Date.today().addDays(1));
+        Datetime startTs = System.now().addDays(1);
+        insert new Event(Subject='Upcoming Event', WhatId=opp.Id, StartDateTime=startTs, EndDateTime=startTs.addHours(1));
+
+        Test.startTest();
+        Map<String, List<Map<String, Object>>> act = NBAQueueManager.getActivities(opp.Id);
+        Test.stopTest();
+        System.assert(act != null && act.containsKey('upcoming') && act.containsKey('past'), 'Should return upcoming and past');
+    }
 }

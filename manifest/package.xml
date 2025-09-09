@@ -8,6 +8,7 @@
     <types>
         <members>nbaQueueWidget</members>
         <members>nbaQueueConsolePage</members>
+        <members>twoColRecordView</members>
         <name>LightningComponentBundle</name>
     </types>
     <types>

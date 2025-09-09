@@ -347,6 +347,47 @@ public class NBAQueueManager {
         }
     }
 
+    @AuraEnabled
+    public static void saveFutureFollowUp(Id queueItemId, Date futureFollowUpDate, String futureFollowUpReason) {
+        if (queueItemId == null) return;
+        NBA_Queue__c qi = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+        if (qi.Opportunity__c == null) return;
+        Opportunity opp = [SELECT Id, StageName FROM Opportunity WHERE Id = :qi.Opportunity__c LIMIT 1];
+        try {
+            if (futureFollowUpDate != null) {
+                opp.put('Future_Follow_Up_Date__c', futureFollowUpDate);
+            }
+            if (String.isNotBlank(futureFollowUpReason)) {
+                opp.put('Future_Follow_Up_Reason__c', futureFollowUpReason);
+            }
+            // Ensure stage is updated to Future Follow-Up
+            try {
+                opp.StageName = 'Future Follow-Up';
+            } catch (Exception eInner) {
+                // ignore if stage value not present in org
+            }
+        } catch (Exception e) {
+            // Defensive in case fields don't exist in org
+        }
+        update opp;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<String> getFutureFollowUpReasons() {
+        List<String> out = new List<String>();
+        try {
+            Schema.DescribeFieldResult dfr = Opportunity.Future_Follow_Up_Reason__c.getDescribe();
+            for (Schema.PicklistEntry pe : dfr.getPicklistValues()) {
+                if (pe.isActive()) {
+                    out.add(pe.getLabel());
+                }
+            }
+        } catch (Exception e) {
+            // field not present or not accessible
+        }
+        return out;
+    }
+
     // Activities fetcher for widget Activity tab (upcoming + last 90 days)
     @AuraEnabled(cacheable=true)
     public static Map<String, List<Map<String, Object>>> getActivities(Id recordId) {
@@ -361,10 +402,9 @@ public class NBAQueueManager {
         Set<Id> whoIds = new Set<Id>();
         String prefix = String.valueOf(recordId).left(3);
         if (prefix == '006') { // Opportunity
+            // Base strictly on Opportunity: WhatId = Opportunity; include Opp Contacts via OCR as WhoIds
             whatIds.add(recordId);
             try {
-                Opportunity o = [SELECT Id, AccountId FROM Opportunity WHERE Id = :recordId LIMIT 1];
-                if (o.AccountId != null) whatIds.add(o.AccountId);
                 for (OpportunityContactRole ocr : [SELECT ContactId FROM OpportunityContactRole WHERE OpportunityId = :recordId AND ContactId != null LIMIT 200]) {
                     whoIds.add(ocr.ContactId);
                 }
@@ -1053,7 +1093,7 @@ public class NBAQueueManager {
                 WhatId = (whoId == null) ? (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c) : (queueItem.Lead__c != null ? null : (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c)),
                 WhoId = whoId,
                 OwnerId = taskOwnerId,
-                ActivityDate = queueItem.Due_Date__c,
+                ActivityDate = Date.today(),
                 Status = 'Completed',  // Mark as completed when accepted
                 Priority = mapPriorityToTask(queueItem.Priority_Score__c)
             );

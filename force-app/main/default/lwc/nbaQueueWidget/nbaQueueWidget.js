@@ -20,7 +20,9 @@ import getAccountPrimaryContact from '@salesforce/apex/NBAQueueManager.getAccoun
 import getAccountPhoneNumber from '@salesforce/apex/NBAQueueManager.getAccountPhoneNumber';
 import saveNextSteps from '@salesforce/apex/NBAQueueManager.saveNextSteps';
 import saveNextStepsWithLead from '@salesforce/apex/NBAQueueManager.saveNextStepsWithLead';
+import saveFutureFollowUp from '@salesforce/apex/NBAQueueManager.saveFutureFollowUp';
 import getOpportunityStageNames from '@salesforce/apex/NBAQueueManager.getOpportunityStageNames';
+import getFutureFollowUpReasons from '@salesforce/apex/NBAQueueManager.getFutureFollowUpReasons';
 import getLeadStatusNames from '@salesforce/apex/NBAQueueManager.getLeadStatusNames';
 import finalizeQueueItem from '@salesforce/apex/NBAQueueManager.finalizeQueueItem';
 import userId from '@salesforce/user/Id';
@@ -57,9 +59,12 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     @track isBlinking = false; // For alerting when new action comes in
     @track nextStepDate = '';
     @track nextSteps = '';
+    @track futureFollowUpDate = '';
+    @track futureFollowUpReason = '';
     @track selectedStage = '';
     @track stageOptions = [];
     @track leadStatusOptions = [];
+    @track futureFollowUpReasonOptions = [];
 
     // Embedded flow state
     @track showEmbeddedFlow = false;
@@ -86,6 +91,13 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         } else if (error) {
             console.error('Error loading opportunity stage names:', error);
             this.stageOptions = [];
+        }
+    }
+
+    @wire(getFutureFollowUpReasons)
+    wiredFfuReasons({ error, data }) {
+        if (data) {
+            this.futureFollowUpReasonOptions = (data || []).map(name => ({ label: name, value: name }));
         }
     }
 
@@ -513,6 +525,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         if (this.queueItem?.Lead__c) {
             return this.callDisposition === 'Connected - DM';
         }
+		// Hide Next Step fields when stage is Future Follow-Up
+		if (this.isFutureFollowUpStage) {
+			return false;
+		}
 		return this.callDisposition === 'Connected - DM' && !closedStages.includes(this.selectedStage);
     }
 
@@ -522,6 +538,14 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
 
     get hasOpportunity() {
         return !!(this.queueItem && this.queueItem.Opportunity__c);
+    }
+    get isFutureFollowUpStage() {
+        const norm = (this.selectedStage || '')
+            .toLowerCase()
+            .replace(/[-_]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        return norm === 'future follow up';
     }
     get hasLead() {
         return !!(this.queueItem && this.queueItem.Lead__c);
@@ -721,6 +745,8 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     handleNextStepDateChange = (event) => { this.nextStepDate = event.target.value; }
     handleNextStepsChange = (event) => { this.nextSteps = event.target.value; }
     handleStageChange = (event) => { this.selectedStage = event.target.value; }
+    handleFutureDateChange = (event) => { this.futureFollowUpDate = event.target.value; }
+    handleFutureReasonChange = (event) => { this.futureFollowUpReason = event.target.value; }
     handleLeadStatusChange = (event) => { this.selectedLeadStatus = event.target.value; }
 
     handleCallDispositionSave() {
@@ -762,9 +788,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         });
 
         // Decide if a flow must run (Closed Lost or Closed Won - Pending Implementation)
-        const norm2 = (this.selectedStage || '').toLowerCase().trim();
+        const norm2 = (this.selectedStage || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
         const isClosedWonPending2 = norm2.includes('closed won') && norm2.includes('pending');
         const isClosedLost2 = norm2 === 'closed lost';
+        const isFutureFollowUp2 = norm2 === 'future follow up';
         const flowRequired = this.hasOpportunity && (isClosedWonPending2 || isClosedLost2);
 
         const savePromise = flowRequired
@@ -786,15 +813,22 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             .then(async () => {
                 // Save next steps and/or stage if provided
                 try {
-                    const norm = (this.selectedStage || '').toLowerCase().trim();
+                    const norm = (this.selectedStage || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
                     const isClosedWonPending = norm.includes('closed won') && norm.includes('pending');
                     const isClosedLost = norm === 'closed lost';
+                    const isFutureFollowUp = norm === 'future follow up';
                     const stageToSave = (this.hasOpportunity && (isClosedWonPending || isClosedLost))
                         ? null
                         : (this.hasOpportunity ? (this.selectedStage || null) : null);
 
-                    // Only save next steps when the dynamic condition is met
-                    if (this.showNextStepsFields) {
+                    // Save Future Follow Up
+                    if (this.hasOpportunity && isFutureFollowUp) {
+                        await saveFutureFollowUp({
+                            queueItemId: this.selectedItem.Id,
+                            futureFollowUpDate: this.futureFollowUpDate ? new Date(this.futureFollowUpDate) : null,
+                            futureFollowUpReason: this.futureFollowUpReason || null
+                        });
+                    } else if (this.showNextStepsFields) {
                         if (this.queueItem?.Lead__c) {
                             await saveNextStepsWithLead({
                                 queueItemId: this.selectedItem.Id,
@@ -1492,11 +1526,49 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         if (!id) { this.upcomingActivities = []; this.pastActivities = []; return; }
         try {
             const data = await getActivities({ recordId: id });
-            this.upcomingActivities = Array.isArray(data?.upcoming) ? data.upcoming : [];
-            this.pastActivities = Array.isArray(data?.past) ? data.past : [];
+            const up = Array.isArray(data?.upcoming) ? data.upcoming : [];
+            const past = Array.isArray(data?.past) ? data.past : [];
+            this.upcomingActivities = up.map((row) => {
+                const isOverdue = this.isOverdue(row);
+                return {
+                    ...row,
+                    display: this.formatActivityDisplay(row),
+                    isOverdue,
+                    overdueStyle: isOverdue ? 'color:#c23934;' : ''
+                };
+            });
+            this.pastActivities = past.map((row) => ({
+                ...row,
+                display: this.formatActivityDisplay(row)
+            }));
         } catch (e) {
             this.upcomingActivities = [];
             this.pastActivities = [];
+        }
+    }
+
+    isOverdue(row) {
+        try {
+            const dt = row?.date || row?.start || null;
+            if (!dt) return false;
+            const due = new Date(dt).getTime();
+            return due < Date.now();
+        } catch (e) {
+            return false;
+        }
+    }
+
+    formatActivityDisplay(row) {
+        const subject = row?.subject || '';
+        const dateVal = row?.start || row?.date || null;
+        if (!dateVal) return subject;
+        try {
+            const d = new Date(dateVal);
+            const opts = { month: '2-digit', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' };
+            const formatted = d.toLocaleString(undefined, opts);
+            return `${subject} — ${formatted}`;
+        } catch (e) {
+            return `${subject}`;
         }
     }
 

@@ -1,0 +1,5 @@
+.two-col-grid { display: grid; grid-template-columns: 1fr; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 6px; }
+.cell { min-width: 0; }
+.ghost-cell { height: 1.75rem; background: transparent; border: 0; }
+

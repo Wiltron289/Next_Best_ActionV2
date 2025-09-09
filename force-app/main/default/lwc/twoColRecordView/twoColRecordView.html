@@ -1,0 +1,25 @@
+<template>
+    <lightning-record-view-form record-id={recordId} object-api-name={objectApiName} density="compact">
+        <div class="two-col-grid">
+            <template for:each={fieldPairs} for:item="row">
+                <div key={row.key} class="row">
+                    <div class="cell">
+                        <template if:true={row.left}>
+                            <lightning-output-field field-name={row.left}></lightning-output-field>
+                        </template>
+                    </div>
+                    <div class="cell">
+                        <template if:true={row.right}>
+                            <lightning-output-field field-name={row.right}></lightning-output-field>
+                        </template>
+                        <template if:false={row.right}>
+                            <div class="ghost-cell" aria-hidden="true"></div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </lightning-record-view-form>
+</template>
+
+

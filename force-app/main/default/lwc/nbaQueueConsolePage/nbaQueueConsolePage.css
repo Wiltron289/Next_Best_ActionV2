@@ -85,3 +85,6 @@
   .left { width: 100%; }
   .three-col .middle { display: none; }
 }
+
+/* Preserve formatting for Rep Notes */
+.rep-notes { white-space: pre-wrap; }

@@ -238,12 +238,12 @@
                     <div class="nba-widget-activity">
                         <template if:true={activityRecordId}>
                             <div class="slds-p-vertical_small">
-                                <div class="slds-text-title_caps slds-p-bottom_x-small">Upcoming Activity</div>
+                                <div class="slds-text-title_caps slds-p-bottom_x-small">Upcoming or Overdue Activity</div>
                                 <template if:true={upcomingActivities.length}>
                                     <template for:each={upcomingActivities} for:item="row">
                                         <div key={row.id} class="nba-widget-row">
                                             <span class="nba-widget-icon">🗓️</span>
-                                            <span class="nba-widget-main-text">{row.subject} — {row.date}{row.start}</span>
+                                            <span class="nba-widget-main-text" style={row.overdueStyle}>{row.display} <template if:true={row.isOverdue}><span style="color:#c23934; font-weight:600;">(Overdue)</span></template></span>
                                         </div>
                                     </template>
                                 </template>
@@ -257,7 +257,7 @@
                                     <template for:each={pastActivities} for:item="row">
                                         <div key={row.id} class="nba-widget-row">
                                             <span class="nba-widget-icon">✅</span>
-                                            <span class="nba-widget-main-text">{row.subject} — {row.date}{row.start}</span>
+                                            <span class="nba-widget-main-text">{row.display}</span>
                                         </div>
                                     </template>
                                 </template>
@@ -396,6 +396,23 @@
                                 <label for="next-step">Next Step</label>
                                 <textarea id="next-step" class="nba-widget-form-textarea" oninput={handleNextStepsChange} value={nextSteps} placeholder="Enter next step..."></textarea>
                             </div>
+                        </template>
+                        <template if:true={hasOpportunity}>
+                            <template if:true={isFutureFollowUpStage}>
+                                <div class="nba-widget-form-field">
+                                    <label for="ffu-date">Future Follow Up Date</label>
+                                    <input type="date" id="ffu-date" class="nba-widget-form-textarea" oninput={handleFutureDateChange} value={futureFollowUpDate} />
+                                </div>
+                                <div class="nba-widget-form-field">
+                                    <label for="ffu-reason">Future Follow Up Reason</label>
+                                    <select id="ffu-reason" class="nba-widget-form-select" onchange={handleFutureReasonChange} value={futureFollowUpReason}>
+                                        <option value="">-- Select Reason --</option>
+                                        <template for:each={futureFollowUpReasonOptions} for:item="opt">
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </template>
                         </template>
                         <div class="nba-widget-form-actions">
                             <button class="nba-widget-form-cancel" onclick={closeCallDispositionForm}>Cancel</button>
