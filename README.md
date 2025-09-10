@@ -15,6 +15,8 @@ Salesforce Lightning components for surfacing "Next Best Action" (NBA) items to 
 - **Mogli Context Refresh**: Mogli Aura wrapper refreshes when the current Lead/Opportunity context changes.
 - **Activity Tab**: Shows upcoming and past Tasks/Events (last 90 days) for the primary record, with locale-formatted dates and overdue highlighting.
 - **Product Info Tab**: Displays Account-level buttons (Admin Link, Reactive Admin Link, Check Console) using values from corresponding fields.
+- **Time Zone Display**: Shows Time Zone information for both Opportunity and Account calls in the Contact Info tab.
+- **Enhanced Queue Sorting**: Three-level sorting system: Status → Priority Score → Creation Date (most recent first for tied scores).
 
 ## Components
 
@@ -86,9 +88,27 @@ Salesforce Lightning components for surfacing "Next Best Action" (NBA) items to 
 - Selecting a closing Opportunity stage (Closed Won - Pending Implementation / Closed Lost) launches a flow inline via the widget; the item finalizes on flow completion.
 - Selecting the “Future Follow-Up” stage dynamically shows Future Follow Up fields and hides Next Step fields. The comparison is robust to hyphenation (e.g., “Future Follow-Up”).
 
+## Recent Updates
+
+### Version 2.1 (Latest)
+- **Time Zone Display**: Added Time Zone field display in Contact Info tab for both Opportunity and Account calls
+- **Enhanced Queue Sorting**: Implemented three-level sorting system to handle tied priority scores:
+  1. Status (In Progress → Pending)
+  2. Priority Score (highest first)
+  3. Creation Date (most recent first) - *NEW*
+- **Talkdesk Activity Linking Fix**: Fixed NBAQueueBacklink trigger to properly handle activities created before queue completion
+- **Field Tracking**: Resolved deployment issues with field tracking history being overwritten
+
+### Version 2.0
+- Initial implementation with Lead + Opportunity support
+- Console page layout with embedded widget
+- Talkdesk integration and activity linking
+- Auto-refresh and Mogli context integration
+
 ## Notes
 
 - Platform event publisher has been removed; the system relies on periodic refresh and UI events.
+- Time Zone fields (`Time_Zone__c`) must exist on both Opportunity and Account objects for proper display.
 
 ## Console Field Layout (Opportunity)
 

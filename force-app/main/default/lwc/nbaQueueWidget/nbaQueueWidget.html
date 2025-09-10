@@ -113,6 +113,13 @@
                             </div>
                         </template>
 
+                        <template if:true={displayTimeZone}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Time Zone</span>
+                                <span class="nba-widget-detail-value">{displayTimeZone}</span>
+                            </div>
+                        </template>
+
                         <template if:false={displayContactPerson}>
                             <template if:false={displayContactPhone}>
                                 <div class="nba-widget-contact-placeholder">No contact information available for this record.</div>

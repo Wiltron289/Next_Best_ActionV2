@@ -144,12 +144,12 @@ public class NBAQueueManager {
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
                        Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
-                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c,
-                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
+                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c, Account__r.Time_Zone__c,
+                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c, CreatedDate,
                         Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
@@ -257,12 +257,12 @@ public class NBAQueueManager {
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
                        Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
-                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c,
-                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
+                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c, Account__r.Time_Zone__c,
+                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c, CreatedDate,
                        Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description, Opportunity__r.Time_Zone__c,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
@@ -544,12 +544,12 @@ public class NBAQueueManager {
                 SELECT Id, Account__c, Account__r.Name, Account__r.Employee_Count__c, Account__r.Company_Age_in_Days__c,
                        Account__r.Use_Case_Payroll__c, Account__r.Use_Case_Scheduling__c, Account__r.Use_Case_Time_Tracking__c,
                        Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
-                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c,
-                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c,
+                       Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c, Account__r.Time_Zone__c,
+                       Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c, CreatedDate,
                        Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Description, Opportunity__r.Time_Zone__c,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
@@ -615,7 +615,7 @@ public class NBAQueueManager {
         return (Decimal) details.get('adjustedScore');
     }
     
-    // Custom comparator class to sort by status first (In Progress prioritized), then by adjusted priority score
+    // Custom comparator class to sort by status first (In Progress prioritized), then by adjusted priority score, then by creation date
     public class PriorityScoreComparator implements Comparator<NBA_Queue__c> {
         public Integer compare(NBA_Queue__c item1, NBA_Queue__c item2) {
             // First, prioritize In Progress items over Pending items
@@ -632,6 +632,11 @@ public class NBAQueueManager {
             
             if (score1 > score2) return -1; // Higher score first
             if (score1 < score2) return 1;
+            
+            // If priority scores are equal, sort by creation date (most recent first)
+            if (item1.CreatedDate > item2.CreatedDate) return -1; // More recent first
+            if (item1.CreatedDate < item2.CreatedDate) return 1;
+            
             return 0;
         }
     }

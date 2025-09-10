@@ -38,6 +38,11 @@ trigger NBAQueueBacklink on NBA_Queue__c (after update) {
         }
     }
 
+    // Expand the time window to include activities before completion
+    if (minCompleted != null) {
+        minCompleted = minCompleted.addMinutes(-40);
+    }
+
     if (dialedSet.isEmpty() || minCompleted == null || maxCompletedPlusWindow == null) return;
 
     // Query Talkdesk activities within the combined time window and build phone map
@@ -92,10 +97,11 @@ trigger NBAQueueBacklink on NBA_Queue__c (after update) {
         for (NBA_Queue__c q : queues) {
             talkdesk__Talkdesk_Activity__c best = null;
             Long bestDelta = 999999999999L;
+            Datetime windowStart = q.Completed_Date__c.addMinutes(-40);
             Datetime windowEnd = q.Completed_Date__c.addMinutes(40);
             for (talkdesk__Talkdesk_Activity__c a : acts) {
                 if (usedActivityIds.contains(a.Id)) continue;
-                if (a.CreatedDate >= q.Completed_Date__c && a.CreatedDate <= windowEnd && a.talkdesk__User__c == q.Sales_Rep__c) {
+                if (a.CreatedDate >= windowStart && a.CreatedDate <= windowEnd && a.talkdesk__User__c == q.Sales_Rep__c) {
                     Long delta = a.CreatedDate.getTime() - q.Completed_Date__c.getTime();
                     if (delta < 0) delta = -delta;
                     if (delta < bestDelta) {
