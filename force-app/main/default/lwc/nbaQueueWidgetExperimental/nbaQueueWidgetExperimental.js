@@ -760,30 +760,37 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         let defaultContactName = '';
         let defaultPhoneNumber = '';
         
-        // Determine the best contact and phone using existing logic
-        if (this.queueItem?.Opportunity__c) {
-            // For Opportunity calls, use the opportunity primary contact logic
-            if (this.queueItem?.Best_Person_to_Call__c) {
-                defaultContactId = this.queueItem.Best_Person_to_Call__c;
-                defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
-                defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || '';
-            } else if (this.opportunityPrimaryContact?.contactId) {
-                defaultContactId = this.opportunityPrimaryContact.contactId;
-                defaultContactName = this.opportunityPrimaryContact.contactName;
-                defaultPhoneNumber = this.opportunityPrimaryContact.contactPhone;
+        // PRIORITY: Always use Best Person to Call and Best Number to Call from NBA Queue if available
+        if (this.queueItem?.Best_Person_to_Call__c && this.queueItem?.Best_Number_to_Call__c) {
+            defaultContactId = this.queueItem.Best_Person_to_Call__c;
+            defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
+            defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c;
+        } else {
+            // Fallback to existing logic if Best Person/Number not set
+            if (this.queueItem?.Opportunity__c) {
+                // For Opportunity calls, use the opportunity primary contact logic
+                if (this.queueItem?.Best_Person_to_Call__c) {
+                    defaultContactId = this.queueItem.Best_Person_to_Call__c;
+                    defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
+                    defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || '';
+                } else if (this.opportunityPrimaryContact?.contactId) {
+                    defaultContactId = this.opportunityPrimaryContact.contactId;
+                    defaultContactName = this.opportunityPrimaryContact.contactName;
+                    defaultPhoneNumber = this.opportunityPrimaryContact.contactPhone;
+                }
+            } else if (this.queueItem?.Account__c) {
+                // For Account calls, use account primary contact
+                if (this.queueItem?.Best_Person_to_Call__c) {
+                    defaultContactId = this.queueItem.Best_Person_to_Call__c;
+                    defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
+                    defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || '';
+                }
+            } else if (this.queueItem?.Lead__c) {
+                // For Lead calls, use lead contact info
+                defaultContactId = this.queueItem.Lead__c;
+                defaultContactName = this.queueItem.Lead__r?.Name || '';
+                defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || this.queueItem.Lead__r?.Phone || '';
             }
-        } else if (this.queueItem?.Account__c) {
-            // For Account calls, use account primary contact
-            if (this.queueItem?.Best_Person_to_Call__c) {
-                defaultContactId = this.queueItem.Best_Person_to_Call__c;
-                defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
-                defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || '';
-            }
-        } else if (this.queueItem?.Lead__c) {
-            // For Lead calls, use lead contact info
-            defaultContactId = this.queueItem.Lead__c;
-            defaultContactName = this.queueItem.Lead__r?.Name || '';
-            defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || this.queueItem.Lead__r?.Phone || '';
         }
         
         // Set default values
@@ -920,6 +927,14 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         
         // Proceed with the normal accept action
         this.executeAcceptAction();
+    }
+    
+    // Handle redial action
+    handleRedial() {
+        if (this.selectedPhoneNumber) {
+            // Use the same redial logic as the original widget
+            this.redialNumber(this.selectedPhoneNumber);
+        }
     }
     
     // Update queue item with selected contact and phone

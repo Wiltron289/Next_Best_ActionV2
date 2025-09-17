@@ -423,6 +423,9 @@
                         </template>
                         <div class="nba-widget-form-actions">
                             <button class="nba-widget-form-cancel" onclick={closeCallDispositionForm}>Cancel</button>
+                            <button class="nba-widget-form-redial" onclick={handleRedial} disabled={isLoading}>
+                                Redial
+                            </button>
                             <button class="nba-widget-form-save" onclick={handleCallDispositionSave} disabled={isLoading}>
                                 Save
                             </button>
