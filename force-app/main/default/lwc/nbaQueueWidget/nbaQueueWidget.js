@@ -1718,16 +1718,16 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
 
     get displayTimeZone() {
         if (!this.queueItem) return '';
-        
+
         // For Opportunity calls, show Opportunity Time Zone, otherwise show Account Time Zone
         if (this.queueItem.Opportunity__c && this.queueItem.Opportunity__r?.Time_Zone__c) {
             return this.queueItem.Opportunity__r.Time_Zone__c;
         }
-        
+
         if (this.queueItem.Account__r?.Time_Zone__c) {
             return this.queueItem.Account__r.Time_Zone__c;
         }
-        
+
         return '';
     }
 
