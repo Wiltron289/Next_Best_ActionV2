@@ -18,6 +18,7 @@ import cancelCallDisposition from '@salesforce/apex/NBAQueueManager.cancelCallDi
 import resolvePrimaryContactForQueueItem from '@salesforce/apex/NBAQueueManager.resolvePrimaryContactForQueueItem';
 import getAccountPrimaryContact from '@salesforce/apex/NBAQueueManager.getAccountPrimaryContact';
 import getAccountPhoneNumber from '@salesforce/apex/NBAQueueManager.getAccountPhoneNumber';
+import getAccountContacts from '@salesforce/apex/NBAQueueManager.getAccountContacts';
 import saveNextSteps from '@salesforce/apex/NBAQueueManager.saveNextSteps';
 import saveNextStepsWithLead from '@salesforce/apex/NBAQueueManager.saveNextStepsWithLead';
 import saveFutureFollowUp from '@salesforce/apex/NBAQueueManager.saveFutureFollowUp';
@@ -757,7 +758,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     }
     
     // Load available contacts and phone numbers for the record
-    loadContactOptions() {
+    async loadContactOptions() {
         // Use the same call logic as the original widget
         let defaultContactId = '';
         let defaultContactName = '';
@@ -823,6 +824,31 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 phone: this.opportunityPrimaryContact.contactPhone,
                 mobilePhone: ''
             });
+        }
+        
+        // Fetch and add all account contacts if we have an account
+        if (this.queueItem?.Account__c) {
+            try {
+                const accountContacts = await getAccountContacts({ accountId: this.queueItem.Account__c });
+                console.log('Fetched account contacts:', accountContacts);
+                
+                for (const contact of accountContacts) {
+                    // Only add if not already in the list
+                    const existingContact = this.availableContacts.find(c => c.id === contact.id);
+                    if (!existingContact) {
+                        this.availableContacts.push({
+                            id: contact.id,
+                            name: contact.name,
+                            phone: contact.phone || '',
+                            mobilePhone: contact.mobilePhone || '',
+                            title: contact.title || '',
+                            department: contact.department || ''
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching account contacts:', error);
+            }
         }
         
         // Build available phone numbers
@@ -907,6 +933,8 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         const selectedContact = this.availableContacts.find(contact => contact.id === this.selectedContactId);
         if (selectedContact) {
             this.availablePhoneNumbers = [];
+            
+            // Add selected contact's phone numbers
             if (selectedContact.phone) {
                 this.availablePhoneNumbers.push({
                     value: selectedContact.phone,
@@ -919,6 +947,45 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                     label: selectedContact.mobilePhone + ' (Mobile)'
                 });
             }
+            
+            // Add other account contacts' phone numbers
+            for (const contact of this.availableContacts) {
+                if (contact.id !== this.selectedContactId) {
+                    if (contact.phone && !this.availablePhoneNumbers.find(p => p.value === contact.phone)) {
+                        this.availablePhoneNumbers.push({
+                            value: contact.phone,
+                            label: contact.phone + ' (' + contact.name + ' - Phone)'
+                        });
+                    }
+                    if (contact.mobilePhone && !this.availablePhoneNumbers.find(p => p.value === contact.mobilePhone)) {
+                        this.availablePhoneNumbers.push({
+                            value: contact.mobilePhone,
+                            label: contact.mobilePhone + ' (' + contact.name + ' - Mobile)'
+                        });
+                    }
+                }
+            }
+            
+            // Add account and lead phone numbers if available
+            if (this.queueItem?.Account__r?.Phone && !this.availablePhoneNumbers.find(p => p.value === this.queueItem.Account__r.Phone)) {
+                this.availablePhoneNumbers.push({
+                    value: this.queueItem.Account__r.Phone,
+                    label: this.queueItem.Account__r.Phone + ' (Account Phone)'
+                });
+            }
+            if (this.queueItem?.Lead__r?.Phone && !this.availablePhoneNumbers.find(p => p.value === this.queueItem.Lead__r.Phone)) {
+                this.availablePhoneNumbers.push({
+                    value: this.queueItem.Lead__r.Phone,
+                    label: this.queueItem.Lead__r.Phone + ' (Lead Phone)'
+                });
+            }
+            if (this.queueItem?.Lead__r?.MobilePhone && !this.availablePhoneNumbers.find(p => p.value === this.queueItem.Lead__r.MobilePhone)) {
+                this.availablePhoneNumbers.push({
+                    value: this.queueItem.Lead__r.MobilePhone,
+                    label: this.queueItem.Lead__r.MobilePhone + ' (Lead Mobile)'
+                });
+            }
+            
             // Reset selected phone number
             this.selectedPhoneNumber = this.availablePhoneNumbers[0]?.value || '';
         }

@@ -1677,4 +1677,40 @@ public class NBAQueueManager {
         saveNextStepsWithLead(queueItemId, nextStepDate, nextSteps, newOpportunityStage, null);
     }
 
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String, Object>> getAccountContacts(Id accountId) {
+        List<Map<String, Object>> contacts = new List<Map<String, Object>>();
+        
+        if (accountId == null) {
+            return contacts;
+        }
+        
+        try {
+            List<Contact> accountContacts = [
+                SELECT Id, Name, Phone, MobilePhone, Email, Title, Department
+                FROM Contact 
+                WHERE AccountId = :accountId 
+                AND (Phone != null OR MobilePhone != null)
+                ORDER BY Name
+                LIMIT 50
+            ];
+            
+            for (Contact contact : accountContacts) {
+                Map<String, Object> contactMap = new Map<String, Object>();
+                contactMap.put('id', contact.Id);
+                contactMap.put('name', contact.Name);
+                contactMap.put('phone', contact.Phone);
+                contactMap.put('mobilePhone', contact.MobilePhone);
+                contactMap.put('email', contact.Email);
+                contactMap.put('title', contact.Title);
+                contactMap.put('department', contact.Department);
+                contacts.add(contactMap);
+            }
+        } catch (Exception e) {
+            System.debug('Error fetching account contacts: ' + e.getMessage());
+        }
+        
+        return contacts;
+    }
+
 }
