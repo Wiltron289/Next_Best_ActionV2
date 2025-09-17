@@ -33,7 +33,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     FLOW_API_PROJECT_INITIATION = 'Project_Initiation_Wizard';
     FLOW_API_CLOSED_LOST = 'Closed_Lost_Screen_Flow';
     @api panelHeight = 400;
-    @api navigateOnAccept = true; // control auto-navigation after accept - default true for experimental version
+    @api navigateOnAccept = false; // control auto-navigation after accept - will be set to true via metadata
     @track queueItem = null;
     @track isLoading = false;
     @track showCallDispositionModal = false;
