@@ -994,6 +994,29 @@ public class NBAQueueManager {
     }
     
     @AuraEnabled
+    public static void updateQueueItem(Id queueItemId, String bestPersonToCall, String bestNumberToCall, String personCalled) {
+        try {
+            NBA_Queue__c queueItem = new NBA_Queue__c(Id = queueItemId);
+            
+            if (String.isNotBlank(bestPersonToCall)) {
+                queueItem.Best_Person_to_Call__c = bestPersonToCall;
+            }
+            if (String.isNotBlank(bestNumberToCall)) {
+                queueItem.Best_Number_to_Call__c = bestNumberToCall;
+            }
+            if (String.isNotBlank(personCalled)) {
+                queueItem.Person_Called__c = personCalled;
+            }
+            
+            update queueItem;
+            System.debug('Queue item updated successfully: ' + queueItemId);
+        } catch (Exception e) {
+            System.debug('Error updating queue item: ' + e.getMessage());
+            throw new AuraHandledException('Error updating queue item: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
     public static String acceptAction(Id queueItemId, String additionalNotes) {
         try {
             System.debug('=== acceptAction Debug ===');

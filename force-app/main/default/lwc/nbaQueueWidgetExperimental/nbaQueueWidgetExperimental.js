@@ -19,6 +19,7 @@ import resolvePrimaryContactForQueueItem from '@salesforce/apex/NBAQueueManager.
 import getAccountPrimaryContact from '@salesforce/apex/NBAQueueManager.getAccountPrimaryContact';
 import getAccountPhoneNumber from '@salesforce/apex/NBAQueueManager.getAccountPhoneNumber';
 import getAccountContacts from '@salesforce/apex/NBAQueueManager.getAccountContacts';
+import updateQueueItem from '@salesforce/apex/NBAQueueManager.updateQueueItem';
 import saveNextSteps from '@salesforce/apex/NBAQueueManager.saveNextSteps';
 import saveNextStepsWithLead from '@salesforce/apex/NBAQueueManager.saveNextStepsWithLead';
 import saveFutureFollowUp from '@salesforce/apex/NBAQueueManager.saveFutureFollowUp';
@@ -922,7 +923,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     }
     
     // Handle "Call Now" button click
-    handleCallNow() {
+    async handleCallNow() {
         console.log('Call Now clicked with contact:', this.selectedContactId, 'phone:', this.selectedPhoneNumber);
         
         // Close the contact confirmation modal
@@ -930,6 +931,16 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         
         // Update the queue item with selected contact and phone
         this.updateQueueItemWithSelectedContact();
+        
+        // Update the database record with the selected values BEFORE calling accept
+        try {
+            await this.updateQueueItemInDatabase();
+            console.log('Database record updated successfully');
+        } catch (error) {
+            console.error('Error updating database record:', error);
+            this.showToast('Error', 'Failed to update contact information', 'error');
+            return;
+        }
         
         // Proceed with the normal accept action
         this.executeAcceptAction();
@@ -1026,6 +1037,30 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         console.log('Updated queueItem with selected contact:', this.selectedContactId, 'and phone:', this.selectedPhoneNumber);
         console.log('Person_Called__c set to:', this.queueItem?.Person_Called__c);
         console.log('Best_Number_to_Call__c set to:', this.queueItem?.Best_Number_to_Call__c);
+    }
+    
+    // Update the database record with selected contact and phone information
+    async updateQueueItemInDatabase() {
+        if (!this.queueItem?.Id) {
+            throw new Error('No queue item ID available');
+        }
+        
+        console.log('Updating database record for queue item:', this.queueItem.Id);
+        console.log('Best_Person_to_Call__c:', this.queueItem.Best_Person_to_Call__c);
+        console.log('Best_Number_to_Call__c:', this.queueItem.Best_Number_to_Call__c);
+        console.log('Person_Called__c:', this.queueItem.Person_Called__c);
+        
+        try {
+            await updateQueueItem({
+                queueItemId: this.queueItem.Id,
+                bestPersonToCall: this.queueItem.Best_Person_to_Call__c,
+                bestNumberToCall: this.queueItem.Best_Number_to_Call__c,
+                personCalled: this.queueItem.Person_Called__c
+            });
+        } catch (error) {
+            console.error('Error updating queue item in database:', error);
+            throw error;
+        }
     }
     
     // Handle canceling the contact confirmation
