@@ -907,6 +907,42 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         }
     }
     
+    // Redial the specified phone number
+    redialNumber(phoneNumber) {
+        if (!phoneNumber) return;
+        
+        console.log('Redialing number:', phoneNumber);
+        
+        // Clean and format the number
+        let cleanedNumber = phoneNumber.replace(/\D/g, '');
+        if (!phoneNumber.startsWith('+')) {
+            if (cleanedNumber.length === 10) {
+                cleanedNumber = '1' + cleanedNumber;
+            }
+            cleanedNumber = '+' + cleanedNumber;
+        }
+        
+        // Store the current phone number for display
+        this.currentPhoneNumber = cleanedNumber;
+        
+        // Trigger the click-to-call
+        this.triggerClickToCall(cleanedNumber);
+        this.showToast('Redialing', `Calling ${cleanedNumber}`, 'info');
+    }
+    
+    // Trigger click-to-call via tel: link
+    triggerClickToCall(phoneNumber) {
+        if (!phoneNumber) return;
+        
+        // Create a temporary anchor element with tel: link
+        const a = document.createElement('a');
+        a.href = `tel:${phoneNumber}`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+    
     // Update queue item with selected contact and phone
     updateQueueItemWithSelectedContact() {
         // Update both selectedItem and queueItem with the chosen contact and phone
