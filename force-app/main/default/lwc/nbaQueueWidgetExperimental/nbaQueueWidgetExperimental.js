@@ -672,6 +672,9 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         const actionType = this.selectedItem.Action_Type__c;
         const currentItem = this.selectedItem;
         const isCall = (actionType || '').toLowerCase().includes('call');
+        
+        console.log('executeAcceptAction - currentItem Best_Number_to_Call__c:', currentItem?.Best_Number_to_Call__c);
+        console.log('executeAcceptAction - queueItem Best_Number_to_Call__c:', this.queueItem?.Best_Number_to_Call__c);
 
         console.log('Calling Apex acceptAction with', { id: this.selectedItem?.Id, isCall });
         acceptAction({ queueItemId: this.selectedItem.Id, additionalNotes: '' })
@@ -945,11 +948,32 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     
     // Update queue item with selected contact and phone
     updateQueueItemWithSelectedContact() {
-        // Update the selected item with the chosen contact and phone
+        // Update both selectedItem and queueItem with the chosen contact and phone
         if (this.selectedItem) {
             this.selectedItem.Best_Person_to_Call__c = this.selectedContactId;
             this.selectedItem.Best_Number_to_Call__c = this.selectedPhoneNumber;
         }
+        
+        // Also update the main queueItem that's used for call logic
+        if (this.queueItem) {
+            this.queueItem.Best_Person_to_Call__c = this.selectedContactId;
+            this.queueItem.Best_Number_to_Call__c = this.selectedPhoneNumber;
+            
+            // Update the related contact info if we have it
+            if (this.selectedContactId && this.availableContacts.length > 0) {
+                const selectedContact = this.availableContacts.find(contact => contact.id === this.selectedContactId);
+                if (selectedContact) {
+                    // Update the Best_Person_to_Call__r relationship data
+                    this.queueItem.Best_Person_to_Call__r = {
+                        Name: selectedContact.name,
+                        Phone: selectedContact.phone,
+                        MobilePhone: selectedContact.mobilePhone
+                    };
+                }
+            }
+        }
+        
+        console.log('Updated queueItem with selected contact:', this.selectedContactId, 'and phone:', this.selectedPhoneNumber);
     }
     
     // Handle canceling the contact confirmation
@@ -2037,6 +2061,10 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
 
     // Helper method to get the correct phone number for call actions
     async getContactPhoneForCall(queueItem) {
+        console.log('getContactPhoneForCall called with queueItem:', queueItem);
+        console.log('queueItem.Best_Number_to_Call__c:', queueItem?.Best_Number_to_Call__c);
+        console.log('queueItem.Best_Person_to_Call__c:', queueItem?.Best_Person_to_Call__c);
+        
         // If the NBA Queue record has a related Opportunity
         if (queueItem?.Opportunity__c) {
             const stage = queueItem?.Opportunity__r?.StageName;
