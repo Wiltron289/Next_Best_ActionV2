@@ -788,22 +788,22 @@
     font-size: 0.875rem;
     padding: 8px 16px;
     border-radius: 6px;
-    border: 2px solid #17a2b8;
+    border: 2px solid #7e3dd4;
     cursor: pointer;
     transition: all 0.2s ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    background: #17a2b8;
+    background: #7e3dd4;
     color: #ffffff;
     margin-right: auto;
 }
 
 .nba-widget-form-redial:hover {
-    background: #138496;
-    border-color: #138496;
+    background: #1e0b3a;
+    border-color: #1e0b3a;
 }
 
 .nba-widget-form-redial:active {
-    background: #117a8b;
-    border-color: #117a8b;
+    background: #1e0b3a;
+    border-color: #1e0b3a;
 }
