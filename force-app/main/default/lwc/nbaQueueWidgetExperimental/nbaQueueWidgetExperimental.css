@@ -1,0 +1,675 @@
+/* NBA Queue Widget Styles */
+
+/* Container */
+.queue-container {
+    max-height: var(--panel-height);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Main Widget Card */
+.nba-widget-card {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e1e5e9;
+    margin: 0;
+    max-width: 100%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: var(--panel-height);
+    transition: all 0.3s ease;
+}
+
+.nba-widget-form-active {
+    height: var(--panel-height) !important;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Blinking animation for new actions */
+.nba-widget-blinking {
+    animation: blink 1s ease-in-out 5;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    25%, 75% { opacity: 0.7; }
+}
+
+/* Pending action indicator - no visual flashing on widget */
+.nba-widget-pending-pulse {
+    /* No visual effects - only browser notifications */
+    position: relative;
+}
+
+/* Header */
+.nba-widget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #7e3dd4 0%, #1e0b3a 100%);
+    color: #ffffff;
+    border-radius: 8px 8px 0 0;
+}
+
+/* No header flashing for pending actions */
+
+.nba-widget-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.nba-widget-countdown {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #ffffff;
+    opacity: 0.85;
+    margin-right: 6px;
+}
+
+.nba-widget-title {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin: 0;
+    color: #ffffff;
+}
+
+.nba-widget-refresh-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.nba-widget-refresh-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.nba-widget-refresh-btn:active {
+    transform: scale(0.95);
+}
+
+.nba-widget-refresh-icon {
+    color: #ffffff;
+    font-size: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.nba-widget-refresh-btn:hover .nba-widget-refresh-icon {
+    transform: rotate(180deg);
+}
+
+/* Body */
+.nba-widget-body {
+    padding: 20px;
+    background: #ffffff;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.nba-widget-row {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nba-widget-main-row {
+    margin-bottom: 20px;
+}
+
+.nba-widget-icon {
+    font-size: 1.5rem;
+    color: #7e3dd4;
+}
+
+.nba-widget-main-text {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 1rem;
+    color: #1e0b3a;
+    flex: 1;
+}
+
+.nba-widget-link {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    color: #7e3dd4;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.nba-widget-link:hover {
+    color: #1e0b3a;
+}
+
+/* Priority Score Styling */
+.nba-widget-priority-row {
+    margin: 16px 0;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #7e3dd4;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nba-widget-priority-score {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: #e0ff00;
+    background: #1e0b3a;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.nba-widget-priority-label {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nba-widget-priority-value {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: #1e0b3a;
+}
+
+.nba-widget-priority-value.priority-high {
+    color: #e0ff00;
+}
+
+.nba-widget-priority-value.priority-medium {
+    color: #7e3dd4;
+}
+
+.nba-widget-priority-value.priority-low {
+    color: #6c757d;
+}
+
+.nba-widget-priority-original {
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-decoration: line-through;
+    margin-left: 8px;
+}
+
+.nba-widget-priority-multipliers {
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+/* Badges */
+.nba-widget-badges-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.nba-widget-badge {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    background: #7e3dd4;
+    color: #ffffff;
+    border-radius: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.nba-widget-badge-opportunity {
+    background: #e0ff00;
+    color: #1e0b3a;
+}
+
+/* Source Row */
+.nba-widget-source-row {
+    margin-bottom: 16px;
+}
+
+.nba-widget-source-label {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.nba-widget-source-value {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    color: #1e0b3a;
+}
+
+/* Tabs */
+.nba-widget-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 20px;
+    background: #f8f9fa;
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.nba-widget-tab {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    text-transform: none;
+    flex: 1;
+}
+
+.nba-widget-tab.active {
+    background: #7e3dd4;
+    color: #ffffff;
+}
+
+.nba-widget-tab:hover:not(.active) {
+    background: rgba(126, 61, 212, 0.1);
+}
+
+/* Content Sections */
+.nba-widget-overview {
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #7e3dd4;
+}
+
+.nba-widget-overview-star {
+    font-size: 1.2rem;
+    margin-right: 8px;
+    color: #e0ff00;
+}
+
+.nba-widget-overview-title {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #1e0b3a;
+    margin: 0 0 8px 0;
+}
+
+.nba-widget-overview-body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    line-height: 1.5;
+}
+
+/* Detail Rows */
+.nba-widget-detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.nba-widget-detail-row:last-child {
+    border-bottom: none;
+}
+
+.nba-widget-detail-label {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nba-widget-detail-value {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    color: #1e0b3a;
+}
+
+/* Product Grid */
+.nba-widget-product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.nba-widget-product-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+}
+
+.nba-widget-product-icon {
+    font-size: 1.2rem;
+    color: #7e3dd4;
+}
+
+.nba-widget-product-label {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Placeholders */
+.nba-widget-contact-placeholder,
+.nba-widget-contact-info {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* Inline Forms */
+.nba-widget-form-section {
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    padding: 14px; /* reduce vertical footprint ~30% */
+    display: flex;
+    flex-direction: column;
+    /* Make the sticky bar smaller and allow internal scroll */
+    max-height: calc(var(--panel-height) - 200px);
+    overflow: hidden;
+}
+
+.nba-widget-form-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.nba-widget-form-header h3 {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #1e0b3a;
+    margin: 0;
+}
+
+.nba-widget-form-close {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+    color: #6c757d;
+    transition: all 0.2s ease;
+}
+
+.nba-widget-form-close:hover {
+    background: #e9ecef;
+    border-color: #6c757d;
+}
+
+.nba-widget-form-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1 1 auto;
+    overflow-y: auto; /* scrollable content */
+}
+
+.nba-widget-form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.nba-widget-form-field label {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nba-widget-form-value {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    padding: 8px 12px;
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.nba-widget-form-select,
+.nba-widget-form-textarea {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    padding: 8px 12px;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background: #ffffff;
+    transition: border-color 0.2s ease;
+}
+
+.nba-widget-form-select:focus,
+.nba-widget-form-textarea:focus {
+    outline: none;
+    border-color: #7e3dd4;
+    box-shadow: 0 0 0 2px rgba(126, 61, 212, 0.1);
+}
+
+.nba-widget-form-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.nba-widget-form-rep-notes {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 0.875rem;
+    color: #1e0b3a;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    line-height: 1.5;
+    max-height: 120px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+
+.nba-widget-form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 12px;
+    position: sticky;
+    bottom: 0;
+    background: #f8f9fa;
+    padding-top: 8px;
+}
+
+.nba-widget-form-cancel,
+.nba-widget-form-save {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nba-widget-form-cancel {
+    background: #ffffff;
+    color: #6c757d;
+    border: 2px solid #e9ecef;
+}
+
+.nba-widget-form-cancel:hover {
+    background: #f8f9fa;
+    border-color: #6c757d;
+}
+
+.nba-widget-form-save {
+    background: #7e3dd4;
+    color: #ffffff;
+    border: 2px solid #7e3dd4;
+}
+
+.nba-widget-form-save:hover {
+    background: #1e0b3a;
+    border-color: #1e0b3a;
+}
+
+.nba-widget-form-save:disabled {
+    background: #6c757d;
+    border-color: #6c757d;
+    cursor: not-allowed;
+}
+
+/* Footer */
+.nba-widget-footer {
+    display: flex;
+    gap: 12px;
+    padding: 17px; /* ~15% shorter from 20px */
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 8px 8px;
+}
+
+.nba-widget-skip,
+.nba-widget-call {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 700;
+    font-size: 0.875rem;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex: 1;
+}
+
+.nba-widget-skip {
+    background: #ffffff;
+    color: #6c757d;
+    border: 2px solid #e9ecef;
+}
+
+.nba-widget-skip:hover {
+    background: #f8f9fa;
+    border-color: #6c757d;
+}
+
+.nba-widget-call {
+    background: #e0ff00;
+    color: #1e0b3a;
+    border: 2px solid #e0ff00;
+}
+
+.nba-widget-call:hover {
+    background: #ffffff;
+    border-color: #e0ff00;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading State */
+.nba-widget-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: #7e3dd4;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .nba-widget-card {
+        margin: 8px;
+        border-radius: 8px;
+    }
+    
+    .nba-widget-header {
+        padding: 12px 16px;
+    }
+    
+    .nba-widget-body {
+        padding: 16px;
+    }
+    
+    .nba-widget-footer {
+        padding: 16px;
+    }
+    
+    .nba-widget-form-section {
+        padding: 16px;
+    }
+    
+    .nba-widget-form-actions {
+        flex-direction: column;
+    }
+    
+    .nba-widget-form-cancel,
+    .nba-widget-form-save {
+        width: 100%;
+    }
+    
+    .nba-widget-product-grid {
+        grid-template-columns: 1fr;
+    }
+}

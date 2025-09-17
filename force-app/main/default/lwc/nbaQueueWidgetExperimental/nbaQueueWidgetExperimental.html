@@ -1,0 +1,527 @@
+<template>
+    <template if:false={queueItem}>
+        <div class="nba-widget-card" style={containerStyle}>
+            <div class="nba-widget-header">
+                <div class="nba-widget-title">Next Best Action</div>
+            </div>
+            <div class="nba-widget-body" style="text-align:center; padding: 40px 0;">
+                <span style="font-size:2.5rem; color:#4bca81;">✔️</span>
+                <div style="font-size:1.2rem; font-weight:600; margin-top:12px;">You’re all caught up!</div>
+                <div style="color:#888; margin-top:6px;">No pending actions at this time.</div>
+            </div>
+        </div>
+    </template>
+    <template if:true={queueItem}>
+        <div class={widgetClass} style={containerStyle}>
+            <div class="nba-widget-header">
+                <div class="nba-widget-title">Next Best Action</div>
+                <div class="nba-widget-header-actions">
+                    <div class="nba-widget-countdown" title="Time until next auto-refresh">Refresh in {refreshCountdown}s</div>
+                    <button class="nba-widget-refresh-btn" onclick={handleManualRefresh} title="Refresh Queue">
+                        <span class="nba-widget-refresh-icon">🔄</span>
+                    </button>
+                </div>
+            </div>
+            <div class="nba-widget-body">
+                <div class="nba-widget-row nba-widget-main-row">
+                    <span class="nba-widget-icon">📞</span>
+                    <span class="nba-widget-main-text">
+                        {actionText}
+                        <a href="javascript:void(0);" class="nba-widget-link" onclick={handleRecordClick}> {recordName}</a>
+                    </span>
+                </div>
+                
+                <!-- Priority Score Display - Hidden -->
+                <!-- <template if:true={showPriorityScore}>
+                    <div class="nba-widget-row nba-widget-priority-row">
+                        <div class="nba-widget-priority-score">
+                            <span class="nba-widget-priority-label">Priority Score:</span>
+                            <span class="nba-widget-priority-value {priorityScoreClass}">{priorityScoreDisplay}</span>
+                            <template if:true={hasMultipliers}>
+                                <span class="nba-widget-priority-original">(was {originalScoreDisplay})</span>
+                                <span class="nba-widget-priority-multipliers">• {multiplierText}</span>
+                            </template>
+                        </div>
+                    </div>
+                </template> -->
+                
+                <div class="nba-widget-row">
+                    <template if:true={queueItem.Opportunity__c}>
+                        <span class="nba-widget-badge nba-widget-badge-opportunity">{opportunityStage}</span>
+                    </template>
+                    <template if:true={queueItem.Lead__c}>
+                        <span class="nba-widget-badge">{leadSource}</span>
+                    </template>
+                </div>
+
+                <div class="nba-widget-row nba-widget-badges-row">
+                    <template if:true={employeeCount}>
+                        <span class="nba-widget-badge">{employeeCount} employees</span>
+                    </template>
+                    <template if:true={companyAgeMonths}>
+                        <span class="nba-widget-badge">{companyAgeMonths} months old</span>
+                    </template>
+                </div>
+                <template if:false={showEmbeddedFlow}>
+                    <div class="nba-widget-tabs">
+                        <button value="contact" onclick={handleTabChange} class={contactTabClass}>Contact Info</button>
+                        <template if:false={queueItem.Lead__c}>
+                            <button value="product" onclick={handleTabChange} class={productTabClass}>Product Info</button>
+                        </template>
+                        <button value="activity" onclick={handleTabChange} class={activityTabClass}>Activity</button>
+                        <button value="upnext" onclick={handleTabChange} class={upNextTabClass}>Up Next</button>
+                        <button value="notsurfaced" onclick={handleTabChange} class={notSurfacedTabClass}>Not Surfaced</button>
+                    </div>
+                </template>
+                
+                <template if:false={showEmbeddedFlow}>
+                <template if:true={isContactTab}>
+                    <div class="nba-widget-contact">
+                        <template if:false={queueItem.Lead__c}>
+                            <template if:true={displayContactPerson}>
+                                <div class="nba-widget-detail-row">
+                                    <span class="nba-widget-detail-label">Best Person to Call</span>
+                                    <span class="nba-widget-detail-value">
+                                        <a href="javascript:void(0);" class="nba-widget-link" onclick={handleContactClick} data-contact-id={displayContactId}>
+                                            {displayContactPerson}
+                                        </a>
+                                    </span>
+                                </div>
+
+                                <template if:true={displayContactEmail}>
+                                    <div class="nba-widget-detail-row">
+                                        <span class="nba-widget-detail-label">Contact Email</span>
+                                        <span class="nba-widget-detail-value">{displayContactEmail}</span>
+                                    </div>
+                                </template>
+                            </template>
+                        </template>
+                        <template if:true={queueItem.Lead__c}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Lead Email</span>
+                                <span class="nba-widget-detail-value">{displayContactEmail}</span>
+                            </div>
+                        </template>
+                        <template if:true={displayContactPhone}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Best Number to Call</span>
+                                <span class="nba-widget-detail-value">
+                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={handlePhoneClick} data-phone={displayContactPhone}>
+                                        {displayContactPhone}
+                                    </a>
+                                </span>
+                            </div>
+                        </template>
+
+                        <template if:true={displayTimeZone}>
+                            <div class="nba-widget-detail-row">
+                                <span class="nba-widget-detail-label">Time Zone</span>
+                                <span class="nba-widget-detail-value">{displayTimeZone}</span>
+                            </div>
+                        </template>
+
+                        <template if:false={displayContactPerson}>
+                            <template if:false={displayContactPhone}>
+                                <div class="nba-widget-contact-placeholder">No contact information available for this record.</div>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+                <template if:true={isProductTab}>
+                    <div class="nba-widget-product">
+                        <template if:true={hasAnyAccountLinks}>
+                            <div class="nba-widget-row" style="gap:8px; flex-wrap: wrap;">
+                                <template if:true={checkConsoleLink}>
+                                    <a href={checkConsoleLink} target="_blank" class="nba-widget-link slds-button slds-button_neutral">Check Console</a>
+                                </template>
+                                <template if:true={adminLink}>
+                                    <a href={adminLink} target="_blank" class="nba-widget-link slds-button slds-button_neutral">Admin</a>
+                                </template>
+                                <template if:true={reactiveAdminLink}>
+                                    <a href={reactiveAdminLink} target="_blank" class="nba-widget-link slds-button slds-button_neutral">Reactive Admin</a>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:true={hasProductUsage}>
+                            <div class="nba-widget-product-grid">
+                                <template if:true={queueItem.Break_Preferences_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">⏰</span>
+                                        <span class="nba-widget-product-label">Break Preferences</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Department_Management_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">🏢</span>
+                                        <span class="nba-widget-product-label">Department Management</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Geofencing_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📍</span>
+                                        <span class="nba-widget-product-label">Geofencing</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Hiring_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">👥</span>
+                                        <span class="nba-widget-product-label">Hiring</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Hrdocs_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📋</span>
+                                        <span class="nba-widget-product-label">HR Docs</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Manager_Log_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📝</span>
+                                        <span class="nba-widget-product-label">Manager Log</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Messaging_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">💬</span>
+                                        <span class="nba-widget-product-label">Messaging</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Mobile_Time_Tracking_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📱</span>
+                                        <span class="nba-widget-product-label">Mobile Time Tracking</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Oam_Activity__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">🔧</span>
+                                        <span class="nba-widget-product-label">OAM Activity</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Overtime_Preferences_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">⏰</span>
+                                        <span class="nba-widget-product-label">Overtime Preferences</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Scheduling_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📅</span>
+                                        <span class="nba-widget-product-label">Scheduling</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Shift_Notes_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">📝</span>
+                                        <span class="nba-widget-product-label">Shift Notes</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Shift_Trades_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">🔄</span>
+                                        <span class="nba-widget-product-label">Shift Trades</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Time_Offs_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">🏖️</span>
+                                        <span class="nba-widget-product-label">Time Offs</span>
+                                    </div>
+                                </template>
+                                <template if:true={queueItem.Time_Tracking_Engaged__c}>
+                                    <div class="nba-widget-product-item">
+                                        <span class="nba-widget-product-icon">⏱️</span>
+                                        <span class="nba-widget-product-label">Time Tracking</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:false={hasProductUsage}>
+                            <div class="nba-widget-product-placeholder">No product usage data available for this record.</div>
+                        </template>
+                    </div>
+                </template>
+                <template if:true={isActivityTab}>
+                    <div class="nba-widget-activity">
+                        <template if:true={activityRecordId}>
+                            <div class="slds-p-vertical_small">
+                                <div class="slds-text-title_caps slds-p-bottom_x-small">Upcoming or Overdue Activity</div>
+                                <template if:true={upcomingActivities.length}>
+                                    <template for:each={upcomingActivities} for:item="row">
+                                        <div key={row.id} class="nba-widget-row">
+                                            <span class="nba-widget-icon">🗓️</span>
+                                            <span class="nba-widget-main-text" style={row.overdueStyle}>{row.display} <template if:true={row.isOverdue}><span style="color:#c23934; font-weight:600;">(Overdue)</span></template></span>
+                                        </div>
+                                    </template>
+                                </template>
+                                <template if:false={upcomingActivities.length}>
+                                    <div class="nba-widget-contact-placeholder">No upcoming activity.</div>
+                                </template>
+                            </div>
+                            <div class="slds-p-vertical_small">
+                                <div class="slds-text-title_caps slds-p-bottom_x-small">Past Activity (90 days)</div>
+                                <template if:true={pastActivities.length}>
+                                    <template for:each={pastActivities} for:item="row">
+                                        <div key={row.id} class="nba-widget-row">
+                                            <span class="nba-widget-icon">✅</span>
+                                            <span class="nba-widget-main-text">{row.display}</span>
+                                        </div>
+                                    </template>
+                                </template>
+                                <template if:false={pastActivities.length}>
+                                    <div class="nba-widget-contact-placeholder">No recent activity.</div>
+                                </template>
+                            </div>
+                        </template>
+                        <template if:false={activityRecordId}>
+                            <div class="nba-widget-contact-placeholder">No activity to display.</div>
+                        </template>
+                    </div>
+                </template>
+                <template if:true={isUpNextTab}>
+                    <div class="nba-widget-overview">
+                        <div class="nba-widget-row nba-widget-main-row">
+                            <span class="nba-widget-icon">📞</span>
+                            <span class="nba-widget-main-text">
+                                <template if:true={upNextItem}>
+                                    <template if:true={isUpNextLead}>Lead Call for&nbsp;</template>
+                                    <template if:true={isUpNextOpp}>Opportunity Call for&nbsp;</template>
+                                    <template if:true={isUpNextAccount}>Account Call for&nbsp;</template>
+                                    <a href="javascript:void(0);" class="nba-widget-link" onclick={handleUpNextRecordClick}
+                                       data-id={upNextRecordId} data-object={upNextObjectApiName}>
+                                        <template if:true={isUpNextLead}>
+                                            {upNextItem.Lead__r.Name}
+                                        </template>
+                                        <template if:true={isUpNextOpp}>
+                                            {upNextItem.Opportunity__r.Name}
+                                        </template>
+                                        <template if:true={isUpNextAccount}>
+                                            {upNextItem.Account__r.Name}
+                                        </template>
+                                    </a>
+                                </template>
+                                <template if:false={upNextItem}>
+                                    No upcoming item.
+                                </template>
+                            </span>
+                        </div>
+                    </div>
+                </template>
+                <template if:true={isNotSurfacedTab}>
+                    <div class="nba-widget-overview">
+                        <template if:true={notSurfaced.length}>
+                            <template for:each={notSurfaced} for:item="row">
+                                <div key={row.id} class="nba-widget-row">
+                                    <span class="nba-widget-icon">🚫</span>
+                                    <span class="nba-widget-main-text">
+                                        <template if:true={row.opportunityId}>
+                                            <a href="javascript:void(0);" class="nba-widget-link" onclick={handleNotSurfacedRecordClick} data-id={row.opportunityId}>
+                                                {row.opportunityName}
+                                            </a>
+                                        </template>
+                                        <template if:false={row.opportunityId}>
+                                            <a href="javascript:void(0);" class="nba-widget-link" onclick={handleNotSurfacedRecordClick} data-id={row.accountId}>
+                                                {row.accountName}
+                                            </a>
+                                        </template>
+                                        — {row.reason}
+                                    </span>
+                                </div>
+                            </template>
+                        </template>
+                        <template if:false={notSurfaced.length}>
+                            <div class="nba-widget-contact-placeholder">Nothing is being filtered out right now.</div>
+                        </template>
+                    </div>
+                </template>
+                </template>
+
+                <!-- Embedded Flow Host (inline rendering as overlay) -->
+                <template if:true={showEmbeddedFlow}>
+                    <div class="nba-widget-embedded-flow">
+                        <c-embedded-flow-host flow-api-name={embeddedFlowApiName}
+                                              record-id={embeddedFlowRecordId}
+                                              queue-item-id={embeddedFlowQueueItemId}
+                                              debug="false"
+                                              onflowcomplete={handleEmbeddedFlowComplete}>
+                        </c-embedded-flow-host>
+                    </div>
+                </template>
+            </div>
+            
+            <!-- Call Disposition Form -->
+            <template if:true={showCallDispositionForm}>
+                <div class="nba-widget-form-section">
+                    <div class="nba-widget-form-header">
+                        <h3>Call Disposition</h3>
+                        <button class="nba-widget-form-close" onclick={closeCallDispositionForm}>×</button>
+                    </div>
+                    <div class="nba-widget-form-content">
+                        <div class="nba-widget-form-field">
+                            <label>Phone Number Called</label>
+                            <div class="nba-widget-form-value">{currentPhoneNumber}</div>
+                        </div>
+                        <div class="nba-widget-form-field">
+                            <label for="call-disposition">Call Disposition *</label>
+                            <select id="call-disposition" class="nba-widget-form-select" onchange={handleCallDispositionChange} value={callDisposition} required>
+                                <option value="">Select disposition...</option>
+                                <template for:each={callDispositionOptions} for:item="option">
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                        <template if:true={hasOpportunity}>
+                            <div class="nba-widget-form-field">
+                                <label for="stage-update">Opportunity Stage Update</label>
+                                <select id="stage-update" class="nba-widget-form-select" onchange={handleStageChange} value={selectedStage}>
+                                    <template for:each={opportunityStageOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </template>
+                        <template if:true={queueItem.Lead__c}>
+                            <div class="nba-widget-form-field">
+                                <label for="lead-status-update">Lead Status Update</label>
+                                <select id="lead-status-update" class="nba-widget-form-select" onchange={handleLeadStatusChange} value={selectedLeadStatus}>
+                                    <template for:each={leadStatusOptions} for:item="opt">
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    </template>
+                                </select>
+                            </div>
+                        </template>
+                        <div class="nba-widget-form-field">
+                            <label for="call-notes">Call Notes</label>
+                            <textarea id="call-notes" class="nba-widget-form-textarea" oninput={handleCallNotesChange} value={callNotes} placeholder="Enter call notes..."></textarea>
+                        </div>
+                        <template if:true={showNextStepsFields}>
+                            <div class="nba-widget-form-field">
+                                <label for="next-step-date">Next Step Date</label>
+                                <input type="date" id="next-step-date" class="nba-widget-form-textarea" oninput={handleNextStepDateChange} value={nextStepDate} />
+                            </div>
+                            <div class="nba-widget-form-field">
+                                <label for="next-step">Next Step</label>
+                                <textarea id="next-step" class="nba-widget-form-textarea" oninput={handleNextStepsChange} value={nextSteps} placeholder="Enter next step..."></textarea>
+                            </div>
+                        </template>
+                        <template if:true={hasOpportunity}>
+                            <template if:true={isFutureFollowUpStage}>
+                                <div class="nba-widget-form-field">
+                                    <label for="ffu-date">Future Follow Up Date</label>
+                                    <input type="date" id="ffu-date" class="nba-widget-form-textarea" oninput={handleFutureDateChange} value={futureFollowUpDate} />
+                                </div>
+                                <div class="nba-widget-form-field">
+                                    <label for="ffu-reason">Future Follow Up Reason</label>
+                                    <select id="ffu-reason" class="nba-widget-form-select" onchange={handleFutureReasonChange} value={futureFollowUpReason}>
+                                        <option value="">-- Select Reason --</option>
+                                        <template for:each={futureFollowUpReasonOptions} for:item="opt">
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        </template>
+                                    </select>
+                                </div>
+                            </template>
+                        </template>
+                        <div class="nba-widget-form-actions">
+                            <button class="nba-widget-form-cancel" onclick={closeCallDispositionForm}>Cancel</button>
+                            <button class="nba-widget-form-save" onclick={handleCallDispositionSave} disabled={isLoading}>
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Contact Confirmation Modal (Experimental) -->
+            <template if:true={showContactConfirmationModal}>
+                <div class="nba-widget-form-section">
+                    <div class="nba-widget-form-header">
+                        <h3>Confirm Contact & Phone Number</h3>
+                        <button class="nba-widget-form-close" onclick={handleCancelContactConfirmation}>×</button>
+                    </div>
+                    <div class="nba-widget-form-content">
+                        <div class="nba-widget-form-field">
+                            <label for="contact-select">Contact to Call</label>
+                            <select id="contact-select" class="nba-widget-form-select" onchange={handleContactChange}>
+                                <template for:each={availableContacts} for:item="contact">
+                                    <option key={contact.id} value={contact.id}>{contact.name}</option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="nba-widget-form-field">
+                            <label for="phone-select">Phone Number to Dial</label>
+                            <select id="phone-select" class="nba-widget-form-select" onchange={handlePhoneChange}>
+                                <template for:each={availablePhoneNumbers} for:item="phone">
+                                    <option key={phone.value} value={phone.value}>{phone.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="nba-widget-form-actions">
+                            <button class="nba-widget-form-cancel" onclick={handleCancelContactConfirmation}>Cancel</button>
+                            <button class="nba-widget-form-save" onclick={handleCallNow} disabled={isLoading}>
+                                Call Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Dismiss Form -->
+            <template if:true={showDismissForm}>
+                <div class="nba-widget-form-section">
+                    <div class="nba-widget-form-header">
+                        <h3>Dismiss Reason</h3>
+                        <button class="nba-widget-form-close" onclick={closeDismissForm}>×</button>
+                    </div>
+                    <div class="nba-widget-form-content">
+                        <div class="nba-widget-form-field">
+                            <label for="dismissal-category">Dismissal Category *</label>
+                            <select id="dismissal-category" class="nba-widget-form-select" onchange={handleDismissalCategoryChange}>
+                                <option value="">Select...</option>
+                                <option value="Call Scheduled">Call Scheduled</option>
+                                <option value="Time Zone">Time Zone</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <template if:true={isCallScheduled}>
+                            <div class="nba-widget-form-field">
+                                <label for="snooze-datetime">When is the Call Scheduled?</label>
+                                <input id="snooze-datetime" type="datetime-local" class="nba-widget-form-textarea" oninput={handleSnoozeScheduledAtChange} />
+                            </div>
+                        </template>
+                        <template if:true={isTimeZoneSnooze}>
+                            <div class="nba-widget-form-field">
+                                <label>Snooze Duration</label>
+                                <div class="nba-widget-form-value">3 hours</div>
+                            </div>
+                        </template>
+                        <template if:true={isOtherDismissal}>
+                            <div class="nba-widget-form-field">
+                                <label for="dismiss-reason">Reason for Dismissal</label>
+                                <textarea id="dismiss-reason" class="nba-widget-form-textarea" oninput={handleDismissReasonChange} value={dismissReason} placeholder="Enter reason..."></textarea>
+                            </div>
+                        </template>
+                        <div class="nba-widget-form-actions">
+                            <button class="nba-widget-form-cancel" onclick={closeDismissForm}>Cancel</button>
+                            <button class="nba-widget-form-save" onclick={submitDismissReason} disabled={isLoading}>
+                                Submit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Footer Actions (only show when no forms are active and flow not visible) -->
+            <template if:false={showEmbeddedFlow}>
+            <template if:false={showCallDispositionForm}>
+                <template if:false={showDismissForm}>
+                    <div class="nba-widget-footer">
+                        <button class="nba-widget-skip" data-id={queueItem.Id} onclick={handleDismissAction}>Skip</button>
+                        <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>Accept</button>
+                    </div>
+                </template>
+            </template>
+            </template>
+        </div>
+    </template>
+
+</template>
