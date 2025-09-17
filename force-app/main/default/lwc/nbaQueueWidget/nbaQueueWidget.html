@@ -422,6 +422,7 @@
                             </template>
                         </template>
                         <div class="nba-widget-form-actions">
+                            <button class="nba-widget-form-redial" onclick={handleRedial} title="Redial the number">Redial</button>
                             <button class="nba-widget-form-cancel" onclick={closeCallDispositionForm}>Cancel</button>
                             <button class="nba-widget-form-save" onclick={handleCallDispositionSave} disabled={isLoading}>
                                 Save
@@ -487,6 +488,60 @@
                 </template>
             </template>
             </template>
+        </div>
+    </template>
+
+    <!-- Contact Confirmation Modal -->
+    <template if:true={showContactConfirmationModal}>
+        <div class="nba-widget-modal-overlay">
+            <div class="nba-widget-modal">
+                <div class="nba-widget-modal-header">
+                    <h3>Confirm Contact & Phone Number</h3>
+                    <button class="nba-widget-modal-close" onclick={handleCancelContactConfirmation}>×</button>
+                </div>
+                <div class="nba-widget-modal-body">
+                    <div class="nba-widget-form-group">
+                        <label class="nba-widget-form-label">Person to Call</label>
+                        <select class="nba-widget-form-select" value={selectedContactId} onchange={handleContactChange}>
+                            <option value="">Select a contact...</option>
+                            <template for:each={availableContacts} for:item="contact">
+                                <option key={contact.id} value={contact.id}>{contact.name}</option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <template if:false={showManualPhoneInput}>
+                        <div class="nba-widget-form-group">
+                            <label class="nba-widget-form-label">Phone Number</label>
+                            <select class="nba-widget-form-select" value={selectedPhoneNumber} onchange={handlePhoneChange}>
+                                <option value="">Select a phone number...</option>
+                                <template for:each={availablePhoneNumbers} for:item="phone">
+                                    <option key={phone.value} value={phone.value}>{phone.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                    </template>
+                    
+                    <template if:true={showManualPhoneInput}>
+                        <div class="nba-widget-form-group">
+                            <label class="nba-widget-form-label">Phone Number</label>
+                            <input type="tel" class="nba-widget-form-input" 
+                                   placeholder="Enter phone number (e.g., 555-123-4567)" 
+                                   value={manualPhoneNumber} oninput={handleManualPhoneChange} />
+                        </div>
+                    </template>
+                    
+                    <div class="nba-widget-form-summary">
+                        <h4>Call Summary</h4>
+                        <p><strong>Contact:</strong> {selectedContactName}</p>
+                        <p><strong>Number:</strong> {selectedPhoneDisplay}</p>
+                    </div>
+                </div>
+                <div class="nba-widget-modal-footer">
+                    <button class="nba-widget-form-cancel" onclick={handleCancelContactConfirmation}>Cancel</button>
+                    <button class="nba-widget-form-save" onclick={handleCallNow}>Call Now</button>
+                </div>
+            </div>
         </div>
     </template>
 

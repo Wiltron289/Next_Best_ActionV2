@@ -18,6 +18,8 @@ import cancelCallDisposition from '@salesforce/apex/NBAQueueManager.cancelCallDi
 import resolvePrimaryContactForQueueItem from '@salesforce/apex/NBAQueueManager.resolvePrimaryContactForQueueItem';
 import getAccountPrimaryContact from '@salesforce/apex/NBAQueueManager.getAccountPrimaryContact';
 import getAccountPhoneNumber from '@salesforce/apex/NBAQueueManager.getAccountPhoneNumber';
+import getAccountContacts from '@salesforce/apex/NBAQueueManager.getAccountContacts';
+import updateQueueItem from '@salesforce/apex/NBAQueueManager.updateQueueItem';
 import saveNextSteps from '@salesforce/apex/NBAQueueManager.saveNextSteps';
 import saveNextStepsWithLead from '@salesforce/apex/NBAQueueManager.saveNextStepsWithLead';
 import saveFutureFollowUp from '@salesforce/apex/NBAQueueManager.saveFutureFollowUp';
@@ -48,6 +50,17 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     @track currentPhoneNumber = '';
     @track activeTab = 'contact';
     @track upNextItem = null;
+    
+    // Contact confirmation modal properties
+    @track showContactConfirmationModal = false;
+    @track selectedContactId = '';
+    @track selectedPhoneNumber = '';
+    @track availableContacts = [];
+    @track availablePhoneNumbers = [];
+    @track selectedContactName = '';
+    @track selectedPhoneDisplay = '';
+    @track showManualPhoneInput = false;
+    @track manualPhoneNumber = '';
     @track notSurfaced = [];
     @track opportunityPrimaryContact = null;
     @track lastRefreshTime = null;
@@ -558,7 +571,14 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             // For now, just use the current queueItem
         }
         this.selectedItem = this.queueItem;
-        this.executeAcceptAction();
+        
+        // Use two-stage process for call actions
+        const actionType = this.queueItem?.Action_Type__c || '';
+        if (actionType.toLowerCase().includes('call')) {
+            this.navigateToRecordAndShowConfirmation();
+        } else {
+            this.executeAcceptAction();
+        }
     }
 
     handleDismissAction(event) {
@@ -1859,5 +1879,317 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     }
     get isUpNextAccount() {
         return !!(this.upNextItem && !this.upNextItem.Opportunity__c && !this.upNextItem.Lead__c && this.upNextItem.Account__c);
+    }
+
+    // Two-stage accept action methods
+    async navigateToRecordAndShowConfirmation() {
+        console.log('Starting two-stage accept process');
+        
+        // Navigate to the record first
+        if (this.queueItem?.Opportunity__c) {
+            this.navigateToRecord(this.queueItem.Opportunity__c, 'Opportunity');
+        } else if (this.queueItem?.Account__c) {
+            this.navigateToRecord(this.queueItem.Account__c, 'Account');
+        } else if (this.queueItem?.Lead__c) {
+            this.navigateToRecord(this.queueItem.Lead__c, 'Lead');
+        }
+        
+        // Load contact options and show confirmation modal
+        await this.loadContactOptions();
+        this.showContactConfirmationModal = true;
+    }
+
+    async loadContactOptions() {
+        console.log('Loading contact options for queue item:', this.queueItem?.Id);
+        
+        try {
+            // Initialize arrays
+            this.availableContacts = [];
+            this.availablePhoneNumbers = [];
+            
+            // Get account contacts if we have an account
+            if (this.queueItem?.Account__c) {
+                const accountContacts = await getAccountContacts({ accountId: this.queueItem.Account__c });
+                console.log('Account contacts:', accountContacts);
+                
+                // Add account contacts to available contacts
+                if (accountContacts && accountContacts.length > 0) {
+                    this.availableContacts = accountContacts.map(contact => ({
+                        id: contact.id,
+                        name: contact.name,
+                        phone: contact.phone,
+                        mobilePhone: contact.mobilePhone
+                    }));
+                }
+            }
+            
+            // Add "Other (Manual Entry)" option
+            this.availableContacts.push({
+                id: 'other',
+                name: 'Other (Manual Entry)',
+                phone: '',
+                mobilePhone: ''
+            });
+            
+            // Set default selections based on Best Person/Number to Call
+            if (this.queueItem?.Best_Person_to_Call__c && this.queueItem?.Best_Number_to_Call__c) {
+                // Find the contact that matches Best_Person_to_Call__c
+                const bestContact = this.availableContacts.find(contact => 
+                    contact.id === this.queueItem.Best_Person_to_Call__c
+                );
+                
+                if (bestContact) {
+                    this.selectedContactId = this.queueItem.Best_Person_to_Call__c;
+                    this.selectedContactName = bestContact.name;
+                    this.selectedPhoneNumber = this.queueItem.Best_Number_to_Call__c;
+                } else {
+                    // Fallback to first available contact
+                    this.selectedContactId = this.availableContacts[0]?.id || '';
+                    this.selectedContactName = this.availableContacts[0]?.name || '';
+                    this.selectedPhoneNumber = this.availableContacts[0]?.phone || '';
+                }
+            } else {
+                // Fallback to first available contact
+                this.selectedContactId = this.availableContacts[0]?.id || '';
+                this.selectedContactName = this.availableContacts[0]?.name || '';
+                this.selectedPhoneNumber = this.availableContacts[0]?.phone || '';
+            }
+            
+            // Update phone options for selected contact
+            this.updatePhoneOptionsForContact();
+            
+            // Update phone display
+            this.updatePhoneDisplay();
+            
+            console.log('Contact options loaded:', {
+                availableContacts: this.availableContacts,
+                selectedContactId: this.selectedContactId,
+                selectedPhoneNumber: this.selectedPhoneNumber
+            });
+            
+        } catch (error) {
+            console.error('Error loading contact options:', error);
+            this.showToast('Error', 'Failed to load contact options', 'error');
+        }
+    }
+
+    handleContactChange(event) {
+        this.selectedContactId = event.target.value;
+        console.log('Contact changed to:', this.selectedContactId);
+        
+        // Find the selected contact
+        const selectedContact = this.availableContacts.find(contact => contact.id === this.selectedContactId);
+        if (selectedContact) {
+            this.selectedContactName = selectedContact.name;
+            
+            // Handle "Other" option
+            if (this.selectedContactId === 'other') {
+                this.showManualPhoneInput = true;
+                this.manualPhoneNumber = '';
+                this.selectedPhoneNumber = '';
+            } else {
+                this.showManualPhoneInput = false;
+                this.updatePhoneOptionsForContact();
+            }
+        }
+        
+        this.updatePhoneDisplay();
+    }
+
+    handlePhoneChange(event) {
+        this.selectedPhoneNumber = event.target.value;
+        console.log('Phone changed to:', this.selectedPhoneNumber);
+        this.updatePhoneDisplay();
+    }
+
+    handleManualPhoneChange(event) {
+        this.manualPhoneNumber = event.target.value;
+        this.selectedPhoneNumber = this.manualPhoneNumber;
+        console.log('Manual phone changed to:', this.manualPhoneNumber);
+        this.updatePhoneDisplay();
+    }
+
+    updatePhoneOptionsForContact() {
+        console.log('Updating phone options for contact:', this.selectedContactId);
+        
+        // Reset phone options
+        this.availablePhoneNumbers = [];
+        
+        if (this.selectedContactId === 'other') {
+            // For "Other" option, no phone options needed
+            return;
+        }
+        
+        // Find the selected contact
+        const selectedContact = this.availableContacts.find(contact => contact.id === this.selectedContactId);
+        if (selectedContact) {
+            // Add phone numbers from the selected contact
+            if (selectedContact.phone) {
+                this.availablePhoneNumbers.push({
+                    value: selectedContact.phone,
+                    label: `Phone: ${selectedContact.phone}`
+                });
+            }
+            if (selectedContact.mobilePhone && selectedContact.mobilePhone !== selectedContact.phone) {
+                this.availablePhoneNumbers.push({
+                    value: selectedContact.mobilePhone,
+                    label: `Mobile: ${selectedContact.mobilePhone}`
+                });
+            }
+            
+            // Set default phone number
+            if (this.availablePhoneNumbers.length > 0) {
+                this.selectedPhoneNumber = this.availablePhoneNumbers[0].value;
+            }
+        }
+        
+        console.log('Phone options updated:', this.availablePhoneNumbers);
+    }
+
+    updatePhoneDisplay() {
+        if (this.showManualPhoneInput && this.manualPhoneNumber) {
+            this.selectedPhoneDisplay = this.manualPhoneNumber;
+        } else if (this.selectedPhoneNumber) {
+            this.selectedPhoneDisplay = this.selectedPhoneNumber;
+        } else {
+            this.selectedPhoneDisplay = 'No number selected';
+        }
+    }
+
+    async handleCallNow() {
+        console.log('Call Now clicked with contact:', this.selectedContactId, 'phone:', this.selectedPhoneNumber);
+        
+        // Close the contact confirmation modal
+        this.showContactConfirmationModal = false;
+        
+        // Update the queue item with selected contact and phone
+        this.updateQueueItemWithSelectedContact();
+        
+        // Update the database record with the selected values BEFORE calling accept
+        try {
+            await this.updateQueueItemInDatabase();
+            console.log('Database record updated successfully');
+        } catch (error) {
+            console.error('Error updating database record:', error);
+            this.showToast('Error', 'Failed to update contact information', 'error');
+            return;
+        }
+        
+        // Proceed with the normal accept action
+        this.executeAcceptAction();
+    }
+
+    updateQueueItemWithSelectedContact() {
+        console.log('=== updateQueueItemWithSelectedContact Debug ===');
+        console.log('selectedContactId:', this.selectedContactId);
+        console.log('selectedContactName:', this.selectedContactName);
+        console.log('selectedPhoneNumber:', this.selectedPhoneNumber);
+        console.log('showManualPhoneInput:', this.showManualPhoneInput);
+        
+        // Update selectedItem with the chosen contact and phone for display purposes
+        if (this.selectedItem) {
+            this.selectedItem.Best_Person_to_Call__c = this.selectedContactId;
+            this.selectedItem.Best_Number_to_Call__c = this.selectedPhoneNumber;
+        }
+        
+        // Update the main queueItem for call logic but don't overwrite the original Best fields
+        if (this.queueItem) {
+            // Keep the original Best_Person_to_Call__c and Best_Number_to_Call__c unchanged
+            // Only update the tracking fields
+            
+            // Update the related contact info if we have it
+            if (this.selectedContactId && this.availableContacts.length > 0) {
+                const selectedContact = this.availableContacts.find(contact => contact.id === this.selectedContactId);
+                if (selectedContact) {
+                    // Update the Best_Person_to_Call__r relationship data
+                    this.queueItem.Best_Person_to_Call__r = {
+                        Name: selectedContact.name,
+                        Phone: selectedContact.phone,
+                        MobilePhone: selectedContact.mobilePhone
+                    };
+                }
+            }
+            
+            // Set Person_Called__c field for tracking
+            if (this.selectedContactId === 'other') {
+                this.queueItem.Person_Called__c = 'Other Manual Entry';
+                console.log('Set Person_Called__c to: Other Manual Entry');
+            } else if (this.selectedContactName) {
+                this.queueItem.Person_Called__c = this.selectedContactName;
+                console.log('Set Person_Called__c to:', this.selectedContactName);
+            } else {
+                console.log('No Person_Called__c set - selectedContactName is empty');
+            }
+        }
+        
+        console.log('Updated queueItem with selected contact:', this.selectedContactId, 'and phone:', this.selectedPhoneNumber);
+        console.log('Person_Called__c set to:', this.queueItem?.Person_Called__c);
+        console.log('Best_Number_to_Call__c set to:', this.queueItem?.Best_Number_to_Call__c);
+    }
+
+    async updateQueueItemInDatabase() {
+        if (!this.queueItem?.Id) {
+            throw new Error('No queue item ID available');
+        }
+        
+        console.log('Updating database record for queue item:', this.queueItem.Id);
+        console.log('Person_Called__c:', this.queueItem.Person_Called__c);
+        console.log('Number_Dialed__c:', this.selectedPhoneNumber);
+        
+        try {
+            await updateQueueItem({
+                queueItemId: this.queueItem.Id,
+                bestPersonToCall: null, // Don't update the original Best fields
+                bestNumberToCall: null, // Don't update the original Best fields
+                personCalled: this.queueItem.Person_Called__c,
+                numberDialed: this.selectedPhoneNumber
+            });
+        } catch (error) {
+            console.error('Error updating queue item in database:', error);
+            throw error;
+        }
+    }
+
+    handleCancelContactConfirmation() {
+        this.showContactConfirmationModal = false;
+        this.selectedContactId = '';
+        this.selectedPhoneNumber = '';
+        this.selectedContactName = '';
+        this.selectedPhoneDisplay = '';
+        this.showManualPhoneInput = false;
+        this.manualPhoneNumber = '';
+    }
+
+    // Redial functionality
+    handleRedial() {
+        console.log('Redial clicked');
+        if (this.selectedPhoneNumber) {
+            this.redialNumber(this.selectedPhoneNumber);
+        } else {
+            this.showToast('Error', 'No phone number available to redial', 'error');
+        }
+    }
+
+    redialNumber(phoneNumber) {
+        console.log('Redialing number:', phoneNumber);
+        if (phoneNumber) {
+            this.triggerClickToCall(phoneNumber);
+        }
+    }
+
+    triggerClickToCall(phoneNumber) {
+        console.log('Triggering click to call for:', phoneNumber);
+        try {
+            // Create a temporary link element and click it
+            const link = document.createElement('a');
+            link.href = `tel:${phoneNumber}`;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Error triggering click to call:', error);
+            this.showToast('Error', 'Failed to initiate call', 'error');
+        }
     }
 }
