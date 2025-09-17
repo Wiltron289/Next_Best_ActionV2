@@ -79,6 +79,8 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     @track availablePhoneNumbers = [];
     @track selectedContactName = '';
     @track selectedPhoneDisplay = '';
+    @track showManualPhoneInput = false;
+    @track manualPhoneNumber = '';
 
     // Embedded flow state
     @track showEmbeddedFlow = false;
@@ -770,16 +772,24 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
             });
         }
         
-        // Add opportunity primary contact if different
-        if (this.opportunityPrimaryContact?.contactId && 
-            this.opportunityPrimaryContact.contactId !== defaultContactId) {
+            // Add opportunity primary contact if different
+            if (this.opportunityPrimaryContact?.contactId && 
+                this.opportunityPrimaryContact.contactId !== defaultContactId) {
+                this.availableContacts.push({
+                    id: this.opportunityPrimaryContact.contactId,
+                    name: this.opportunityPrimaryContact.contactName,
+                    phone: this.opportunityPrimaryContact.contactPhone,
+                    mobilePhone: ''
+                });
+            }
+            
+            // Add "Other" option for manual phone input
             this.availableContacts.push({
-                id: this.opportunityPrimaryContact.contactId,
-                name: this.opportunityPrimaryContact.contactName,
-                phone: this.opportunityPrimaryContact.contactPhone,
+                id: 'other',
+                name: 'Other (Manual Entry)',
+                phone: '',
                 mobilePhone: ''
             });
-        }
         
         // Fetch and add all account contacts if we have an account
         if (this.queueItem?.Account__c) {
@@ -820,7 +830,18 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         if (selectedContact) {
             this.selectedContactName = selectedContact.name;
         }
-        this.updatePhoneOptionsForContact();
+        
+        // Check if "Other" option is selected
+        if (this.selectedContactId === 'other') {
+            this.showManualPhoneInput = true;
+            this.availablePhoneNumbers = []; // Clear phone options
+            this.selectedPhoneNumber = this.manualPhoneNumber || '';
+        } else {
+            this.showManualPhoneInput = false;
+            this.manualPhoneNumber = '';
+            this.updatePhoneOptionsForContact();
+        }
+        
         this.updatePhoneDisplay();
     }
     
@@ -830,11 +851,24 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         this.updatePhoneDisplay();
     }
     
+    // Handle manual phone number input
+    handleManualPhoneChange(event) {
+        this.manualPhoneNumber = event.target.value;
+        this.selectedPhoneNumber = event.target.value;
+        this.updatePhoneDisplay();
+    }
+    
     // Update phone display text
     updatePhoneDisplay() {
         if (this.selectedPhoneNumber) {
-            const phoneOption = this.availablePhoneNumbers.find(option => option.value === this.selectedPhoneNumber);
-            this.selectedPhoneDisplay = phoneOption ? phoneOption.label : this.selectedPhoneNumber;
+            if (this.showManualPhoneInput) {
+                // For manual entry, just show the number
+                this.selectedPhoneDisplay = this.selectedPhoneNumber;
+            } else {
+                // For dropdown selection, show the formatted label
+                const phoneOption = this.availablePhoneNumbers.find(option => option.value === this.selectedPhoneNumber);
+                this.selectedPhoneDisplay = phoneOption ? phoneOption.label : this.selectedPhoneNumber;
+            }
         } else {
             this.selectedPhoneDisplay = '';
         }

@@ -440,14 +440,21 @@
                                 </template>
                             </select>
                         </div>
-                        <div class="nba-widget-form-field">
-                            <label for="phone-select">Phone Number to Dial</label>
+                    <div class="nba-widget-form-field">
+                        <label for="phone-select">Phone Number to Dial</label>
+                        <template if:false={showManualPhoneInput}>
                             <select id="phone-select" class="nba-widget-form-select" value={selectedPhoneNumber} onchange={handlePhoneChange}>
                                 <template for:each={availablePhoneNumbers} for:item="phone">
                                     <option key={phone.value} value={phone.value}>{phone.label}</option>
                                 </template>
                             </select>
-                        </div>
+                        </template>
+                        <template if:true={showManualPhoneInput}>
+                            <input type="tel" id="manual-phone" class="nba-widget-form-input" 
+                                   placeholder="Enter phone number (e.g., 555-123-4567)" 
+                                   value={manualPhoneNumber} onchange={handleManualPhoneChange} />
+                        </template>
+                    </div>
                         
                         <!-- Display selected contact and phone -->
                         <template if:true={selectedContactName}>
