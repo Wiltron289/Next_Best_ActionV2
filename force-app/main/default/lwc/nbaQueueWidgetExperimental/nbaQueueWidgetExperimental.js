@@ -633,6 +633,8 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         
         console.log('executeAcceptAction - currentItem Best_Number_to_Call__c:', currentItem?.Best_Number_to_Call__c);
         console.log('executeAcceptAction - queueItem Best_Number_to_Call__c:', this.queueItem?.Best_Number_to_Call__c);
+        console.log('executeAcceptAction - currentItem Person_Called__c:', currentItem?.Person_Called__c);
+        console.log('executeAcceptAction - queueItem Person_Called__c:', this.queueItem?.Person_Called__c);
 
         console.log('Calling Apex acceptAction with', { id: this.selectedItem?.Id, isCall });
         acceptAction({ queueItemId: this.selectedItem.Id, additionalNotes: '' })
@@ -979,6 +981,12 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     
     // Update queue item with selected contact and phone
     updateQueueItemWithSelectedContact() {
+        console.log('=== updateQueueItemWithSelectedContact Debug ===');
+        console.log('selectedContactId:', this.selectedContactId);
+        console.log('selectedContactName:', this.selectedContactName);
+        console.log('selectedPhoneNumber:', this.selectedPhoneNumber);
+        console.log('showManualPhoneInput:', this.showManualPhoneInput);
+        
         // Update both selectedItem and queueItem with the chosen contact and phone
         if (this.selectedItem) {
             this.selectedItem.Best_Person_to_Call__c = this.selectedContactId;
@@ -1006,13 +1014,18 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
             // Set Person_Called__c field for tracking
             if (this.selectedContactId === 'other') {
                 this.queueItem.Person_Called__c = 'Other Manual Entry';
+                console.log('Set Person_Called__c to: Other Manual Entry');
             } else if (this.selectedContactName) {
                 this.queueItem.Person_Called__c = this.selectedContactName;
+                console.log('Set Person_Called__c to:', this.selectedContactName);
+            } else {
+                console.log('No Person_Called__c set - selectedContactName is empty');
             }
         }
         
         console.log('Updated queueItem with selected contact:', this.selectedContactId, 'and phone:', this.selectedPhoneNumber);
         console.log('Person_Called__c set to:', this.queueItem?.Person_Called__c);
+        console.log('Best_Number_to_Call__c set to:', this.queueItem?.Best_Number_to_Call__c);
     }
     
     // Handle canceling the contact confirmation
