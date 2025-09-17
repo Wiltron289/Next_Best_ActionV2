@@ -1885,16 +1885,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     async navigateToRecordAndShowConfirmation() {
         console.log('Starting two-stage accept process');
         
-        // Navigate to the record first
-        if (this.queueItem?.Opportunity__c) {
-            this.navigateToRecord(this.queueItem.Opportunity__c, 'Opportunity');
-        } else if (this.queueItem?.Account__c) {
-            this.navigateToRecord(this.queueItem.Account__c, 'Account');
-        } else if (this.queueItem?.Lead__c) {
-            this.navigateToRecord(this.queueItem.Lead__c, 'Lead');
-        }
-        
-        // Load contact options and show confirmation modal
+        // Load contact options and show confirmation modal (no navigation)
         await this.loadContactOptions();
         this.showContactConfirmationModal = true;
     }
