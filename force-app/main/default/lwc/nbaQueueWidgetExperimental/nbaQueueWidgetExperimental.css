@@ -5,6 +5,8 @@
     max-height: var(--panel-height);
     overflow-y: auto;
     overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
 }
 
 /* Main Widget Card */
@@ -15,12 +17,15 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     border: 1px solid #e1e5e9;
     margin: 0;
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
     position: relative;
     display: flex;
     flex-direction: column;
     height: var(--panel-height);
     transition: all 0.3s ease;
+    box-sizing: border-box;
 }
 
 .nba-widget-form-active {
@@ -637,6 +642,50 @@
     font-weight: 500;
 }
 
+/* Utility Bar Specific Styles */
+.slds-utility-bar .nba-widget-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    border-top: 1px solid #e1e5e9;
+}
+
+.slds-utility-bar .queue-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Prevent horizontal overflow in utility bar */
+.slds-utility-bar .nba-widget-content,
+.slds-utility-bar .nba-widget-body,
+.slds-utility-bar .nba-widget-header,
+.slds-utility-bar .nba-widget-footer {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+    word-wrap: break-word;
+    word-break: break-word;
+}
+
+.slds-utility-bar .nba-widget-detail-row {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+.slds-utility-bar .nba-widget-detail-value {
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .nba-widget-card {
@@ -671,5 +720,55 @@
     
     .nba-widget-product-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Utility Bar Responsive Overrides */
+@media (max-width: 1200px) {
+    .slds-utility-bar .nba-widget-header h2 {
+        font-size: 14px;
+    }
+    
+    .slds-utility-bar .nba-widget-tabs {
+        flex-wrap: wrap;
+        gap: 2px;
+    }
+    
+    .slds-utility-bar .nba-widget-tab {
+        font-size: 11px;
+        padding: 4px 6px;
+        min-width: auto;
+    }
+    
+    .slds-utility-bar .nba-widget-content {
+        padding: 8px;
+    }
+    
+    .slds-utility-bar .nba-widget-detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+        margin-bottom: 6px;
+    }
+    
+    .slds-utility-bar .nba-widget-detail-label {
+        font-size: 11px;
+        margin-bottom: 2px;
+    }
+    
+    .slds-utility-bar .nba-widget-detail-value {
+        font-size: 12px;
+        word-break: break-word;
+    }
+    
+    .slds-utility-bar .nba-widget-actions {
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .slds-utility-bar .nba-widget-accept,
+    .slds-utility-bar .nba-widget-skip {
+        width: 100%;
+        font-size: 12px;
+        padding: 8px 12px;
     }
 }
