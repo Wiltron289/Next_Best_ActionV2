@@ -22,7 +22,6 @@ import getAccountContacts from '@salesforce/apex/NBAQueueManager.getAccountConta
 import saveNextSteps from '@salesforce/apex/NBAQueueManager.saveNextSteps';
 import saveNextStepsWithLead from '@salesforce/apex/NBAQueueManager.saveNextStepsWithLead';
 import saveFutureFollowUp from '@salesforce/apex/NBAQueueManager.saveFutureFollowUp';
-import getOpportunityStageNames from '@salesforce/apex/NBAQueueManager.getOpportunityStageNames';
 import getFutureFollowUpReasons from '@salesforce/apex/NBAQueueManager.getFutureFollowUpReasons';
 import getLeadStatusNames from '@salesforce/apex/NBAQueueManager.getLeadStatusNames';
 import finalizeQueueItem from '@salesforce/apex/NBAQueueManager.finalizeQueueItem';
@@ -62,8 +61,6 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     @track nextSteps = '';
     @track futureFollowUpDate = '';
     @track futureFollowUpReason = '';
-    @track selectedStage = '';
-    @track stageOptions = [];
     @track leadStatusOptions = [];
     @track futureFollowUpReasonOptions = [];
 
@@ -91,25 +88,6 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     
     @wire(MessageContext) messageContext;
     _lastPublishedOppId = null;
-    @wire(getOpportunityStageNames)
-    wiredOpportunityStages({ error, data }) {
-        if (data) {
-            this.stageOptions = (data || []).map(name => ({ label: name, value: name }));
-            // Ensure the dropdown defaults to the current Opportunity stage when options load
-            try {
-                const currentStage = this.queueItem?.Opportunity__r?.StageName;
-                if (currentStage) {
-                    const hasMatch = this.stageOptions.some(opt => (opt.value || '').toLowerCase() === currentStage.toLowerCase());
-                    if (hasMatch) {
-                        this.selectedStage = currentStage;
-                    }
-                }
-            } catch (e) {}
-        } else if (error) {
-            console.error('Error loading opportunity stage names:', error);
-            this.stageOptions = [];
-        }
-    }
 
     @wire(getFutureFollowUpReasons)
     wiredFfuReasons({ error, data }) {
@@ -341,14 +319,6 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 
                 // Default to Contact tab (Opportunity details tab removed)
                 this.activeTab = 'contact';
-                // Default Stage picklist to current Opportunity stage as soon as item loads
-                try {
-                    if (result.queueItem && result.queueItem.Opportunity__r && result.queueItem.Opportunity__r.StageName) {
-                        this.selectedStage = result.queueItem.Opportunity__r.StageName;
-                    } else {
-                        this.selectedStage = '';
-                    }
-                } catch (e) { this.selectedStage = ''; }
                 
                 // Run non-critical follow-ups in parallel to cut round trips
                 try {
@@ -542,27 +512,12 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         if (this.queueItem?.Lead__c) {
             return this.callDisposition === 'Connected - DM';
         }
-		// Hide Next Step fields when stage is Future Follow-Up
-		if (this.isFutureFollowUpStage) {
-			return false;
-		}
-		return this.callDisposition === 'Connected - DM' && !closedStages.includes(this.selectedStage);
+		return this.callDisposition === 'Connected - DM';
     }
 
-    get opportunityStageOptions() {
-        return this.stageOptions;
-    }
 
     get hasOpportunity() {
         return !!(this.queueItem && this.queueItem.Opportunity__c);
-    }
-    get isFutureFollowUpStage() {
-        const norm = (this.selectedStage || '')
-            .toLowerCase()
-            .replace(/[-_]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-        return norm === 'future follow up';
     }
     get hasLead() {
         return !!(this.queueItem && this.queueItem.Lead__c);
@@ -1040,7 +995,6 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
 
     handleNextStepDateChange = (event) => { this.nextStepDate = event.target.value; }
     handleNextStepsChange = (event) => { this.nextSteps = event.target.value; }
-    handleStageChange = (event) => { this.selectedStage = event.target.value; }
     handleFutureDateChange = (event) => { this.futureFollowUpDate = event.target.value; }
     handleFutureReasonChange = (event) => { this.futureFollowUpReason = event.target.value; }
     handleLeadStatusChange = (event) => { this.selectedLeadStatus = event.target.value; }
@@ -1080,15 +1034,10 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
             queueItemId: this.selectedItem?.Id,
             disposition: this.callDisposition,
             notesLen: (this.callNotes || '').length,
-            selectedStage: this.selectedStage
         });
 
         // Decide if a flow must run (Closed Lost or Closed Won - Pending Implementation)
-        const norm2 = (this.selectedStage || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
-        const isClosedWonPending2 = norm2.includes('closed won') && norm2.includes('pending');
-        const isClosedLost2 = norm2 === 'closed lost';
-        const isFutureFollowUp2 = norm2 === 'future follow up';
-        const flowRequired = this.hasOpportunity && (isClosedWonPending2 || isClosedLost2);
+        const flowRequired = false; // No stage updates, so no flow required
 
         const savePromise = flowRequired
             ? updateCallDispositionWithQueueIdOptions({
@@ -1107,24 +1056,9 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
 
         savePromise
             .then(async () => {
-                // Save next steps and/or stage if provided
+                // Save next steps if provided
                 try {
-                    const norm = (this.selectedStage || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
-                    const isClosedWonPending = norm.includes('closed won') && norm.includes('pending');
-                    const isClosedLost = norm === 'closed lost';
-                    const isFutureFollowUp = norm === 'future follow up';
-                    const stageToSave = (this.hasOpportunity && (isClosedWonPending || isClosedLost))
-                        ? null
-                        : (this.hasOpportunity ? (this.selectedStage || null) : null);
-
-                    // Save Future Follow Up
-                    if (this.hasOpportunity && isFutureFollowUp) {
-                        await saveFutureFollowUp({
-                            queueItemId: this.selectedItem.Id,
-                            futureFollowUpDate: this.futureFollowUpDate ? new Date(this.futureFollowUpDate) : null,
-                            futureFollowUpReason: this.futureFollowUpReason || null
-                        });
-                    } else if (this.showNextStepsFields) {
+                    if (this.showNextStepsFields) {
                         if (this.queueItem?.Lead__c) {
                             await saveNextStepsWithLead({
                                 queueItemId: this.selectedItem.Id,
@@ -1138,17 +1072,9 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                                 queueItemId: this.selectedItem.Id,
                                 nextStepDate: this.nextStepDate || null,
                                 nextSteps: this.nextSteps || null,
-                                newOpportunityStage: stageToSave
+                                newOpportunityStage: null
                             });
                         }
-                    } else if (this.hasOpportunity && !!stageToSave) {
-                        // Save Opp stage change even if next steps are hidden
-                        await saveNextSteps({
-                            queueItemId: this.selectedItem.Id,
-                            nextStepDate: null,
-                            nextSteps: null,
-                            newOpportunityStage: stageToSave
-                        });
                     } else if (this.queueItem?.Lead__c && (this.selectedLeadStatus || '').length) {
                         // Allow Lead Status update without next steps
                         await saveNextStepsWithLead({

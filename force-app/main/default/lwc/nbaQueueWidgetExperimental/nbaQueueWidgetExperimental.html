@@ -370,16 +370,6 @@
                                 </template>
                             </select>
                         </div>
-                        <template if:true={hasOpportunity}>
-                            <div class="nba-widget-form-field">
-                                <label for="stage-update">Opportunity Stage Update</label>
-                                <select id="stage-update" class="nba-widget-form-select" onchange={handleStageChange} value={selectedStage}>
-                                    <template for:each={opportunityStageOptions} for:item="opt">
-                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                    </template>
-                                </select>
-                            </div>
-                        </template>
                         <template if:true={queueItem.Lead__c}>
                             <div class="nba-widget-form-field">
                                 <label for="lead-status-update">Lead Status Update</label>
