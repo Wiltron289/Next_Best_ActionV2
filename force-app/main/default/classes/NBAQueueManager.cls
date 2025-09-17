@@ -1681,25 +1681,13 @@ public class NBAQueueManager {
     public static List<Map<String, Object>> getAccountContacts(Id accountId) {
         List<Map<String, Object>> contacts = new List<Map<String, Object>>();
         
-        System.debug('getAccountContacts called with accountId: ' + accountId);
-        
         if (accountId == null) {
-            System.debug('AccountId is null, returning empty list');
             return contacts;
         }
         
         try {
-            // First, let's get the account name for debugging
-            List<Account> accounts = [SELECT Id, Name FROM Account WHERE Id = :accountId LIMIT 1];
-            if (!accounts.isEmpty()) {
-                System.debug('Account found: ' + accounts[0].Name + ' (ID: ' + accounts[0].Id + ')');
-            } else {
-                System.debug('No account found with ID: ' + accountId);
-                return contacts;
-            }
-            
             List<Contact> accountContacts = [
-                SELECT Id, Name, Phone, MobilePhone, Email, Title, Department, AccountId, Account.Name
+                SELECT Id, Name, Phone, MobilePhone, Email, Title, Department
                 FROM Contact 
                 WHERE AccountId = :accountId 
                 AND (Phone != null OR MobilePhone != null)
@@ -1707,10 +1695,7 @@ public class NBAQueueManager {
                 LIMIT 50
             ];
             
-            System.debug('Found ' + accountContacts.size() + ' contacts for account ' + accountId);
-            
             for (Contact contact : accountContacts) {
-                System.debug('Contact: ' + contact.Name + ' (ID: ' + contact.Id + ') - Account: ' + contact.Account.Name + ' (ID: ' + contact.AccountId + ')');
                 Map<String, Object> contactMap = new Map<String, Object>();
                 contactMap.put('id', contact.Id);
                 contactMap.put('name', contact.Name);

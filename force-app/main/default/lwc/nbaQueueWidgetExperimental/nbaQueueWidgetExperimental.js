@@ -829,10 +829,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         // Fetch and add all account contacts if we have an account
         if (this.queueItem?.Account__c) {
             try {
-                console.log('Fetching contacts for account ID:', this.queueItem.Account__c);
-                console.log('Account name:', this.queueItem.Account__r?.Name);
                 const accountContacts = await getAccountContacts({ accountId: this.queueItem.Account__c });
-                console.log('Fetched account contacts:', accountContacts);
                 
                 for (const contact of accountContacts) {
                     // Only add if not already in the list
@@ -853,53 +850,11 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
             }
         }
         
-        // Build available phone numbers
-        this.availablePhoneNumbers = [];
-        if (this.queueItem?.Best_Number_to_Call__c) {
-            this.availablePhoneNumbers.push({
-                value: this.queueItem.Best_Number_to_Call__c,
-                label: this.queueItem.Best_Number_to_Call__c + ' (Best Number)'
-            });
-        }
-        if (this.queueItem?.Best_Person_to_Call__r?.Phone) {
-            this.availablePhoneNumbers.push({
-                value: this.queueItem.Best_Person_to_Call__r.Phone,
-                label: this.queueItem.Best_Person_to_Call__r.Phone + ' (Contact Phone)'
-            });
-        }
-        if (this.queueItem?.Best_Person_to_Call__r?.MobilePhone) {
-            this.availablePhoneNumbers.push({
-                value: this.queueItem.Best_Person_to_Call__r.MobilePhone,
-                label: this.queueItem.Best_Person_to_Call__r.MobilePhone + ' (Contact Mobile)'
-            });
-        }
-        if (this.queueItem?.Account__r?.Phone) {
-            this.availablePhoneNumbers.push({
-                value: this.queueItem.Account__r.Phone,
-                label: this.queueItem.Account__r.Phone + ' (Account Phone)'
-            });
-        }
-        if (this.queueItem?.Lead__r?.Phone) {
-            this.availablePhoneNumbers.push({
-                value: this.queueItem.Lead__r.Phone,
-                label: this.queueItem.Lead__r.Phone + ' (Lead Phone)'
-            });
-        }
-        if (this.queueItem?.Lead__r?.MobilePhone) {
-            this.availablePhoneNumbers.push({
-                value: this.queueItem.Lead__r.MobilePhone,
-                label: this.queueItem.Lead__r.MobilePhone + ' (Lead Mobile)'
-            });
-        }
+        // Update phone options for the selected contact
+        this.updatePhoneOptionsForContact();
         
         // Set default phone display
         this.updatePhoneDisplay();
-        
-        // Debug logging
-        console.log('Available contacts:', this.availableContacts);
-        console.log('Available phone numbers:', this.availablePhoneNumbers);
-        console.log('Selected contact ID:', this.selectedContactId);
-        console.log('Selected phone number:', this.selectedPhoneNumber);
     }
     
     // Handle contact selection change
@@ -936,7 +891,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         if (selectedContact) {
             this.availablePhoneNumbers = [];
             
-            // Add selected contact's phone numbers
+            // Add selected contact's phone numbers only
             if (selectedContact.phone) {
                 this.availablePhoneNumbers.push({
                     value: selectedContact.phone,
@@ -950,25 +905,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 });
             }
             
-            // Add other account contacts' phone numbers
-            for (const contact of this.availableContacts) {
-                if (contact.id !== this.selectedContactId) {
-                    if (contact.phone && !this.availablePhoneNumbers.find(p => p.value === contact.phone)) {
-                        this.availablePhoneNumbers.push({
-                            value: contact.phone,
-                            label: contact.phone + ' (' + contact.name + ' - Phone)'
-                        });
-                    }
-                    if (contact.mobilePhone && !this.availablePhoneNumbers.find(p => p.value === contact.mobilePhone)) {
-                        this.availablePhoneNumbers.push({
-                            value: contact.mobilePhone,
-                            label: contact.mobilePhone + ' (' + contact.name + ' - Mobile)'
-                        });
-                    }
-                }
-            }
-            
-            // Add account and lead phone numbers if available
+            // Add account and lead phone numbers if available (as fallback options)
             if (this.queueItem?.Account__r?.Phone && !this.availablePhoneNumbers.find(p => p.value === this.queueItem.Account__r.Phone)) {
                 this.availablePhoneNumbers.push({
                     value: this.queueItem.Account__r.Phone,
@@ -988,7 +925,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 });
             }
             
-            // Reset selected phone number
+            // Reset selected phone number to the first available option
             this.selectedPhoneNumber = this.availablePhoneNumbers[0]?.value || '';
         }
     }
