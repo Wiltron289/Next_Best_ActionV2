@@ -444,7 +444,7 @@
                     <div class="nba-widget-form-content">
                         <div class="nba-widget-form-field">
                             <label for="contact-select">Contact to Call</label>
-                            <select id="contact-select" class="nba-widget-form-select" onchange={handleContactChange}>
+                            <select id="contact-select" class="nba-widget-form-select" value={selectedContactId} onchange={handleContactChange}>
                                 <template for:each={availableContacts} for:item="contact">
                                     <option key={contact.id} value={contact.id}>{contact.name}</option>
                                 </template>
@@ -452,7 +452,7 @@
                         </div>
                         <div class="nba-widget-form-field">
                             <label for="phone-select">Phone Number to Dial</label>
-                            <select id="phone-select" class="nba-widget-form-select" onchange={handlePhoneChange}>
+                            <select id="phone-select" class="nba-widget-form-select" value={selectedPhoneNumber} onchange={handlePhoneChange}>
                                 <template for:each={availablePhoneNumbers} for:item="phone">
                                     <option key={phone.value} value={phone.value}>{phone.label}</option>
                                 </template>

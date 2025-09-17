@@ -679,18 +679,23 @@
     box-shadow: none;
     border: none;
     border-top: 1px solid #e1e5e9;
-    height: 100%;
-    min-height: 100%;
-    max-height: 100%;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
 }
 
 .slds-utility-bar .queue-container {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
-    height: 100%;
-    max-height: 100%;
+    height: 100% !important;
+    max-height: 100% !important;
     min-height: 0;
+}
+
+/* Override CSS variable for queue-container in utility bar */
+.slds-utility-bar .queue-container {
+    max-height: 100% !important;
 }
 
 /* Prevent horizontal overflow in utility bar */
@@ -766,6 +771,42 @@
 .slds-utility-bar .slds-utility-bar__item .slds-utility-bar__panel {
     height: 100% !important;
     max-height: 100% !important;
+}
+
+/* Override CSS variable height in utility bar context */
+.slds-utility-bar .nba-widget-card {
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+}
+
+/* Target utility bar panel height specifically */
+.slds-utility-bar .slds-utility-bar__panel {
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+}
+
+.slds-utility-bar .slds-utility-bar__panel .nba-widget-card {
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: 100% !important;
+}
+
+.slds-utility-bar .slds-utility-bar__panel .queue-container {
+    height: 100% !important;
+    max-height: 100% !important;
+}
+
+/* Target the actual utility bar container */
+.slds-utility-bar {
+    height: 100% !important;
+}
+
+.slds-utility-bar .slds-utility-bar__item {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 .slds-utility-bar .nba-widget-detail-row {

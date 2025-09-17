@@ -863,6 +863,12 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         
         // Set default phone display
         this.updatePhoneDisplay();
+        
+        // Debug logging
+        console.log('Available contacts:', this.availableContacts);
+        console.log('Available phone numbers:', this.availablePhoneNumbers);
+        console.log('Selected contact ID:', this.selectedContactId);
+        console.log('Selected phone number:', this.selectedPhoneNumber);
     }
     
     // Handle contact selection change
