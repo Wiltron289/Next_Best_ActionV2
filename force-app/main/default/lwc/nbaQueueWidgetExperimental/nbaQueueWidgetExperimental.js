@@ -829,6 +829,8 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         // Fetch and add all account contacts if we have an account
         if (this.queueItem?.Account__c) {
             try {
+                console.log('Fetching contacts for account ID:', this.queueItem.Account__c);
+                console.log('Account name:', this.queueItem.Account__r?.Name);
                 const accountContacts = await getAccountContacts({ accountId: this.queueItem.Account__c });
                 console.log('Fetched account contacts:', accountContacts);
                 
