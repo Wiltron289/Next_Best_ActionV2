@@ -652,12 +652,18 @@
     box-shadow: none;
     border: none;
     border-top: 1px solid #e1e5e9;
+    height: 100vh !important;
+    min-height: 100vh;
+    max-height: 100vh;
 }
 
 .slds-utility-bar .queue-container {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
+    height: 100%;
+    max-height: 100%;
+    min-height: 0;
 }
 
 /* Prevent horizontal overflow in utility bar */
@@ -671,6 +677,25 @@
     overflow-x: hidden;
     word-wrap: break-word;
     word-break: break-word;
+}
+
+/* Ensure full height utilization in utility bar */
+.slds-utility-bar .nba-widget-body {
+    height: 100%;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.slds-utility-bar .nba-widget-content {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.slds-utility-bar .nba-widget-footer {
+    margin-top: auto;
+    flex-shrink: 0;
 }
 
 .slds-utility-bar .nba-widget-detail-row {
