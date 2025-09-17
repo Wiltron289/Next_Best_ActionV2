@@ -452,7 +452,7 @@
                         <template if:true={showManualPhoneInput}>
                             <input type="tel" id="manual-phone" class="nba-widget-form-input" 
                                    placeholder="Enter phone number (e.g., 555-123-4567)" 
-                                   value={manualPhoneNumber} onchange={handleManualPhoneChange} />
+                                   value={manualPhoneNumber} oninput={handleManualPhoneChange} />
                         </template>
                     </div>
                         
