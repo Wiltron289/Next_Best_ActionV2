@@ -153,7 +153,7 @@ public class NBAQueueManager {
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
-                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
+                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
                         Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
@@ -266,7 +266,7 @@ public class NBAQueueManager {
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
-                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
+                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
                         Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
@@ -553,7 +553,7 @@ public class NBAQueueManager {
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
-                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c,
+                       Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
                        Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
@@ -1002,7 +1002,7 @@ public class NBAQueueManager {
             
             NBA_Queue__c queueItem = [SELECT Id, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c,
                                              Subject__c, Description__c, Due_Date__c, Action_Type__c,
-                                             Priority_Score__c, Sales_Rep__c, Opportunity__c, Lead__c, Best_Time_to_Call__c, Best_Number_to_Call__c
+                                             Priority_Score__c, Sales_Rep__c, Opportunity__c, Lead__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Person_Called__c
                                       FROM NBA_Queue__c 
                                       WHERE Id = :queueItemId];
             

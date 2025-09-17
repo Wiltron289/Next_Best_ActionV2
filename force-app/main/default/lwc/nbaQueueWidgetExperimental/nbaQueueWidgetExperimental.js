@@ -1002,9 +1002,17 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                     };
                 }
             }
+            
+            // Set Person_Called__c field for tracking
+            if (this.selectedContactId === 'other') {
+                this.queueItem.Person_Called__c = 'Other Manual Entry';
+            } else if (this.selectedContactName) {
+                this.queueItem.Person_Called__c = this.selectedContactName;
+            }
         }
         
         console.log('Updated queueItem with selected contact:', this.selectedContactId, 'and phone:', this.selectedPhoneNumber);
+        console.log('Person_Called__c set to:', this.queueItem?.Person_Called__c);
     }
     
     // Handle canceling the contact confirmation
