@@ -998,16 +998,16 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         console.log('selectedPhoneNumber:', this.selectedPhoneNumber);
         console.log('showManualPhoneInput:', this.showManualPhoneInput);
         
-        // Update both selectedItem and queueItem with the chosen contact and phone
+        // Update selectedItem with the chosen contact and phone for display purposes
         if (this.selectedItem) {
             this.selectedItem.Best_Person_to_Call__c = this.selectedContactId;
             this.selectedItem.Best_Number_to_Call__c = this.selectedPhoneNumber;
         }
         
-        // Also update the main queueItem that's used for call logic
+        // Update the main queueItem for call logic but don't overwrite the original Best fields
         if (this.queueItem) {
-            this.queueItem.Best_Person_to_Call__c = this.selectedContactId;
-            this.queueItem.Best_Number_to_Call__c = this.selectedPhoneNumber;
+            // Keep the original Best_Person_to_Call__c and Best_Number_to_Call__c unchanged
+            // Only update the tracking fields
             
             // Update the related contact info if we have it
             if (this.selectedContactId && this.availableContacts.length > 0) {
@@ -1046,16 +1046,16 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         }
         
         console.log('Updating database record for queue item:', this.queueItem.Id);
-        console.log('Best_Person_to_Call__c:', this.queueItem.Best_Person_to_Call__c);
-        console.log('Best_Number_to_Call__c:', this.queueItem.Best_Number_to_Call__c);
         console.log('Person_Called__c:', this.queueItem.Person_Called__c);
+        console.log('Number_Dialed__c:', this.selectedPhoneNumber);
         
         try {
             await updateQueueItem({
                 queueItemId: this.queueItem.Id,
-                bestPersonToCall: this.queueItem.Best_Person_to_Call__c,
-                bestNumberToCall: this.queueItem.Best_Number_to_Call__c,
-                personCalled: this.queueItem.Person_Called__c
+                bestPersonToCall: null, // Don't update the original Best fields
+                bestNumberToCall: null, // Don't update the original Best fields
+                personCalled: this.queueItem.Person_Called__c,
+                numberDialed: this.selectedPhoneNumber
             });
         } catch (error) {
             console.error('Error updating queue item in database:', error);

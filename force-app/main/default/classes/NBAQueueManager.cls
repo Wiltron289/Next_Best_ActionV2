@@ -994,18 +994,22 @@ public class NBAQueueManager {
     }
     
     @AuraEnabled
-    public static void updateQueueItem(Id queueItemId, String bestPersonToCall, String bestNumberToCall, String personCalled) {
+    public static void updateQueueItem(Id queueItemId, String bestPersonToCall, String bestNumberToCall, String personCalled, String numberDialed) {
         try {
             NBA_Queue__c queueItem = new NBA_Queue__c(Id = queueItemId);
             
-            if (String.isNotBlank(bestPersonToCall)) {
+            // Only update Best fields if they are provided (not null)
+            if (bestPersonToCall != null && String.isNotBlank(bestPersonToCall)) {
                 queueItem.Best_Person_to_Call__c = bestPersonToCall;
             }
-            if (String.isNotBlank(bestNumberToCall)) {
+            if (bestNumberToCall != null && String.isNotBlank(bestNumberToCall)) {
                 queueItem.Best_Number_to_Call__c = bestNumberToCall;
             }
             if (String.isNotBlank(personCalled)) {
                 queueItem.Person_Called__c = personCalled;
+            }
+            if (String.isNotBlank(numberDialed)) {
+                queueItem.Number_Dialed__c = numberDialed;
             }
             
             update queueItem;
