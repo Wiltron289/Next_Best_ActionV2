@@ -455,6 +455,22 @@
                                 </template>
                             </select>
                         </div>
+                        
+                        <!-- Display selected contact and phone -->
+                        <template if:true={selectedContactName}>
+                            <div class="nba-widget-form-summary">
+                                <div class="nba-widget-form-summary-title">Call Summary:</div>
+                                <div class="nba-widget-form-summary-item">
+                                    <strong>Contact:</strong> {selectedContactName}
+                                </div>
+                                <template if:true={selectedPhoneDisplay}>
+                                    <div class="nba-widget-form-summary-item">
+                                        <strong>Phone:</strong> {selectedPhoneDisplay}
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        
                         <div class="nba-widget-form-actions">
                             <button class="nba-widget-form-cancel" onclick={handleCancelContactConfirmation}>Cancel</button>
                             <button class="nba-widget-form-save" onclick={handleCallNow} disabled={isLoading}>

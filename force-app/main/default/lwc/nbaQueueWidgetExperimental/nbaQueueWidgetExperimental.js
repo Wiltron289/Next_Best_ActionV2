@@ -66,12 +66,21 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     @track leadStatusOptions = [];
     @track futureFollowUpReasonOptions = [];
 
+    // Refresh functionality
+    @track lastRefreshTime = null;
+    refreshTimer = null;
+    refreshInterval = 300000; // 5 minutes
+    @track refreshCountdown = 300; // seconds remaining
+    countdownTimer = null;
+
     // Experimental: Contact confirmation modal state
     @track showContactConfirmationModal = false;
     @track selectedContactId = '';
     @track selectedPhoneNumber = '';
     @track availableContacts = [];
     @track availablePhoneNumbers = [];
+    @track selectedContactName = '';
+    @track selectedPhoneDisplay = '';
 
     // Embedded flow state
     @track showEmbeddedFlow = false;
@@ -746,20 +755,65 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     
     // Load available contacts and phone numbers for the record
     loadContactOptions() {
-        // Set default values from the queue item
-        this.selectedContactId = this.queueItem?.Best_Person_to_Call__c || '';
-        this.selectedPhoneNumber = this.queueItem?.Best_Number_to_Call__c || '';
+        // Use the same call logic as the original widget
+        let defaultContactId = '';
+        let defaultContactName = '';
+        let defaultPhoneNumber = '';
         
-        // For now, we'll use the existing contact data
-        // In a full implementation, you might want to query for additional contacts
-        this.availableContacts = [
-            {
-                id: this.queueItem?.Best_Person_to_Call__c || '',
-                name: this.queueItem?.Best_Person_to_Call__r?.Name || 'No contact selected',
+        // Determine the best contact and phone using existing logic
+        if (this.queueItem?.Opportunity__c) {
+            // For Opportunity calls, use the opportunity primary contact logic
+            if (this.queueItem?.Best_Person_to_Call__c) {
+                defaultContactId = this.queueItem.Best_Person_to_Call__c;
+                defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
+                defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || '';
+            } else if (this.opportunityPrimaryContact?.contactId) {
+                defaultContactId = this.opportunityPrimaryContact.contactId;
+                defaultContactName = this.opportunityPrimaryContact.contactName;
+                defaultPhoneNumber = this.opportunityPrimaryContact.contactPhone;
+            }
+        } else if (this.queueItem?.Account__c) {
+            // For Account calls, use account primary contact
+            if (this.queueItem?.Best_Person_to_Call__c) {
+                defaultContactId = this.queueItem.Best_Person_to_Call__c;
+                defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
+                defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || '';
+            }
+        } else if (this.queueItem?.Lead__c) {
+            // For Lead calls, use lead contact info
+            defaultContactId = this.queueItem.Lead__c;
+            defaultContactName = this.queueItem.Lead__r?.Name || '';
+            defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || this.queueItem.Lead__r?.Phone || '';
+        }
+        
+        // Set default values
+        this.selectedContactId = defaultContactId;
+        this.selectedContactName = defaultContactName;
+        this.selectedPhoneNumber = defaultPhoneNumber;
+        
+        // Build available contacts
+        this.availableContacts = [];
+        
+        // Add the default contact
+        if (defaultContactId && defaultContactName) {
+            this.availableContacts.push({
+                id: defaultContactId,
+                name: defaultContactName,
                 phone: this.queueItem?.Best_Person_to_Call__r?.Phone || '',
                 mobilePhone: this.queueItem?.Best_Person_to_Call__r?.MobilePhone || ''
-            }
-        ];
+            });
+        }
+        
+        // Add opportunity primary contact if different
+        if (this.opportunityPrimaryContact?.contactId && 
+            this.opportunityPrimaryContact.contactId !== defaultContactId) {
+            this.availableContacts.push({
+                id: this.opportunityPrimaryContact.contactId,
+                name: this.opportunityPrimaryContact.contactName,
+                phone: this.opportunityPrimaryContact.contactPhone,
+                mobilePhone: ''
+            });
+        }
         
         // Build available phone numbers
         this.availablePhoneNumbers = [];
@@ -787,18 +841,49 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 label: this.queueItem.Account__r.Phone + ' (Account Phone)'
             });
         }
+        if (this.queueItem?.Lead__r?.Phone) {
+            this.availablePhoneNumbers.push({
+                value: this.queueItem.Lead__r.Phone,
+                label: this.queueItem.Lead__r.Phone + ' (Lead Phone)'
+            });
+        }
+        if (this.queueItem?.Lead__r?.MobilePhone) {
+            this.availablePhoneNumbers.push({
+                value: this.queueItem.Lead__r.MobilePhone,
+                label: this.queueItem.Lead__r.MobilePhone + ' (Lead Mobile)'
+            });
+        }
+        
+        // Set default phone display
+        this.updatePhoneDisplay();
     }
     
     // Handle contact selection change
     handleContactChange(event) {
         this.selectedContactId = event.target.value;
-        // Update phone number options based on selected contact
+        // Update contact name and phone options
+        const selectedContact = this.availableContacts.find(contact => contact.id === this.selectedContactId);
+        if (selectedContact) {
+            this.selectedContactName = selectedContact.name;
+        }
         this.updatePhoneOptionsForContact();
+        this.updatePhoneDisplay();
     }
     
     // Handle phone number selection change
     handlePhoneChange(event) {
         this.selectedPhoneNumber = event.target.value;
+        this.updatePhoneDisplay();
+    }
+    
+    // Update phone display text
+    updatePhoneDisplay() {
+        if (this.selectedPhoneNumber) {
+            const phoneOption = this.availablePhoneNumbers.find(option => option.value === this.selectedPhoneNumber);
+            this.selectedPhoneDisplay = phoneOption ? phoneOption.label : this.selectedPhoneNumber;
+        } else {
+            this.selectedPhoneDisplay = '';
+        }
     }
     
     // Update phone options based on selected contact
