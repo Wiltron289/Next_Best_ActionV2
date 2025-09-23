@@ -604,12 +604,12 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         
         // Handle different action types
         const actionType = this.queueItem?.Action_Type__c || '';
-        if (actionType.toLowerCase().includes('call')) {
-            this.navigateToRecordAndShowConfirmation();
+        if (actionType === 'Event') {
+            this.handleEventAccept();
         } else if (actionType === 'Email') {
             this.handleEmailAccept();
-        } else if (actionType === 'Event') {
-            this.handleEventAccept();
+        } else if (actionType.toLowerCase().includes('call')) {
+            this.navigateToRecordAndShowConfirmation();
         } else {
             this.executeAcceptAction();
         }
@@ -981,6 +981,21 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         return iconMap[actionType] || 'utility:task';
     }
 
+    getActionEmoji(actionType) {
+        const emojiMap = {
+            'Call': '📞',
+            'Email': '✉️',
+            'Event': '📅',
+            'Meeting': '📅',
+            'Follow_Up': '📋',
+            'Demo': '🖥️',
+            'Proposal': '📄',
+            'Payroll Opportunity Call': '💰',
+            'Payroll Prospecting Call': '💵'
+        };
+        return emojiMap[actionType] || '📝';
+    }
+
     formatDate(dateValue) {
         if (!dateValue) return '';
         const date = new Date(dateValue);
@@ -1306,6 +1321,11 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         else actionShort = typeRaw.replace(/_/g, ' ');
         const prefix = `${objectType} ${actionShort} for`;
         return prefix;
+    }
+
+    get actionEmoji() {
+        if (!this.queueItem) return '📝';
+        return this.getActionEmoji(this.queueItem.Action_Type__c);
     }
 
     get opportunityName() {
@@ -2267,7 +2287,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
                     } else {
                         this.navigateToRecord(result.opportunityId);
                     }
-                    // Show meeting disposition modal
+                    // Show meeting disposition modal directly (skip contact confirmation)
                     this.showMeetingDispositionModal = true;
                 }
             } catch (error) {
