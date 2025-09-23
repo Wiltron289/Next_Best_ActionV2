@@ -151,8 +151,7 @@ public class NBAQueueManager {
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
-                       Email_Message__c, Email_Message__r.Subject, Email_Message__r.MessageDate, Email_Message__r.FromAddress, Email_Message__r.ToAddress,
-                       Event__c, Event__r.Subject, Event__r.StartDateTime, Event__r.EndDateTime, Event__r.Location,
+                       Start_Time__c,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
@@ -266,8 +265,7 @@ public class NBAQueueManager {
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
-                       Email_Message__c, Email_Message__r.Subject, Email_Message__r.MessageDate, Email_Message__r.FromAddress, Email_Message__r.ToAddress,
-                       Event__c, Event__r.Subject, Event__r.StartDateTime, Event__r.EndDateTime, Event__r.Location,
+                       Start_Time__c,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
@@ -622,12 +620,15 @@ public class NBAQueueManager {
     // Custom comparator class to sort by status first (In Progress prioritized), then by adjusted priority score, then by creation date
     public class PriorityScoreComparator implements Comparator<NBA_Queue__c> {
         public Integer compare(NBA_Queue__c item1, NBA_Queue__c item2) {
-            // First, prioritize Event action types over all others (absolute priority)
-            if (item1.Action_Type__c == 'Event' && item2.Action_Type__c != 'Event') {
-                return -1; // Event comes first
+            // First, prioritize Event action types with Start_Time__c within 7 minutes (absolute priority)
+            Boolean item1IsUrgentEvent = isUrgentEvent(item1);
+            Boolean item2IsUrgentEvent = isUrgentEvent(item2);
+            
+            if (item1IsUrgentEvent && !item2IsUrgentEvent) {
+                return -1; // Urgent Event comes first
             }
-            if (item1.Action_Type__c != 'Event' && item2.Action_Type__c == 'Event') {
-                return 1; // Non-Event comes after Event
+            if (!item1IsUrgentEvent && item2IsUrgentEvent) {
+                return 1; // Non-urgent comes after urgent Event
             }
             
             // Second, prioritize In Progress items over Pending items
@@ -1752,8 +1753,22 @@ public class NBAQueueManager {
         return contacts;
     }
 
+    // Helper method to check if an item is an urgent event (within 7 minutes)
+    private static Boolean isUrgentEvent(NBA_Queue__c item) {
+        if (item.Action_Type__c != 'Event' || item.Start_Time__c == null) {
+            return false;
+        }
+        
+        DateTime now = System.now();
+        DateTime eventTime = item.Start_Time__c;
+        Long minutesDifference = (eventTime.getTime() - now.getTime()) / (1000 * 60);
+        
+        // Event is urgent if it's starting within 7 minutes
+        return minutesDifference >= 0 && minutesDifference <= 7;
+    }
+
     @AuraEnabled
-    public static void handleEmailAccept(Id queueItemId) {
+    public static Map<String, Object> handleEmailAccept(Id queueItemId) {
         try {
             // Update the queue item status to In Progress
             NBA_Queue__c queueItem = new NBA_Queue__c(
@@ -1763,7 +1778,16 @@ public class NBAQueueManager {
             );
             update queueItem;
             
+            // Get the related opportunity for navigation
+            NBA_Queue__c updatedItem = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            
+            Map<String, Object> result = new Map<String, Object>();
+            result.put('success', true);
+            result.put('opportunityId', updatedItem.Opportunity__c);
+            result.put('actionType', 'Email');
+            
             System.debug('Email action accepted for queue item: ' + queueItemId);
+            return result;
         } catch (Exception e) {
             System.debug('Error accepting email action: ' + e.getMessage());
             throw new AuraHandledException('Error accepting email action: ' + e.getMessage());
@@ -1771,7 +1795,7 @@ public class NBAQueueManager {
     }
 
     @AuraEnabled
-    public static void handleEventAccept(Id queueItemId) {
+    public static Map<String, Object> handleEventAccept(Id queueItemId) {
         try {
             // Update the queue item status to In Progress
             NBA_Queue__c queueItem = new NBA_Queue__c(
@@ -1781,7 +1805,17 @@ public class NBAQueueManager {
             );
             update queueItem;
             
+            // Get the related opportunity for navigation
+            NBA_Queue__c updatedItem = [SELECT Id, Opportunity__c, Start_Time__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            
+            Map<String, Object> result = new Map<String, Object>();
+            result.put('success', true);
+            result.put('opportunityId', updatedItem.Opportunity__c);
+            result.put('actionType', 'Event');
+            result.put('startTime', updatedItem.Start_Time__c);
+            
             System.debug('Event action accepted for queue item: ' + queueItemId);
+            return result;
         } catch (Exception e) {
             System.debug('Error accepting event action: ' + e.getMessage());
             throw new AuraHandledException('Error accepting event action: ' + e.getMessage());
