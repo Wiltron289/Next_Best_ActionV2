@@ -2255,24 +2255,28 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     }
 
     // Event action handlers
-    async handleEventAccept() {
-        try {
-            this.isLoading = true;
-            const result = await handleEventAccept({ queueItemId: this.queueItem.Id });
-            
-            if (result.success) {
-                // Navigate to opportunity
-                this.navigateToRecord(result.opportunityId);
-                // Show meeting disposition modal
-                this.showMeetingDispositionModal = true;
+        async handleEventAccept() {
+            try {
+                this.isLoading = true;
+                const result = await handleEventAccept({ queueItemId: this.queueItem.Id });
+                
+                if (result.success) {
+                    // Navigate to event if available, otherwise opportunity
+                    if (result.eventId) {
+                        this.navigateToRecord(result.eventId);
+                    } else {
+                        this.navigateToRecord(result.opportunityId);
+                    }
+                    // Show meeting disposition modal
+                    this.showMeetingDispositionModal = true;
+                }
+            } catch (error) {
+                console.error('Error accepting event action:', error);
+                this.showToast('Error', 'Failed to accept event action', 'error');
+            } finally {
+                this.isLoading = false;
             }
-        } catch (error) {
-            console.error('Error accepting event action:', error);
-            this.showToast('Error', 'Failed to accept event action', 'error');
-        } finally {
-            this.isLoading = false;
         }
-    }
 
     async handleMeetingDispositionSave() {
         try {
