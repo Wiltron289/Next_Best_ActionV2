@@ -1325,7 +1325,10 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
 
     get actionEmoji() {
         if (!this.queueItem) return '📝';
-        return this.getActionEmoji(this.queueItem.Action_Type__c);
+        const actionType = this.queueItem.Action_Type__c;
+        const emoji = this.getActionEmoji(actionType);
+        console.log('Action Type:', actionType, 'Emoji:', emoji, 'Version: 2.0');
+        return emoji;
     }
 
     get opportunityName() {
