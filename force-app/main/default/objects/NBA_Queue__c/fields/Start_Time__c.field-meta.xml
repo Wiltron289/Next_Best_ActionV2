@@ -5,8 +5,4 @@
     <type>DateTime</type>
     <required>false</required>
     <description>Start time of the event that triggered this NBA Queue item. Used for priority override when within 7 minutes.</description>
-    <fieldPermissions>
-        <editable>true</editable>
-        <readable>true</readable>
-    </fieldPermissions>
 </CustomField>

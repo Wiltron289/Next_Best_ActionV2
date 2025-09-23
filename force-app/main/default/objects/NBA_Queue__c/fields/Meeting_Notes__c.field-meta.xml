@@ -6,8 +6,4 @@
     <type>LongTextArea</type>
     <visibleLines>3</visibleLines>
     <required>false</required>
-    <fieldPermissions>
-        <editable>true</editable>
-        <readable>true</readable>
-    </fieldPermissions>
 </CustomField>
