@@ -525,11 +525,6 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
         return this.queueItem?.Call_Script__c || '';
     }
 
-    get isEmailAction() {
-        const type = this.queueItem?.Action_Type__c || '';
-        return type.toLowerCase().includes('email');
-    }
-
     // Contact display helpers (mirroring widget logic)
     get shouldUseNBAQueueContact() {
         if (!this.queueItem?.Opportunity__c) {
