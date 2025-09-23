@@ -151,6 +151,8 @@ public class NBAQueueManager {
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
+                       Email_Message__c, Email_Message__r.Subject, Email_Message__r.MessageDate, Email_Message__r.FromAddress, Email_Message__r.ToAddress,
+                       Event__c, Event__r.Subject, Event__r.StartDateTime, Event__r.EndDateTime, Event__r.Location,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
@@ -158,7 +160,7 @@ public class NBAQueueManager {
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
                         Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
                         Implementation_Project__c, Implementation_Project__r.Name,
-                        Call_Script__c
+                        Call_Script__c, Meeting_Disposition__c, Meeting_Notes__c
                 FROM NBA_Queue__c 
                 WHERE Sales_Rep__c = :userId
                 AND Status__c IN ('Pending', 'In Progress', 'Snoozed')
@@ -264,6 +266,8 @@ public class NBAQueueManager {
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
+                       Email_Message__c, Email_Message__r.Subject, Email_Message__r.MessageDate, Email_Message__r.FromAddress, Email_Message__r.ToAddress,
+                       Event__c, Event__r.Subject, Event__r.StartDateTime, Event__r.EndDateTime, Event__r.Location,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
@@ -271,7 +275,7 @@ public class NBAQueueManager {
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
                         Scheduling_Engaged__c, Shift_Notes_Engaged__c, Shift_Trades_Engaged__c, Time_Offs_Engaged__c, Time_Tracking_Engaged__c,
                         Implementation_Project__c, Implementation_Project__r.Name,
-                        Call_Script__c
+                        Call_Script__c, Meeting_Disposition__c, Meeting_Notes__c
                 FROM NBA_Queue__c 
                 WHERE Sales_Rep__c = :userId
                 AND Status__c IN ('Pending', 'In Progress', 'Snoozed')
@@ -618,7 +622,15 @@ public class NBAQueueManager {
     // Custom comparator class to sort by status first (In Progress prioritized), then by adjusted priority score, then by creation date
     public class PriorityScoreComparator implements Comparator<NBA_Queue__c> {
         public Integer compare(NBA_Queue__c item1, NBA_Queue__c item2) {
-            // First, prioritize In Progress items over Pending items
+            // First, prioritize Event action types over all others (absolute priority)
+            if (item1.Action_Type__c == 'Event' && item2.Action_Type__c != 'Event') {
+                return -1; // Event comes first
+            }
+            if (item1.Action_Type__c != 'Event' && item2.Action_Type__c == 'Event') {
+                return 1; // Non-Event comes after Event
+            }
+            
+            // Second, prioritize In Progress items over Pending items
             if (item1.Status__c == 'In Progress' && item2.Status__c == 'Pending') {
                 return -1; // In Progress comes first
             }
@@ -1738,6 +1750,88 @@ public class NBAQueueManager {
         }
         
         return contacts;
+    }
+
+    @AuraEnabled
+    public static void handleEmailAccept(Id queueItemId) {
+        try {
+            // Update the queue item status to In Progress
+            NBA_Queue__c queueItem = new NBA_Queue__c(
+                Id = queueItemId,
+                Status__c = 'In Progress',
+                First_Viewed_Date__c = System.now()
+            );
+            update queueItem;
+            
+            System.debug('Email action accepted for queue item: ' + queueItemId);
+        } catch (Exception e) {
+            System.debug('Error accepting email action: ' + e.getMessage());
+            throw new AuraHandledException('Error accepting email action: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static void handleEventAccept(Id queueItemId) {
+        try {
+            // Update the queue item status to In Progress
+            NBA_Queue__c queueItem = new NBA_Queue__c(
+                Id = queueItemId,
+                Status__c = 'In Progress',
+                First_Viewed_Date__c = System.now()
+            );
+            update queueItem;
+            
+            System.debug('Event action accepted for queue item: ' + queueItemId);
+        } catch (Exception e) {
+            System.debug('Error accepting event action: ' + e.getMessage());
+            throw new AuraHandledException('Error accepting event action: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static void saveMeetingDisposition(Id queueItemId, String meetingDisposition, String meetingNotes) {
+        try {
+            NBA_Queue__c queueItem = new NBA_Queue__c(
+                Id = queueItemId,
+                Meeting_Disposition__c = meetingDisposition,
+                Meeting_Notes__c = meetingNotes,
+                Status__c = 'Completed',
+                Actioned_Date__c = System.now()
+            );
+            update queueItem;
+            
+            // If there's a related opportunity, update it with meeting notes
+            NBA_Queue__c updatedItem = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            if (updatedItem.Opportunity__c != null && String.isNotBlank(meetingNotes)) {
+                Opportunity opp = new Opportunity(
+                    Id = updatedItem.Opportunity__c,
+                    Description = meetingNotes
+                );
+                update opp;
+            }
+            
+            System.debug('Meeting disposition saved for queue item: ' + queueItemId);
+        } catch (Exception e) {
+            System.debug('Error saving meeting disposition: ' + e.getMessage());
+            throw new AuraHandledException('Error saving meeting disposition: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static void completeEmailAction(Id queueItemId) {
+        try {
+            NBA_Queue__c queueItem = new NBA_Queue__c(
+                Id = queueItemId,
+                Status__c = 'Completed',
+                Actioned_Date__c = System.now()
+            );
+            update queueItem;
+            
+            System.debug('Email action completed for queue item: ' + queueItemId);
+        } catch (Exception e) {
+            System.debug('Error completing email action: ' + e.getMessage());
+            throw new AuraHandledException('Error completing email action: ' + e.getMessage());
+        }
     }
 
 }

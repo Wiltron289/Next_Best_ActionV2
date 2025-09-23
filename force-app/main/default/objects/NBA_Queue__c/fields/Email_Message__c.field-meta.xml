@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Email_Message__c</fullName>
+    <label>Email Message</label>
+    <type>Lookup</type>
+    <referenceTo>EmailMessage</referenceTo>
+    <relationshipLabel>NBA Queue Items</relationshipLabel>
+    <relationshipName>NBA_Queue_Items</relationshipName>
+    <required>false</required>
+</CustomField>
