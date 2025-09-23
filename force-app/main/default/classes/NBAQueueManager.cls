@@ -1537,42 +1537,51 @@ public class NBAQueueManager {
             return null;
         }
         
-        // Skip if Opportunity Last_Call_Date_Time__c is today
-        if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Last_Call_Date_Time__c != null) {
-            DateTime lastCallTime = item.Opportunity__r.Last_Call_Date_Time__c;
-            Date today = Date.today();
-            Date lastCallDate = lastCallTime.date();
-            
-            if (lastCallDate == today) {
-                System.debug('Skipping item due to last call being today: ' + lastCallTime);
-                return 'Already called today';
-            }
-        }
+        // 3) Check if this is a call-based action (soft blocks only apply to calls)
+        Boolean isCallAction = item.Action_Type__c != null && 
+                              (item.Action_Type__c.toLowerCase().includes('call') || 
+                               item.Action_Type__c.toLowerCase().includes('payroll'));
         
-        // Skip if Opportunity Future_Follow_Up_Date__c is in the future
-        if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Future_Follow_Up_Date__c != null) {
-            Date futureFollowUpDate = item.Opportunity__r.Future_Follow_Up_Date__c;
-            Date today = Date.today();
-            
-            if (futureFollowUpDate > today) {
-                System.debug('Skipping item due to future follow-up date: ' + futureFollowUpDate);
-                return 'Future follow-up date is set to ' + String.valueOf(futureFollowUpDate);
+        // 4) Soft blocks only apply to call-based actions
+        if (isCallAction) {
+            // Skip if Opportunity Last_Call_Date_Time__c is today
+            if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Last_Call_Date_Time__c != null) {
+                DateTime lastCallTime = item.Opportunity__r.Last_Call_Date_Time__c;
+                Date today = Date.today();
+                Date lastCallDate = lastCallTime.date();
+                
+                if (lastCallDate == today) {
+                    System.debug('Skipping call item due to last call being today: ' + lastCallTime);
+                    return 'Already called today';
+                }
             }
-        }
-        // Skip if this opportunity has a future Event beyond the 15-minute window
-        if (item.Opportunity__c != null && blockedOppIds != null && blockedOppIds.contains(item.Opportunity__c)) {
-            System.debug('Skipping item due to future scheduled Event > 15 minutes for Opp: ' + item.Opportunity__c);
-            return 'Future meeting scheduled (>15 minutes)';
-        }
-        
-        // Skip if Account Payroll_Status__c contains specific values
-        if (item.Account__r != null && item.Account__r.Payroll_Status__c != null) {
-            String payrollStatus = item.Account__r.Payroll_Status__c.toLowerCase();
-            if (payrollStatus == 'pending' || 
-                payrollStatus == 'processing' || 
-                payrollStatus == 'paid') {
-                System.debug('Skipping item due to payroll status: ' + item.Account__r.Payroll_Status__c);
-                return 'Account is in payroll status: ' + item.Account__r.Payroll_Status__c;
+            
+            // Skip if Opportunity Future_Follow_Up_Date__c is in the future
+            if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Future_Follow_Up_Date__c != null) {
+                Date futureFollowUpDate = item.Opportunity__r.Future_Follow_Up_Date__c;
+                Date today = Date.today();
+                
+                if (futureFollowUpDate > today) {
+                    System.debug('Skipping call item due to future follow-up date: ' + futureFollowUpDate);
+                    return 'Future follow-up date is set to ' + String.valueOf(futureFollowUpDate);
+                }
+            }
+            
+            // Skip if this opportunity has a future Event beyond the 15-minute window
+            if (item.Opportunity__c != null && blockedOppIds != null && blockedOppIds.contains(item.Opportunity__c)) {
+                System.debug('Skipping call item due to future scheduled Event > 15 minutes for Opp: ' + item.Opportunity__c);
+                return 'Future meeting scheduled (>15 minutes)';
+            }
+            
+            // Skip if Account Payroll_Status__c contains specific values
+            if (item.Account__r != null && item.Account__r.Payroll_Status__c != null) {
+                String payrollStatus = item.Account__r.Payroll_Status__c.toLowerCase();
+                if (payrollStatus == 'pending' || 
+                    payrollStatus == 'processing' || 
+                    payrollStatus == 'paid') {
+                    System.debug('Skipping call item due to payroll status: ' + item.Account__r.Payroll_Status__c);
+                    return 'Account is in payroll status: ' + item.Account__r.Payroll_Status__c;
+                }
             }
         }
         

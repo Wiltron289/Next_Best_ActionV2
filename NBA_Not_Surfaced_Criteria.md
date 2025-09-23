@@ -1,64 +1,62 @@
-# NBA Queue - Not Surfaced Criteria
+# NBA Queue "Not Surfaced" Criteria
 
 ## Overview
-The NBA Queue system uses sophisticated filtering logic to determine when items should **NOT** be shown to sales reps. This ensures reps only see actionable, appropriate items while respecting customer timing and business rules.
+This document explains the criteria that determine when NBA Queue items are **not surfaced** (filtered out) from the queue display. These criteria help ensure sales reps only see relevant, actionable items.
 
-## Hard Blocks (Always Exclude)
-These criteria **always** prevent an item from being surfaced, regardless of status:
+## Hard Blocks (Apply to ALL Action Types)
+These criteria **always exclude** items, regardless of action type or status:
 
-### Opportunity Stage Restrictions
-- `'Closed Won - Pending Implementation'`
-- `'Closed Lost'`
-- `'Ran Payroll'`
+### 1. Opportunity Stage Blocks
+- **Closed Won - Pending Implementation**
+- **Closed Lost** 
+- **Ran Payroll**
 
-### Account Payroll Status Restrictions
-- `'pending'`
-- `'processing'`
-- `'paid'`
+*Rationale: These opportunities are no longer active sales opportunities.*
 
-## Soft Blocks (Bypassed for In Progress Items)
-These criteria prevent surfacing **unless** the item is already "In Progress":
+## Soft Blocks (Apply ONLY to Call-Based Actions)
+These criteria only apply to actions containing "Call" or "Payroll" in the Action_Type__c field:
 
-### Recent Call Activity
-- **Already called today**: If `Opportunity.Last_Call_Date_Time__c` is today
-- **Reason**: Prevents duplicate calls on the same day
+### 1. Already Called Today
+- **Field**: `Opportunity.Last_Call_Date_Time__c`
+- **Logic**: If last call was today, skip call actions
+- **Exception**: In Progress items can still be completed
 
-### Future Follow-up Scheduling
-- **Future follow-up date set**: If `Opportunity.Future_Follow_Up_Date__c` is in the future
-- **Reason**: Respects scheduled follow-up timing
+### 2. Future Follow-Up Date Set
+- **Field**: `Opportunity.Future_Follow_Up_Date__c` 
+- **Logic**: If future follow-up date > today, skip call actions
+- **Exception**: In Progress items can still be completed
 
-### Future Meeting Conflicts
-- **Scheduled events**: If there's a future Event scheduled more than 15 minutes from now
-- **Reason**: Avoids interrupting scheduled meetings
+### 3. Future Meeting Scheduled
+- **Logic**: If opportunity has an Event starting > 15 minutes from now, skip call actions
+- **Exception**: In Progress items can still be completed
 
-## Special Status Handling
+### 4. Account Payroll Status
+- **Field**: `Account.Payroll_Status__c`
+- **Values**: "Pending", "Processing", "Paid"
+- **Logic**: Skip call actions for accounts in these payroll statuses
+- **Exception**: In Progress items can still be completed
 
-### In Progress Items
-- Items with `Status__c = 'In Progress'` **bypass all soft blocks**
-- This allows reps to complete work they've already started
-- Only hard blocks (stage/payroll status) still apply
+## Action Type Specific Behavior
 
-### Snoozed Items
-- Items with `Status__c = 'Snoozed'` are only shown if `Snoozed_Until__c <= now()`
-- This respects the snooze timing
+### Call Actions (Including Payroll)
+- **Subject to**: All hard blocks + all soft blocks
+- **Examples**: "Call", "Payroll Opportunity Call", "Payroll Prospecting Call"
 
-## Business Logic Summary
+### Email Actions
+- **Subject to**: Only hard blocks
+- **Not subject to**: Soft blocks (can be surfaced even if called today, etc.)
 
-| **Criteria** | **Business Reason** | **Impact** |
-|--------------|-------------------|------------|
-| **Closed Stages** | Customer already converted or lost | Prevents wasted effort |
-| **Payroll Status** | Customer actively using service | Avoids interrupting service |
-| **Called Today** | Already contacted today | Prevents harassment |
-| **Future Follow-up** | Respects scheduled timing | Maintains professional cadence |
-| **Future Meetings** | Avoids double-booking | Prevents conflicts |
+### Event Actions  
+- **Subject to**: Only hard blocks
+- **Not subject to**: Soft blocks (urgent events should always be shown)
 
-## Common Debug Messages
-The system logs the specific reason for each skipped item:
-- `"Opportunity stage is Closed Lost"`
-- `"Already called today"`
-- `"Future follow-up date is set to 2024-01-15"`
-- `"Future meeting scheduled (>15 minutes)"`
-- `"Account is in payroll status: processing"`
+## In Progress Override
+Items with `Status__c = 'In Progress'` bypass **all soft blocks** to allow reps to complete their work, regardless of action type.
 
----
-*This filtering ensures sales reps only see actionable, appropriate items while maintaining professional customer engagement standards.*
+## Debugging
+Check debug logs for skip reasons:
+- `Skipping item due to Opportunity stage (hard block)`
+- `Skipping call item due to last call being today`
+- `Skipping call item due to future follow-up date`
+- `Skipping call item due to future scheduled Event`
+- `Skipping call item due to payroll status`
