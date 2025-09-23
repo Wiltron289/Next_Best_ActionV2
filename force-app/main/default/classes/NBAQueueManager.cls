@@ -151,7 +151,7 @@ public class NBAQueueManager {
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
-                       Start_Time__c, Event_Activity__c, Event_Activity__r.Id, Event_Activity__r.Subject,
+                       Start_Time__c, Event_Id__c,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
@@ -265,7 +265,7 @@ public class NBAQueueManager {
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
-                       Start_Time__c, Event_Activity__c, Event_Activity__r.Id, Event_Activity__r.Subject,
+                       Start_Time__c, Event_Id__c,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
@@ -1815,14 +1815,14 @@ public class NBAQueueManager {
             update queueItem;
             
             // Get the related opportunity and event for navigation
-            NBA_Queue__c updatedItem = [SELECT Id, Opportunity__c, Start_Time__c, Event_Activity__c, Event_Activity__r.Id FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            NBA_Queue__c updatedItem = [SELECT Id, Opportunity__c, Start_Time__c, Event_Id__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
             
             Map<String, Object> result = new Map<String, Object>();
             result.put('success', true);
             result.put('opportunityId', updatedItem.Opportunity__c);
             result.put('actionType', 'Event');
             result.put('startTime', updatedItem.Start_Time__c);
-            result.put('eventId', updatedItem.Event_Activity__c);
+            result.put('eventId', updatedItem.Event_Id__c);
             
             System.debug('Event action accepted for queue item: ' + queueItemId);
             return result;
