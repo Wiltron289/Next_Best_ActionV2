@@ -51,6 +51,11 @@
                 <default>false</default>
                 <label>Payroll Prospecting Call</label>
             </value>
+            <value>
+                <fullName>Event</fullName>
+                <default>false</default>
+                <label>Event</label>
+            </value>
         </valueSetDefinition>
     </valueSet>
 </CustomField>

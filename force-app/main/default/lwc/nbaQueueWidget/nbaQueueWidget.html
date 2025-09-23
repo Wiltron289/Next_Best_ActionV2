@@ -483,7 +483,16 @@
                 <template if:false={showDismissForm}>
                     <div class="nba-widget-footer">
                         <button class="nba-widget-skip" data-id={queueItem.Id} onclick={handleDismissAction}>Skip</button>
-                        <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>Accept</button>
+                        <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>
+                            <template if:true={isCallAction}>Accept</template>
+                            <template if:true={isEmailAction}>Open Email</template>
+                            <template if:true={isEventAction}>Join Meeting</template>
+                            <template if:false={isCallAction}>
+                                <template if:false={isEmailAction}>
+                                    <template if:false={isEventAction}>Accept</template>
+                                </template>
+                            </template>
+                        </button>
                     </div>
                 </template>
             </template>
@@ -540,6 +549,64 @@
                 <div class="nba-widget-modal-footer">
                     <button class="nba-widget-form-cancel" onclick={handleCancelContactConfirmation}>Cancel</button>
                     <button class="nba-widget-form-save" onclick={handleCallNow}>Call Now</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Email Complete Modal -->
+    <template if:true={showEmailCompleteModal}>
+        <div class="nba-widget-modal-overlay">
+            <div class="nba-widget-modal">
+                <div class="nba-widget-modal-header">
+                    <h3>Email Action Complete</h3>
+                    <button class="nba-widget-modal-close" onclick={handleEmailCompleteCancel}>×</button>
+                </div>
+                <div class="nba-widget-modal-body">
+                    <p>You have been navigated to the Opportunity record. Please complete your email action and then click the button below to mark this action as complete.</p>
+                </div>
+                <div class="nba-widget-modal-footer">
+                    <button class="nba-widget-form-cancel" onclick={handleEmailCompleteCancel}>Cancel</button>
+                    <button class="nba-widget-form-save" onclick={handleEmailComplete} disabled={isLoading}>
+                        Mark Complete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Meeting Disposition Modal -->
+    <template if:true={showMeetingDispositionModal}>
+        <div class="nba-widget-modal-overlay">
+            <div class="nba-widget-modal">
+                <div class="nba-widget-modal-header">
+                    <h3>Meeting Disposition</h3>
+                    <button class="nba-widget-modal-close" onclick={handleMeetingDispositionCancel}>×</button>
+                </div>
+                <div class="nba-widget-modal-body">
+                    <div class="nba-widget-form-group">
+                        <label class="nba-widget-form-label">Meeting Disposition *</label>
+                        <select class="nba-widget-form-select" value={meetingDisposition} onchange={handleMeetingDispositionChange}>
+                            <option value="">Select disposition...</option>
+                            <template for:each={meetingDispositionOptions} for:item="option">
+                                <option key={option.value} value={option.value}>{option.label}</option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <div class="nba-widget-form-group">
+                        <label class="nba-widget-form-label">Meeting Notes</label>
+                        <textarea class="nba-widget-form-textarea" 
+                                  placeholder="Enter meeting notes..." 
+                                  value={meetingNotes} 
+                                  onchange={handleMeetingNotesChange}></textarea>
+                    </div>
+                </div>
+                <div class="nba-widget-modal-footer">
+                    <button class="nba-widget-form-cancel" onclick={handleMeetingDispositionCancel}>Cancel</button>
+                    <button class="nba-widget-form-save" onclick={handleMeetingDispositionSave} disabled={isLoading}>
+                        Save
+                    </button>
                 </div>
             </div>
         </div>

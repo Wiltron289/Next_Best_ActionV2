@@ -27,6 +27,10 @@ import getOpportunityStageNames from '@salesforce/apex/NBAQueueManager.getOpport
 import getFutureFollowUpReasons from '@salesforce/apex/NBAQueueManager.getFutureFollowUpReasons';
 import getLeadStatusNames from '@salesforce/apex/NBAQueueManager.getLeadStatusNames';
 import finalizeQueueItem from '@salesforce/apex/NBAQueueManager.finalizeQueueItem';
+import handleEmailAccept from '@salesforce/apex/NBAQueueManager.handleEmailAccept';
+import handleEventAccept from '@salesforce/apex/NBAQueueManager.handleEventAccept';
+import saveMeetingDisposition from '@salesforce/apex/NBAQueueManager.saveMeetingDisposition';
+import completeEmailAction from '@salesforce/apex/NBAQueueManager.completeEmailAction';
 import userId from '@salesforce/user/Id';
 import OpportunityContextChannel from '@salesforce/messageChannel/NBA_OpportunityContext__c';
 
@@ -73,6 +77,12 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     @track nextStepDate = '';
     @track nextSteps = '';
     @track futureFollowUpDate = '';
+    
+    // Email and Event action properties
+    @track showEmailCompleteModal = false;
+    @track showMeetingDispositionModal = false;
+    @track meetingDisposition = '';
+    @track meetingNotes = '';
     @track futureFollowUpReason = '';
     @track selectedStage = '';
     @track stageOptions = [];
@@ -516,6 +526,26 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         return '';
     }
 
+    get isEmailAction() {
+        return this.queueItem?.Action_Type__c === 'Email';
+    }
+
+    get isEventAction() {
+        return this.queueItem?.Action_Type__c === 'Event';
+    }
+
+    get isCallAction() {
+        return this.queueItem?.Action_Type__c === 'Call' || 
+               this.queueItem?.Action_Type__c?.includes('Call');
+    }
+
+    get meetingDispositionOptions() {
+        return [
+            { label: 'Attended', value: 'Attended' },
+            { label: 'Missed', value: 'Missed' }
+        ];
+    }
+
 
 
     get callDispositionOptions() {
@@ -572,10 +602,14 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         }
         this.selectedItem = this.queueItem;
         
-        // Use two-stage process for call actions
+        // Handle different action types
         const actionType = this.queueItem?.Action_Type__c || '';
         if (actionType.toLowerCase().includes('call')) {
             this.navigateToRecordAndShowConfirmation();
+        } else if (actionType === 'Email') {
+            this.handleEmailAccept();
+        } else if (actionType === 'Event') {
+            this.handleEventAccept();
         } else {
             this.executeAcceptAction();
         }
@@ -936,6 +970,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         const iconMap = {
             'Call': 'utility:call',
             'Email': 'utility:email',
+            'Event': 'utility:event',
             'Meeting': 'utility:event',
             'Follow_Up': 'utility:follow_up',
             'Demo': 'utility:screen_share',
@@ -2182,5 +2217,97 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             console.error('Error triggering click to call:', error);
             this.showToast('Error', 'Failed to initiate call', 'error');
         }
+    }
+
+    // Email action handlers
+    async handleEmailAccept() {
+        try {
+            this.isLoading = true;
+            const result = await handleEmailAccept({ queueItemId: this.queueItem.Id });
+            
+            if (result.success) {
+                // Navigate to opportunity
+                this.navigateToRecord(result.opportunityId);
+                // Show complete modal
+                this.showEmailCompleteModal = true;
+            }
+        } catch (error) {
+            console.error('Error accepting email action:', error);
+            this.showToast('Error', 'Failed to accept email action', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    async handleEmailComplete() {
+        try {
+            this.isLoading = true;
+            await completeEmailAction({ queueItemId: this.queueItem.Id });
+            this.showEmailCompleteModal = false;
+            this.showToast('Success', 'Email action completed', 'success');
+            this.loadQueueItem();
+        } catch (error) {
+            console.error('Error completing email action:', error);
+            this.showToast('Error', 'Failed to complete email action', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    // Event action handlers
+    async handleEventAccept() {
+        try {
+            this.isLoading = true;
+            const result = await handleEventAccept({ queueItemId: this.queueItem.Id });
+            
+            if (result.success) {
+                // Navigate to opportunity
+                this.navigateToRecord(result.opportunityId);
+                // Show meeting disposition modal
+                this.showMeetingDispositionModal = true;
+            }
+        } catch (error) {
+            console.error('Error accepting event action:', error);
+            this.showToast('Error', 'Failed to accept event action', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    async handleMeetingDispositionSave() {
+        try {
+            this.isLoading = true;
+            await saveMeetingDisposition({ 
+                queueItemId: this.queueItem.Id,
+                meetingDisposition: this.meetingDisposition,
+                meetingNotes: this.meetingNotes
+            });
+            this.showMeetingDispositionModal = false;
+            this.showToast('Success', 'Meeting disposition saved', 'success');
+            this.loadQueueItem();
+        } catch (error) {
+            console.error('Error saving meeting disposition:', error);
+            this.showToast('Error', 'Failed to save meeting disposition', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    handleMeetingDispositionChange(event) {
+        this.meetingDisposition = event.target.value;
+    }
+
+    handleMeetingNotesChange(event) {
+        this.meetingNotes = event.target.value;
+    }
+
+    handleEmailCompleteCancel() {
+        this.showEmailCompleteModal = false;
+    }
+
+    handleMeetingDispositionCancel() {
+        this.showMeetingDispositionModal = false;
+        this.meetingDisposition = '';
+        this.meetingNotes = '';
     }
 }
