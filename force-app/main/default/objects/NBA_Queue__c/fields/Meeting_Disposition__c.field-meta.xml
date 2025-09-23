@@ -20,4 +20,8 @@
         </valueSetDefinition>
     </valueSet>
     <required>false</required>
+    <fieldPermissions>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
 </CustomField>

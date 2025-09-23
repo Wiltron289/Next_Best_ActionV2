@@ -1539,8 +1539,8 @@ public class NBAQueueManager {
         
         // 3) Check if this is a call-based action (soft blocks only apply to calls)
         Boolean isCallAction = item.Action_Type__c != null && 
-                              (item.Action_Type__c.toLowerCase().includes('call') || 
-                               item.Action_Type__c.toLowerCase().includes('payroll'));
+                              (item.Action_Type__c.toLowerCase().contains('call') || 
+                               item.Action_Type__c.toLowerCase().contains('payroll'));
         
         // 4) Soft blocks only apply to call-based actions
         if (isCallAction) {

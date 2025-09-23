@@ -8,4 +8,8 @@
     <trackHistory>false</trackHistory>
     <trackTrending>false</trackTrending>
     <unique>false</unique>
+    <fieldPermissions>
+        <editable>true</editable>
+        <readable>true</readable>
+    </fieldPermissions>
 </CustomField>
