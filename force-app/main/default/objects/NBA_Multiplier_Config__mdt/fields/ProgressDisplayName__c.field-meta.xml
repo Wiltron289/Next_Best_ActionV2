@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>Progression_Label__c</fullName>
-    <label>Progression Label</label>
+    <fullName>ProgressLabel__c</fullName>
+    <label>Progress Label</label>
     <type>Text</type>
     <length>50</length>
     <defaultValue>Progression</defaultValue>
     <description>Display label for progression multiplier in UI and reports</description>
-    <inlineHelpText>Customize the label shown for progression multiplier (e.g., "Sales Activity", "Recent Movement")</inlineHelpText>
+    <inlineHelpText>Customize the label shown for progress multiplier (e.g., "Sales Activity", "Recent Movement")</inlineHelpText>
 </CustomField>
