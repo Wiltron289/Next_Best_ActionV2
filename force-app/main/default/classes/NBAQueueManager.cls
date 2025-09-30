@@ -1765,13 +1765,13 @@ public class NBAQueueManager {
         details.put('bestTimeMultiplier', bestTimeMultiplier);
         details.put('progressionMultiplier', progressionMultiplier);
         
-        // Build multiplier description for Priority_Multiplier_Applied__c field
+        // Build multiplier description using dynamic descriptions from metadata
         List<String> appliedMultipliers = new List<String>();
         if (webUsageApplied) {
-            appliedMultipliers.add('Web Usage (' + String.valueOf(config.Web_Usage_Multiplier__c) + 'x)');
+            appliedMultipliers.add(config.Web_Usage_Description__c);
         }
         if (bestTimeApplied) {
-            appliedMultipliers.add('Best Time (' + String.valueOf(config.Best_Time_Multiplier__c) + 'x)');
+            appliedMultipliers.add(config.Best_Time_Description__c);
         }
         if (progressionApplied) {
             appliedMultipliers.add(progressionDescription);
@@ -1786,8 +1786,8 @@ public class NBAQueueManager {
     private static NBA_Multiplier_Config__mdt getMultiplierConfig() {
         try {
             NBA_Multiplier_Config__mdt config = [
-                SELECT Web_Usage_Multiplier__c, Web_Usage_Hours__c,
-                       Best_Time_Multiplier__c, Best_Time_Minutes__c,
+                SELECT Web_Usage_Multiplier__c, Web_Usage_Hours__c, Web_Usage_Description__c,
+                       Best_Time_Multiplier__c, Best_Time_Minutes__c, Best_Time_Description__c,
                        Progression_Tier1_Multiplier__c, Progression_Tier1_Days__c, Progression_Tier1_Description__c,
                        Progression_Tier2_Multiplier__c, Progression_Tier2_Days__c, Progression_Tier2_Description__c
                 FROM NBA_Multiplier_Config__mdt 
@@ -1801,8 +1801,10 @@ public class NBAQueueManager {
             return new NBA_Multiplier_Config__mdt(
                 Web_Usage_Multiplier__c = 1.25,
                 Web_Usage_Hours__c = 1,
+                Web_Usage_Description__c = 'Web Usage (1.25x) - Last 1 hour',
                 Best_Time_Multiplier__c = 1.2,
                 Best_Time_Minutes__c = 30,
+                Best_Time_Description__c = 'Best Time (1.2x) - ±30 minutes',
                 Progression_Tier1_Multiplier__c = 1.5,
                 Progression_Tier1_Days__c = 7,
                 Progression_Tier1_Description__c = 'Progression (1.5x) - Last 7 days',
