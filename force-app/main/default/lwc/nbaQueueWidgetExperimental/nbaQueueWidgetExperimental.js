@@ -2317,19 +2317,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     }
 
     get multiplierText() {
-        let text = '';
-        if (this.webUsageApplied) {
-            text += `Web Usage (1.25x)`;
-        }
-        if (this.bestTimeApplied) {
-            if (text) text += ', ';
-            text += `Best Time (1.2x)`;
-        }
-        if (this.progressionApplied) {
-            if (text) text += ', ';
-            text += `Progression (${this.progressionMultiplier}x)`;
-        }
-        return text;
+        return this.multiplierDescription || 'None';
     }
 
     get priorityScoreClass() {
