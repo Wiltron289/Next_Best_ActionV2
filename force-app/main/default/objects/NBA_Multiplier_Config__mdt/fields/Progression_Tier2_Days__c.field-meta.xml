@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Progression_Tier2_Days__c</fullName>
+    <label>Progression Tier 2 Days</label>
+    <type>Number</type>
+    <precision>3</precision>
+    <scale>0</scale>
+    <defaultValue>30</defaultValue>
+    <description>Days threshold for Tier 2 progression multiplier</description>
+    <inlineHelpText>How many days back to apply Tier 2 progression multiplier (must be greater than Tier 1)</inlineHelpText>
+</CustomField>

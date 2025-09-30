@@ -1687,6 +1687,9 @@ public class NBAQueueManager {
 
     // Helper method to calculate adjusted priority score and return details
     private static Map<String, Object> calculateAdjustedPriorityScoreWithDetails(NBA_Queue__c item) {
+        // Get multiplier configuration from metadata
+        NBA_Multiplier_Config__mdt config = getMultiplierConfig();
+        
         Decimal adjustedScore = item.Priority_Score__c != null ? item.Priority_Score__c : 0;
         Boolean webUsageApplied = false;
         Boolean bestTimeApplied = false;
@@ -1695,22 +1698,22 @@ public class NBAQueueManager {
         Decimal bestTimeMultiplier = 1;
         Decimal progressionMultiplier = 1;
 
-        // Check if Last_Web_Usage_Timestamp__c is within the last hour OF TODAY
+        // Check if Last_Web_Usage_Timestamp__c is within the configured hours OF TODAY
         if (item.Account__r.Last_Web_Usage_Timestamp__c != null) {
             DateTime webUsageTime = item.Account__r.Last_Web_Usage_Timestamp__c;
             DateTime today = DateTime.now().date();
-            DateTime oneHourAgo = DateTime.now().addHours(-1);
+            DateTime hoursAgo = DateTime.now().addHours(-Integer.valueOf(config.Web_Usage_Hours__c));
             
-            // Only apply if web usage was today AND within the last hour
-            if (webUsageTime.date() == today && webUsageTime >= oneHourAgo) {
-                adjustedScore = adjustedScore * 1.25;
+            // Only apply if web usage was today AND within the configured hours
+            if (webUsageTime.date() == today && webUsageTime >= hoursAgo) {
+                adjustedScore = adjustedScore * config.Web_Usage_Multiplier__c;
                 webUsageApplied = true;
-                webUsageMultiplier = 1.25;
-                System.debug('Applied 1.25x multiplier for recent web usage today. Original: ' + item.Priority_Score__c + ', Adjusted: ' + adjustedScore);
+                webUsageMultiplier = config.Web_Usage_Multiplier__c;
+                System.debug('Applied ' + config.Web_Usage_Multiplier__c + 'x multiplier for recent web usage today. Original: ' + item.Priority_Score__c + ', Adjusted: ' + adjustedScore);
             }
         }
         
-        // Check if Best_Time_to_Call__c is within the current hour
+        // Check if Best_Time_to_Call__c is within the configured time window
         if (item.Best_Time_to_Call__c != null) {
             Time bestTime = item.Best_Time_to_Call__c.time();
             DateTime now = DateTime.now();
@@ -1720,29 +1723,39 @@ public class NBAQueueManager {
             Integer bestTimeMinutes = bestTime.hour() * 60 + bestTime.minute();
             Integer currentTimeMinutes = currentTime.hour() * 60 + currentTime.minute();
             
-            // Check if best time is within the current hour (within 30 minutes)
+            // Check if best time is within the configured minutes tolerance
             Integer timeDifference = Math.abs(bestTimeMinutes - currentTimeMinutes);
-            if (timeDifference <= 30) {
-                adjustedScore = adjustedScore * 1.2;
+            if (timeDifference <= Integer.valueOf(config.Best_Time_Minutes__c)) {
+                adjustedScore = adjustedScore * config.Best_Time_Multiplier__c;
                 bestTimeApplied = true;
-                bestTimeMultiplier = 1.2;
-                System.debug('Applied 1.2x multiplier for best time to call. Original: ' + item.Priority_Score__c + ', Adjusted: ' + adjustedScore);
+                bestTimeMultiplier = config.Best_Time_Multiplier__c;
+                System.debug('Applied ' + config.Best_Time_Multiplier__c + 'x multiplier for best time to call. Original: ' + item.Priority_Score__c + ', Adjusted: ' + adjustedScore);
             }
         }
         
-        // New: Progression recency multiplier based on Account.Last_Progression_Time__c
+        // Progression recency multiplier based on Account.Last_Progression_Time__c with configurable tiers
         if (item.Account__r != null && item.Account__r.Last_Progression_Time__c != null) {
             Datetime lastProg = item.Account__r.Last_Progression_Time__c;
-            Datetime sevenDaysAgo = Datetime.now().addDays(-7);
-            Datetime thirtyDaysAgo = Datetime.now().addDays(-30);
-            if (lastProg >= sevenDaysAgo) {
-                adjustedScore = adjustedScore * 1.5;
+            Datetime tier1DaysAgo = Datetime.now().addDays(-Integer.valueOf(config.Progression_Tier1_Days__c));
+            Datetime tier2DaysAgo = Datetime.now().addDays(-Integer.valueOf(config.Progression_Tier2_Days__c));
+            Datetime tier3DaysAgo = Datetime.now().addDays(-Integer.valueOf(config.Progression_Tier3_Days__c));
+            
+            // Apply highest applicable tier (most recent progression gets highest multiplier)
+            if (lastProg >= tier1DaysAgo) {
+                adjustedScore = adjustedScore * config.Progression_Tier1_Multiplier__c;
                 progressionApplied = true;
-                progressionMultiplier = 1.5;
-            } else if (lastProg >= thirtyDaysAgo) {
-                adjustedScore = adjustedScore * 1.2;
+                progressionMultiplier = config.Progression_Tier1_Multiplier__c;
+                System.debug('Applied Tier 1 progression multiplier: ' + config.Progression_Tier1_Multiplier__c + 'x');
+            } else if (lastProg >= tier2DaysAgo) {
+                adjustedScore = adjustedScore * config.Progression_Tier2_Multiplier__c;
                 progressionApplied = true;
-                progressionMultiplier = 1.2;
+                progressionMultiplier = config.Progression_Tier2_Multiplier__c;
+                System.debug('Applied Tier 2 progression multiplier: ' + config.Progression_Tier2_Multiplier__c + 'x');
+            } else if (lastProg >= tier3DaysAgo && config.Progression_Tier3_Multiplier__c > 1.0) {
+                adjustedScore = adjustedScore * config.Progression_Tier3_Multiplier__c;
+                progressionApplied = true;
+                progressionMultiplier = config.Progression_Tier3_Multiplier__c;
+                System.debug('Applied Tier 3 progression multiplier: ' + config.Progression_Tier3_Multiplier__c + 'x');
             }
         }
         
@@ -1758,10 +1771,10 @@ public class NBAQueueManager {
         // Build multiplier description for Priority_Multiplier_Applied__c field
         List<String> appliedMultipliers = new List<String>();
         if (webUsageApplied) {
-            appliedMultipliers.add('Web Usage (1.25x)');
+            appliedMultipliers.add('Web Usage (' + String.valueOf(config.Web_Usage_Multiplier__c) + 'x)');
         }
         if (bestTimeApplied) {
-            appliedMultipliers.add('Best Time (1.2x)');
+            appliedMultipliers.add('Best Time (' + String.valueOf(config.Best_Time_Multiplier__c) + 'x)');
         }
         if (progressionApplied) {
             appliedMultipliers.add('Progression (' + String.valueOf(progressionMultiplier) + 'x)');
@@ -1772,6 +1785,38 @@ public class NBAQueueManager {
         return details;
     }
     
+    // Helper method to get multiplier configuration from metadata
+    private static NBA_Multiplier_Config__mdt getMultiplierConfig() {
+        try {
+            NBA_Multiplier_Config__mdt config = [
+                SELECT Web_Usage_Multiplier__c, Web_Usage_Hours__c,
+                       Best_Time_Multiplier__c, Best_Time_Minutes__c,
+                       Progression_Tier1_Multiplier__c, Progression_Tier1_Days__c,
+                       Progression_Tier2_Multiplier__c, Progression_Tier2_Days__c,
+                       Progression_Tier3_Multiplier__c, Progression_Tier3_Days__c
+                FROM NBA_Multiplier_Config__mdt 
+                WHERE Is_Active__c = true 
+                LIMIT 1
+            ];
+            return config;
+        } catch (QueryException e) {
+            System.debug('No active multiplier configuration found, using defaults');
+            // Return a default configuration if none is found
+            return new NBA_Multiplier_Config__mdt(
+                Web_Usage_Multiplier__c = 1.25,
+                Web_Usage_Hours__c = 1,
+                Best_Time_Multiplier__c = 1.2,
+                Best_Time_Minutes__c = 30,
+                Progression_Tier1_Multiplier__c = 1.5,
+                Progression_Tier1_Days__c = 7,
+                Progression_Tier2_Multiplier__c = 1.2,
+                Progression_Tier2_Days__c = 30,
+                Progression_Tier3_Multiplier__c = 1.1,
+                Progression_Tier3_Days__c = 90
+            );
+        }
+    }
+
     // Helper method to update last viewed date when item is served
     private static void updateItemLastViewedDate(NBA_Queue__c item) {
         try {

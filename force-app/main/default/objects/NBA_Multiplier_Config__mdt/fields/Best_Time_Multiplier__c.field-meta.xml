@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Best_Time_Multiplier__c</fullName>
+    <label>Best Time Multiplier</label>
+    <type>Number</type>
+    <precision>3</precision>
+    <scale>2</scale>
+    <defaultValue>1.2</defaultValue>
+    <description>Multiplier applied when calling during best time window</description>
+    <inlineHelpText>Enter multiplier value (1.0 = no boost, 1.2 = 20% boost, 2.0 = 100% boost)</inlineHelpText>
+</CustomField>
