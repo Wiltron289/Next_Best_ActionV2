@@ -87,6 +87,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     @track selectedPhoneDisplay = '';
     @track showManualPhoneInput = false;
     @track manualPhoneNumber = '';
+    @track bestNumberToCall = '';
 
     // Email and Event action modals
     @track showEmailCompleteModal = false;
@@ -763,41 +764,74 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     
     // Load available contacts and phone numbers for the record
     async loadContactOptions() {
-        // Use the same call logic as the original widget
+        // Use the same logic as resolvePrimaryContactForQueueItem in NBAQueueManager
         let defaultContactId = '';
         let defaultContactName = '';
         let defaultPhoneNumber = '';
         
-        // PRIORITY: Always use Best Person to Call and Best Number to Call from NBA Queue if available
-        if (this.queueItem?.Best_Person_to_Call__c && this.queueItem?.Best_Number_to_Call__c) {
-            defaultContactId = this.queueItem.Best_Person_to_Call__c;
-            defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
-            defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c;
+        // Check if this is an early stage opportunity (New Opportunity or Attempted)
+        const stage = this.queueItem?.Opportunity__r?.StageName;
+        const isEarlyOppStage = (stage === 'New Opportunity' || stage === 'Attempted');
+        
+        // 1) Opportunity present
+        if (this.queueItem?.Opportunity__c) {
+            if (isEarlyOppStage && this.queueItem?.Best_Person_to_Call__c) {
+                // Early stage: use NBA Best Person/Number when specified
+                defaultContactId = this.queueItem.Best_Person_to_Call__c;
+                defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
+                // Prefer explicit Best_Number_to_Call__c; fall back to person's phone
+                if (this.queueItem.Best_Number_to_Call__c) {
+                    defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c;
+                } else if (this.queueItem.Best_Person_to_Call__r) {
+                    defaultPhoneNumber = this.queueItem.Best_Person_to_Call__r.Phone || 
+                                        this.queueItem.Best_Person_to_Call__r.MobilePhone || 
+                                        this.queueItem.Best_Person_to_Call__r.OtherPhone || '';
+                }
+            } else {
+                // Other stages: use Opportunity primary contact, fallback to NBA Best Person to Call
+                if (this.queueItem.Opportunity__r?.Primary_Contact__c) {
+                    defaultContactId = this.queueItem.Opportunity__r.Primary_Contact__c;
+                    defaultContactName = this.queueItem.Opportunity__r.Primary_Contact__r?.Name || '';
+                    if (this.queueItem.Opportunity__r.Primary_Contact__r) {
+                        defaultPhoneNumber = this.queueItem.Opportunity__r.Primary_Contact__r.Phone || 
+                                            this.queueItem.Opportunity__r.Primary_Contact__r.MobilePhone || 
+                                            this.queueItem.Opportunity__r.Primary_Contact__r.OtherPhone || '';
+                    }
+                } else if (this.queueItem?.Best_Person_to_Call__c) {
+                    // Fallback to NBA Best Person to Call if no Opportunity Primary Contact
+                    defaultContactId = this.queueItem.Best_Person_to_Call__c;
+                    defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
+                    if (this.queueItem.Best_Number_to_Call__c) {
+                        defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c;
+                    } else if (this.queueItem.Best_Person_to_Call__r) {
+                        defaultPhoneNumber = this.queueItem.Best_Person_to_Call__r.Phone || 
+                                            this.queueItem.Best_Person_to_Call__r.MobilePhone || 
+                                            this.queueItem.Best_Person_to_Call__r.OtherPhone || '';
+                    }
+                }
+            }
         } else {
-            // Fallback to existing logic if Best Person/Number not set
-            if (this.queueItem?.Opportunity__c) {
-                // For Opportunity calls, use the opportunity primary contact logic
-                if (this.queueItem?.Best_Person_to_Call__c) {
-                    defaultContactId = this.queueItem.Best_Person_to_Call__c;
-                    defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
-                    defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || '';
-                } else if (this.opportunityPrimaryContact?.contactId) {
-                    defaultContactId = this.opportunityPrimaryContact.contactId;
-                    defaultContactName = this.opportunityPrimaryContact.contactName;
-                    defaultPhoneNumber = this.opportunityPrimaryContact.contactPhone;
+            // No opportunity: prefer NBA Best Person/Number if present
+            if (this.queueItem?.Best_Person_to_Call__c) {
+                defaultContactId = this.queueItem.Best_Person_to_Call__c;
+                defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
+                if (this.queueItem.Best_Number_to_Call__c) {
+                    defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c;
+                } else if (this.queueItem.Best_Person_to_Call__r) {
+                    defaultPhoneNumber = this.queueItem.Best_Person_to_Call__r.Phone || 
+                                        this.queueItem.Best_Person_to_Call__r.MobilePhone || 
+                                        this.queueItem.Best_Person_to_Call__r.OtherPhone || '';
                 }
-            } else if (this.queueItem?.Account__c) {
-                // For Account calls, use account primary contact
-                if (this.queueItem?.Best_Person_to_Call__c) {
-                    defaultContactId = this.queueItem.Best_Person_to_Call__c;
-                    defaultContactName = this.queueItem.Best_Person_to_Call__r?.Name || '';
-                    defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || '';
+            }
+            // Fallback to Account primary contact
+            if (!defaultContactId && this.queueItem?.Account__r?.Primary_Contact__c) {
+                defaultContactId = this.queueItem.Account__r.Primary_Contact__c;
+                defaultContactName = this.queueItem.Account__r.Primary_Contact__r?.Name || '';
+                if (this.queueItem.Account__r.Primary_Contact__r) {
+                    defaultPhoneNumber = this.queueItem.Account__r.Primary_Contact__r.Phone || 
+                                        this.queueItem.Account__r.Primary_Contact__r.MobilePhone || 
+                                        this.queueItem.Account__r.Primary_Contact__r.OtherPhone || '';
                 }
-            } else if (this.queueItem?.Lead__c) {
-                // For Lead calls, use lead contact info
-                defaultContactId = this.queueItem.Lead__c;
-                defaultContactName = this.queueItem.Lead__r?.Name || '';
-                defaultPhoneNumber = this.queueItem.Best_Number_to_Call__c || this.queueItem.Lead__r?.Phone || '';
             }
         }
         
@@ -806,18 +840,62 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         this.selectedContactName = defaultContactName;
         this.selectedPhoneNumber = defaultPhoneNumber;
         
+        
+        
         // Build available contacts
         this.availableContacts = [];
         
-        // Add the default contact
+        // Add the default contact with proper phone numbers based on the logic above
         if (defaultContactId && defaultContactName) {
-            this.availableContacts.push({
+            let contactPhone = '';
+            let contactMobilePhone = '';
+            let contactOtherPhone = '';
+            let contactSecondaryPhone = '';
+            let contactTitle = '';
+            let contactDepartment = '';
+            
+            // Get contact details based on which contact was selected
+            if (this.queueItem?.Best_Person_to_Call__c === defaultContactId) {
+                contactPhone = this.queueItem.Best_Person_to_Call__r?.Phone || '';
+                contactMobilePhone = this.queueItem.Best_Person_to_Call__r?.MobilePhone || '';
+                contactOtherPhone = this.queueItem.Best_Person_to_Call__r?.OtherPhone || '';
+                contactSecondaryPhone = this.queueItem.Best_Person_to_Call__r?.Secondary_Phone_Number__c || '';
+                contactTitle = this.queueItem.Best_Person_to_Call__r?.Title || '';
+                contactDepartment = this.queueItem.Best_Person_to_Call__r?.Department || '';
+                
+                // Store the Best Number to Call for special handling
+                this.bestNumberToCall = this.queueItem.Best_Number_to_Call__c || '';
+                
+            } else if (this.queueItem?.Opportunity__r?.Primary_Contact__c === defaultContactId) {
+                contactPhone = this.queueItem.Opportunity__r?.Primary_Contact__r?.Phone || '';
+                contactMobilePhone = this.queueItem.Opportunity__r?.Primary_Contact__r?.MobilePhone || '';
+                contactOtherPhone = this.queueItem.Opportunity__r?.Primary_Contact__r?.OtherPhone || '';
+                contactSecondaryPhone = this.queueItem.Opportunity__r?.Primary_Contact__r?.Secondary_Phone_Number__c || '';
+                contactTitle = this.queueItem.Opportunity__r?.Primary_Contact__r?.Title || '';
+                contactDepartment = this.queueItem.Opportunity__r?.Primary_Contact__r?.Department || '';
+                this.bestNumberToCall = ''; // Clear for non-Best Person contacts
+            } else if (this.queueItem?.Account__r?.Primary_Contact__c === defaultContactId) {
+                contactPhone = this.queueItem.Account__r?.Primary_Contact__r?.Phone || '';
+                contactMobilePhone = this.queueItem.Account__r?.Primary_Contact__r?.MobilePhone || '';
+                contactOtherPhone = this.queueItem.Account__r?.Primary_Contact__r?.OtherPhone || '';
+                contactSecondaryPhone = this.queueItem.Account__r?.Primary_Contact__r?.Secondary_Phone_Number__c || '';
+                contactTitle = this.queueItem.Account__r?.Primary_Contact__r?.Title || '';
+                contactDepartment = this.queueItem.Account__r?.Primary_Contact__r?.Department || '';
+                this.bestNumberToCall = ''; // Clear for non-Best Person contacts
+            }
+            
+            const contactToAdd = {
                 id: defaultContactId,
                 name: defaultContactName,
-                phone: this.queueItem?.Best_Person_to_Call__r?.Phone || '',
-                mobilePhone: this.queueItem?.Best_Person_to_Call__r?.MobilePhone || '',
-                otherPhone: this.queueItem?.Best_Person_to_Call__r?.OtherPhone || ''
-            });
+                phone: contactPhone,
+                mobilePhone: contactMobilePhone,
+                otherPhone: contactOtherPhone,
+                secondaryPhone: contactSecondaryPhone,
+                title: contactTitle,
+                department: contactDepartment
+            };
+            
+            this.availableContacts.push(contactToAdd);
         }
         
             // Add opportunity primary contact if different
@@ -841,15 +919,17 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                     // Only add if not already in the list
                     const existingContact = this.availableContacts.find(c => c.id === contact.id);
                     if (!existingContact) {
-                        this.availableContacts.push({
+                        const contactToAdd = {
                             id: contact.id,
                             name: contact.name,
-                            phone: contact.phone || '',
-                            mobilePhone: contact.mobilePhone || '',
-                            otherPhone: contact.otherPhone || '',
-                            title: contact.title || '',
-                            department: contact.department || ''
-                        });
+                            phone: contact.phone ? contact.phone : '',
+                            mobilePhone: contact.mobilePhone ? contact.mobilePhone : '',
+                            otherPhone: contact.otherPhone ? contact.otherPhone : '',
+                            secondaryPhone: contact.secondaryPhone ? contact.secondaryPhone : '',
+                            title: contact.title ? contact.title : '',
+                            department: contact.department ? contact.department : ''
+                        };
+                        this.availableContacts.push(contactToAdd);
                     }
                 }
             } catch (error) {
@@ -923,31 +1003,47 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         } else {
             this.selectedPhoneDisplay = '';
         }
+        
     }
     
     // Update phone options based on selected contact
     updatePhoneOptionsForContact() {
         const selectedContact = this.availableContacts.find(contact => contact.id === this.selectedContactId);
+        
         if (selectedContact) {
             this.availablePhoneNumbers = [];
             
-            // Add selected contact's phone numbers only (Phone is always first if available)
-            if (selectedContact.phone) {
+            // Special handling for Best Person to Call - show Best Number to Call first if available
+            if (this.bestNumberToCall && this.queueItem?.Best_Person_to_Call__c === this.selectedContactId) {
+                this.availablePhoneNumbers.push({
+                    value: this.bestNumberToCall,
+                    label: this.bestNumberToCall + ' (Best Number)'
+                });
+            }
+            
+            // Add selected contact's phone numbers (avoid duplicates with Best Number)
+            if (selectedContact.phone && selectedContact.phone !== this.bestNumberToCall) {
                 this.availablePhoneNumbers.push({
                     value: selectedContact.phone,
                     label: selectedContact.phone + ' (Phone)'
                 });
             }
-            if (selectedContact.mobilePhone) {
+            if (selectedContact.mobilePhone && selectedContact.mobilePhone !== this.bestNumberToCall) {
                 this.availablePhoneNumbers.push({
                     value: selectedContact.mobilePhone,
                     label: selectedContact.mobilePhone + ' (Mobile)'
                 });
             }
-            if (selectedContact.otherPhone) {
+            if (selectedContact.otherPhone && selectedContact.otherPhone !== this.bestNumberToCall) {
                 this.availablePhoneNumbers.push({
                     value: selectedContact.otherPhone,
                     label: selectedContact.otherPhone + ' (Other Phone)'
+                });
+            }
+            if (selectedContact.secondaryPhone && selectedContact.secondaryPhone !== this.bestNumberToCall) {
+                this.availablePhoneNumbers.push({
+                    value: selectedContact.secondaryPhone,
+                    label: selectedContact.secondaryPhone + ' (Secondary Phone)'
                 });
             }
             
@@ -1009,11 +1105,15 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         // Show the contact confirmation modal again for contact/number selection
         this.showContactConfirmationModal = true;
         
-        // Reset the selected values to current defaults
-        this.selectedContactId = this.queueItem?.Best_Person_to_Call__c || '';
-        this.selectedPhoneNumber = this.queueItem?.Best_Number_to_Call__c || '';
-        this.selectedContactName = this.queueItem?.Best_Person_to_Call__r?.Name || '';
-        this.selectedPhoneDisplay = this.queueItem?.Best_Number_to_Call__c || '';
+        // Keep the previously selected contact/phone for redial (don't reset to defaults)
+        // This allows users to redial the same contact they just called
+        if (!this.selectedContactId || !this.selectedPhoneNumber) {
+            // Only reset to defaults if no previous selection exists
+            this.selectedContactId = this.queueItem?.Best_Person_to_Call__c || '';
+            this.selectedPhoneNumber = this.queueItem?.Best_Number_to_Call__c || '';
+            this.selectedContactName = this.queueItem?.Best_Person_to_Call__r?.Name || '';
+            this.selectedPhoneDisplay = this.queueItem?.Best_Number_to_Call__c || '';
+        }
         this.showManualPhoneInput = false;
         this.manualPhoneNumber = '';
     }
@@ -2234,6 +2334,12 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         console.log('getContactPhoneForCall called with queueItem:', queueItem);
         console.log('queueItem.Best_Number_to_Call__c:', queueItem?.Best_Number_to_Call__c);
         console.log('queueItem.Best_Person_to_Call__c:', queueItem?.Best_Person_to_Call__c);
+        
+        // PRIORITY: If user selected a different contact/phone, use that
+        if (this.selectedContactId && this.selectedPhoneNumber) {
+            console.log('Using selected contact phone:', this.selectedPhoneNumber);
+            return this.selectedPhoneNumber;
+        }
         
         // If the NBA Queue record has a related Opportunity
         if (queueItem?.Opportunity__c) {

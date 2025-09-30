@@ -148,12 +148,14 @@ public class NBAQueueManager {
                        Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c, CreatedDate,
                         Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
+                       Opportunity__r.Primary_Contact__c, Opportunity__r.Primary_Contact__r.Name, Opportunity__r.Primary_Contact__r.Email, 
+                       Opportunity__r.Primary_Contact__r.Phone, Opportunity__r.Primary_Contact__r.MobilePhone, Opportunity__r.Primary_Contact__r.OtherPhone,
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Next_Step_Date__c, Opportunity__r.Time_Zone__c,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Start_Time__c, Event_Id__c,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
-                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
+                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.MobilePhone, Best_Person_to_Call__r.OtherPhone, Best_Person_to_Call__r.Secondary_Phone_Number__c, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
@@ -262,12 +264,14 @@ public class NBAQueueManager {
                        Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c, CreatedDate,
                        Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
+                       Opportunity__r.Primary_Contact__c, Opportunity__r.Primary_Contact__r.Name, Opportunity__r.Primary_Contact__r.Email, 
+                       Opportunity__r.Primary_Contact__r.Phone, Opportunity__r.Primary_Contact__r.MobilePhone, Opportunity__r.Primary_Contact__r.OtherPhone,
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Next_Step_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Start_Time__c, Event_Id__c, Email_Message_Id__c,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
-                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
+                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.MobilePhone, Best_Person_to_Call__r.OtherPhone, Best_Person_to_Call__r.Secondary_Phone_Number__c, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
@@ -554,7 +558,7 @@ public class NBAQueueManager {
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Next_Step_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
-                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
+                       Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.MobilePhone, Best_Person_to_Call__r.OtherPhone, Best_Person_to_Call__r.Secondary_Phone_Number__c, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
                        Break_Preferences_Engaged__c, Department_Management_Engaged__c, Geofencing_Engaged__c, Hiring_Engaged__c, Hrdocs_Engaged__c,
                        Manager_Log_Engaged__c, Messaging_Engaged__c, Mobile_Time_Tracking_Engaged__c, Oam_Activity__c, Overtime_Preferences_Engaged__c,
@@ -782,6 +786,8 @@ public class NBAQueueManager {
                        Best_Person_to_Call__r.Email,
                        Best_Person_to_Call__r.Phone,
                        Best_Person_to_Call__r.MobilePhone,
+                       Best_Person_to_Call__r.OtherPhone,
+                       Best_Person_to_Call__r.Secondary_Phone_Number__c,
                        Best_Number_to_Call__c,
                        Opportunity__c,
                        Opportunity__r.StageName,
@@ -790,13 +796,17 @@ public class NBAQueueManager {
                        Opportunity__r.Primary_Contact__r.Email,
                        Opportunity__r.Primary_Contact__r.Phone,
                        Opportunity__r.Primary_Contact__r.MobilePhone,
+                       Opportunity__r.Primary_Contact__r.OtherPhone,
+                       Opportunity__r.Primary_Contact__r.Secondary_Phone_Number__c,
                        Account__c,
                        Account__r.Phone,
                        Account__r.Primary_Contact__c,
                        Account__r.Primary_Contact__r.Name,
                        Account__r.Primary_Contact__r.Email,
                        Account__r.Primary_Contact__r.Phone,
-                       Account__r.Primary_Contact__r.MobilePhone
+                       Account__r.Primary_Contact__r.MobilePhone,
+                       Account__r.Primary_Contact__r.OtherPhone,
+                       Account__r.Primary_Contact__r.Secondary_Phone_Number__c
                 FROM NBA_Queue__c
                 WHERE Id = :queueItemId
                 LIMIT 1
@@ -1169,6 +1179,7 @@ public class NBAQueueManager {
         queueItem.Status__c = 'Dismissed';
         queueItem.Dismissed_Reason__c = dismissalReason;
         queueItem.Actioned_Date__c = System.now();
+        queueItem.Completed_Date__c = System.now(); // Set completed date when dismissed
         update queueItem;
         
         // Publish platform event for real-time updates
@@ -1203,9 +1214,10 @@ public class NBAQueueManager {
     @AuraEnabled
     public static void cancelCallDisposition(Id queueItemId) {
         // Revert the NBA Queue record status back to "Pending" when disposition is cancelled
-        NBA_Queue__c queueItem = [SELECT Id, Status__c, Sales_Rep__c, Completed_Date__c FROM NBA_Queue__c WHERE Id = :queueItemId];
+        NBA_Queue__c queueItem = [SELECT Id, Status__c, Sales_Rep__c, Completed_Date__c, Actioned_Date__c FROM NBA_Queue__c WHERE Id = :queueItemId];
         queueItem.Status__c = 'Pending';
         queueItem.Completed_Date__c = null; // Clear completed date when reverting to pending
+        queueItem.Actioned_Date__c = null; // Clear actioned date when reverting to pending
         update queueItem;
         
         // Publish platform event for real-time updates
@@ -1796,10 +1808,10 @@ public class NBAQueueManager {
         
         try {
             List<Contact> accountContacts = [
-                SELECT Id, Name, Phone, MobilePhone, OtherPhone, Email, Title, Department
+                SELECT Id, Name, Phone, MobilePhone, OtherPhone, Secondary_Phone_Number__c, Email, Title, Department
                 FROM Contact 
                 WHERE AccountId = :accountId 
-                AND (Phone != null OR MobilePhone != null OR OtherPhone != null)
+                AND (Phone != null OR MobilePhone != null OR OtherPhone != null OR Secondary_Phone_Number__c != null)
                 ORDER BY Name
                 LIMIT 50
             ];
@@ -1811,6 +1823,7 @@ public class NBAQueueManager {
                 contactMap.put('phone', contact.Phone);
                 contactMap.put('mobilePhone', contact.MobilePhone);
                 contactMap.put('otherPhone', contact.OtherPhone);
+                contactMap.put('secondaryPhone', contact.Secondary_Phone_Number__c);
                 contactMap.put('email', contact.Email);
                 contactMap.put('title', contact.Title);
                 contactMap.put('department', contact.Department);
