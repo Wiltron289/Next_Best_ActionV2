@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Web_Usage_Description__c</fullName>
+    <label>Web Usage Description</label>
+    <type>Text</type>
+    <length>100</length>
+    <defaultValue>Web Usage (1.25x) - Last 1 hour</defaultValue>
+    <externalId>false</externalId>
+    <required>false</required>
+</CustomField>

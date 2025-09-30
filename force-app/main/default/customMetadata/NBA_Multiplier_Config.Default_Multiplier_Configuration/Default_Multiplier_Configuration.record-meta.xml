@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>Default Multiplier Configuration</label>
+    <protected>false</protected>
+    <values>
+        <field>Is_Active__c</field>
+        <value xsi:type="xsd:boolean">true</value>
+    </values>
+    <values>
+        <field>Web_Usage_Multiplier__c</field>
+        <value xsi:type="xsd:double">1.25</value>
+    </values>
+    <values>
+        <field>Web_Usage_Hours__c</field>
+        <value xsi:type="xsd:double">1.0</value>
+    </values>
+    <values>
+        <field>Web_Usage_Description__c</field>
+        <value xsi:type="xsd:string">Online Within the Hour</value>
+    </values>
+    <values>
+        <field>Best_Time_Multiplier__c</field>
+        <value xsi:type="xsd:double">1.2</value>
+    </values>
+    <values>
+        <field>Best_Time_Minutes__c</field>
+        <value xsi:type="xsd:double">30.0</value>
+    </values>
+    <values>
+        <field>Best_Time_Description__c</field>
+        <value xsi:type="xsd:string">Best Time to Call</value>
+    </values>
+    <values>
+        <field>Progression_Tier1_Multiplier__c</field>
+        <value xsi:type="xsd:double">1.5</value>
+    </values>
+    <values>
+        <field>Progression_Tier1_Days__c</field>
+        <value xsi:type="xsd:double">7.0</value>
+    </values>
+    <values>
+        <field>Progression_Tier1_Description__c</field>
+        <value xsi:type="xsd:string">Payroll Progression Within 7 days</value>
+    </values>
+    <values>
+        <field>Progression_Tier2_Multiplier__c</field>
+        <value xsi:type="xsd:double">1.2</value>
+    </values>
+    <values>
+        <field>Progression_Tier2_Days__c</field>
+        <value xsi:type="xsd:double">30.0</value>
+    </values>
+    <values>
+        <field>Progression_Tier2_Description__c</field>
+        <value xsi:type="xsd:string">Progression Within 30 days</value>
+    </values>
+</CustomMetadata>
