@@ -330,8 +330,11 @@ public class NBAQueueManager {
                     result.put('adjustedScore', scoreDetails.get('adjustedScore'));
                     result.put('webUsageMultiplier', scoreDetails.get('webUsageMultiplier'));
                     result.put('bestTimeMultiplier', scoreDetails.get('bestTimeMultiplier'));
+                    result.put('progressionMultiplier', scoreDetails.get('progressionMultiplier'));
                     result.put('webUsageApplied', scoreDetails.get('webUsageApplied'));
                     result.put('bestTimeApplied', scoreDetails.get('bestTimeApplied'));
+                    result.put('progressionApplied', scoreDetails.get('progressionApplied'));
+                    result.put('multiplierDescription', scoreDetails.get('multiplierDescription'));
                     
                     // Note: Contact information will be handled in the LWC by querying OpportunityContactRole directly
                     // This avoids the need to add virtual fields to the NBA_Queue__c object

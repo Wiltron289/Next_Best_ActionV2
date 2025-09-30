@@ -252,6 +252,12 @@
     color: #1e0b3a;
 }
 
+.nba-widget-badge-multiplier {
+    background: #dc3545;
+    color: #ffffff;
+    font-weight: 700;
+}
+
 /* Source Row */
 .nba-widget-source-row {
     margin-bottom: 16px;

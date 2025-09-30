@@ -54,6 +54,13 @@
                     </template>
                 </div>
 
+                <!-- Multiplier Display -->
+                <template if:true={hasMultipliers}>
+                    <div class="nba-widget-row">
+                        <span class="nba-widget-badge nba-widget-badge-multiplier">{multiplierText}</span>
+                    </div>
+                </template>
+
                 <div class="nba-widget-row nba-widget-badges-row">
                     <template if:true={employeeCount}>
                         <span class="nba-widget-badge">{employeeCount} employees</span>

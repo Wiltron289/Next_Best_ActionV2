@@ -314,8 +314,11 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 this.adjustedScore = result.adjustedScore;
                 this.webUsageMultiplier = result.webUsageMultiplier;
                 this.bestTimeMultiplier = result.bestTimeMultiplier;
+                this.progressionMultiplier = result.progressionMultiplier;
                 this.webUsageApplied = result.webUsageApplied;
                 this.bestTimeApplied = result.bestTimeApplied;
+                this.progressionApplied = result.progressionApplied;
+                this.multiplierDescription = result.multiplierDescription;
                 
                 console.log('Priority Score Details:', {
                     original: this.originalScore,
@@ -399,8 +402,11 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 this.adjustedScore = null;
                 this.webUsageMultiplier = null;
                 this.bestTimeMultiplier = null;
+                this.progressionMultiplier = null;
                 this.webUsageApplied = false;
                 this.bestTimeApplied = false;
+                this.progressionApplied = false;
+                this.multiplierDescription = null;
             }
         } catch (error) {
             console.error('Error loading queue item:', error);
@@ -559,7 +565,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
             this.handleEmailAccept();
         } else if (actionType.toLowerCase().includes('call')) {
             // Experimental: Two-stage accept process for calls only
-            // Stage 1: Call acceptAction to set status to In Progress, then show contact confirmation
+            // Stage 1: Call acceptAction to set status to In Progress, then how contact confirmation
             this.executeAcceptActionForCall();
         } else {
             this.executeAcceptAction();
@@ -2307,7 +2313,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     }
 
     get hasMultipliers() {
-        return this.webUsageApplied || this.bestTimeApplied;
+        return this.webUsageApplied || this.bestTimeApplied || this.progressionApplied;
     }
 
     get multiplierText() {
@@ -2318,6 +2324,10 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         if (this.bestTimeApplied) {
             if (text) text += ', ';
             text += `Best Time (1.2x)`;
+        }
+        if (this.progressionApplied) {
+            if (text) text += ', ';
+            text += `Progression (${this.progressionMultiplier}x)`;
         }
         return text;
     }
