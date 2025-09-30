@@ -46,4 +46,16 @@
         <field>Progression_Tier3_Days__c</field>
         <value xsi:type="xsd:double">90.0</value>
     </values>
+    <values>
+        <field>Web_Usage_Label__c</field>
+        <value xsi:type="xsd:string">Web Usage</value>
+    </values>
+    <values>
+        <field>Best_Time_Label__c</field>
+        <value xsi:type="xsd:string">Best Time</value>
+    </values>
+    <values>
+        <field>Progression_Label__c</field>
+        <value xsi:type="xsd:string">Progression</value>
+    </values>
 </CustomMetadata>

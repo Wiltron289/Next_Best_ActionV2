@@ -1771,13 +1771,13 @@ public class NBAQueueManager {
         // Build multiplier description for Priority_Multiplier_Applied__c field
         List<String> appliedMultipliers = new List<String>();
         if (webUsageApplied) {
-            appliedMultipliers.add('Web Usage (' + String.valueOf(config.Web_Usage_Multiplier__c) + 'x)');
+            appliedMultipliers.add(config.Web_Usage_Label__c + ' (' + String.valueOf(config.Web_Usage_Multiplier__c) + 'x)');
         }
         if (bestTimeApplied) {
-            appliedMultipliers.add('Best Time (' + String.valueOf(config.Best_Time_Multiplier__c) + 'x)');
+            appliedMultipliers.add(config.Best_Time_Label__c + ' (' + String.valueOf(config.Best_Time_Multiplier__c) + 'x)');
         }
         if (progressionApplied) {
-            appliedMultipliers.add('Progression (' + String.valueOf(progressionMultiplier) + 'x)');
+            appliedMultipliers.add(config.Progression_Label__c + ' (' + String.valueOf(progressionMultiplier) + 'x)');
         }
         String multiplierDescription = appliedMultipliers.isEmpty() ? 'None' : String.join(appliedMultipliers, ', ');
         details.put('multiplierDescription', multiplierDescription);
@@ -1789,11 +1789,12 @@ public class NBAQueueManager {
     private static NBA_Multiplier_Config__mdt getMultiplierConfig() {
         try {
             NBA_Multiplier_Config__mdt config = [
-                SELECT Web_Usage_Multiplier__c, Web_Usage_Hours__c,
-                       Best_Time_Multiplier__c, Best_Time_Minutes__c,
+                SELECT Web_Usage_Multiplier__c, Web_Usage_Hours__c, Web_Usage_Label__c,
+                       Best_Time_Multiplier__c, Best_Time_Minutes__c, Best_Time_Label__c,
                        Progression_Tier1_Multiplier__c, Progression_Tier1_Days__c,
                        Progression_Tier2_Multiplier__c, Progression_Tier2_Days__c,
-                       Progression_Tier3_Multiplier__c, Progression_Tier3_Days__c
+                       Progression_Tier3_Multiplier__c, Progression_Tier3_Days__c,
+                       Progression_Label__c
                 FROM NBA_Multiplier_Config__mdt 
                 WHERE Is_Active__c = true 
                 LIMIT 1
@@ -1805,14 +1806,17 @@ public class NBAQueueManager {
             return new NBA_Multiplier_Config__mdt(
                 Web_Usage_Multiplier__c = 1.25,
                 Web_Usage_Hours__c = 1,
+                Web_Usage_Label__c = 'Web Usage',
                 Best_Time_Multiplier__c = 1.2,
                 Best_Time_Minutes__c = 30,
+                Best_Time_Label__c = 'Best Time',
                 Progression_Tier1_Multiplier__c = 1.5,
                 Progression_Tier1_Days__c = 7,
                 Progression_Tier2_Multiplier__c = 1.2,
                 Progression_Tier2_Days__c = 30,
                 Progression_Tier3_Multiplier__c = 1.1,
-                Progression_Tier3_Days__c = 90
+                Progression_Tier3_Days__c = 90,
+                Progression_Label__c = 'Progression'
             );
         }
     }

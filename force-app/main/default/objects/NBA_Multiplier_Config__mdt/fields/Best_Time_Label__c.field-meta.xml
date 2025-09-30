@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Best_Time_Label__c</fullName>
+    <label>Best Time Label</label>
+    <type>Text</type>
+    <length>50</length>
+    <defaultValue>Best Time</defaultValue>
+    <description>Display label for best time to call multiplier in UI and reports</description>
+    <inlineHelpText>Customize the label shown for best time multiplier (e.g., "Optimal Timing", "Call Window")</inlineHelpText>
+</CustomField>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Web_Usage_Label__c</fullName>
+    <label>Web Usage Label</label>
+    <type>Text</type>
+    <length>50</length>
+    <defaultValue>Web Usage</defaultValue>
+    <description>Display label for web usage multiplier in UI and reports</description>
+    <inlineHelpText>Customize the label shown for web usage multiplier (e.g., "Platform Activity", "Recent Engagement")</inlineHelpText>
+</CustomField>
