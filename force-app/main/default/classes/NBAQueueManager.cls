@@ -1738,7 +1738,6 @@ public class NBAQueueManager {
             Datetime lastProg = item.Account__r.Last_Progression_Time__c;
             Datetime tier1DaysAgo = Datetime.now().addDays(-Integer.valueOf(config.Progression_Tier1_Days__c));
             Datetime tier2DaysAgo = Datetime.now().addDays(-Integer.valueOf(config.Progression_Tier2_Days__c));
-            Datetime tier3DaysAgo = Datetime.now().addDays(-Integer.valueOf(config.Progression_Tier3_Days__c));
             
             // Apply highest applicable tier (most recent progression gets highest multiplier)
             if (lastProg >= tier1DaysAgo) {
@@ -1751,11 +1750,6 @@ public class NBAQueueManager {
                 progressionApplied = true;
                 progressionMultiplier = config.Progression_Tier2_Multiplier__c;
                 System.debug('Applied Tier 2 progression multiplier: ' + config.Progression_Tier2_Multiplier__c + 'x');
-            } else if (lastProg >= tier3DaysAgo && config.Progression_Tier3_Multiplier__c > 1.0) {
-                adjustedScore = adjustedScore * config.Progression_Tier3_Multiplier__c;
-                progressionApplied = true;
-                progressionMultiplier = config.Progression_Tier3_Multiplier__c;
-                System.debug('Applied Tier 3 progression multiplier: ' + config.Progression_Tier3_Multiplier__c + 'x');
             }
         }
         
@@ -1771,13 +1765,13 @@ public class NBAQueueManager {
         // Build multiplier description for Priority_Multiplier_Applied__c field
         List<String> appliedMultipliers = new List<String>();
         if (webUsageApplied) {
-            appliedMultipliers.add(config.WebLabel__c + ' (' + String.valueOf(config.Web_Usage_Multiplier__c) + 'x)');
+            appliedMultipliers.add('Web Usage (' + String.valueOf(config.Web_Usage_Multiplier__c) + 'x)');
         }
         if (bestTimeApplied) {
-            appliedMultipliers.add(config.TimeLabel__c + ' (' + String.valueOf(config.Best_Time_Multiplier__c) + 'x)');
+            appliedMultipliers.add('Best Time (' + String.valueOf(config.Best_Time_Multiplier__c) + 'x)');
         }
         if (progressionApplied) {
-            appliedMultipliers.add(config.ProgressLabel__c + ' (' + String.valueOf(progressionMultiplier) + 'x)');
+            appliedMultipliers.add('Progression (' + String.valueOf(progressionMultiplier) + 'x)');
         }
         String multiplierDescription = appliedMultipliers.isEmpty() ? 'None' : String.join(appliedMultipliers, ', ');
         details.put('multiplierDescription', multiplierDescription);
@@ -1789,12 +1783,10 @@ public class NBAQueueManager {
     private static NBA_Multiplier_Config__mdt getMultiplierConfig() {
         try {
             NBA_Multiplier_Config__mdt config = [
-                SELECT Web_Usage_Multiplier__c, Web_Usage_Hours__c, WebLabel__c,
-                       Best_Time_Multiplier__c, Best_Time_Minutes__c, TimeLabel__c,
+                SELECT Web_Usage_Multiplier__c, Web_Usage_Hours__c,
+                       Best_Time_Multiplier__c, Best_Time_Minutes__c,
                        Progression_Tier1_Multiplier__c, Progression_Tier1_Days__c,
-                       Progression_Tier2_Multiplier__c, Progression_Tier2_Days__c,
-                       Progression_Tier3_Multiplier__c, Progression_Tier3_Days__c,
-                       ProgressLabel__c
+                       Progression_Tier2_Multiplier__c, Progression_Tier2_Days__c
                 FROM NBA_Multiplier_Config__mdt 
                 WHERE Is_Active__c = true 
                 LIMIT 1
@@ -1806,17 +1798,12 @@ public class NBAQueueManager {
             return new NBA_Multiplier_Config__mdt(
                 Web_Usage_Multiplier__c = 1.25,
                 Web_Usage_Hours__c = 1,
-                WebLabel__c = 'Web Usage',
                 Best_Time_Multiplier__c = 1.2,
                 Best_Time_Minutes__c = 30,
-                TimeLabel__c = 'Best Time',
                 Progression_Tier1_Multiplier__c = 1.5,
                 Progression_Tier1_Days__c = 7,
                 Progression_Tier2_Multiplier__c = 1.2,
-                Progression_Tier2_Days__c = 30,
-                Progression_Tier3_Multiplier__c = 1.1,
-                Progression_Tier3_Days__c = 90,
-                ProgressLabel__c = 'Progression'
+                Progression_Tier2_Days__c = 30
             );
         }
     }

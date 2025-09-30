@@ -1,0 +1,13 @@
+{
+  "Is_Active__c": true,
+  "Web_Usage_Multiplier__c": 1.25,
+  "Web_Usage_Hours__c": 1,
+  "Best_Time_Multiplier__c": 1.2,
+  "Best_Time_Minutes__c": 30,
+  "Progression_Tier1_Multiplier__c": 1.5,
+  "Progression_Tier1_Days__c": 7,
+  "Progression_Tier2_Multiplier__c": 1.2,
+  "Progression_Tier2_Days__c": 30,
+  "Progression_Tier3_Multiplier__c": 1.1,
+  "Progression_Tier3_Days__c": 90
+}
