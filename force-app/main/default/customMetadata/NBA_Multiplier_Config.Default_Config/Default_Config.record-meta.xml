@@ -31,11 +31,19 @@
         <value xsi:type="xsd:double">7.0</value>
     </values>
     <values>
+        <field>Progression_Tier1_Description__c</field>
+        <value xsi:type="xsd:string">Progression (1.5x) - Last 7 days</value>
+    </values>
+    <values>
         <field>Progression_Tier2_Multiplier__c</field>
         <value xsi:type="xsd:double">1.2</value>
     </values>
     <values>
         <field>Progression_Tier2_Days__c</field>
         <value xsi:type="xsd:double">30.0</value>
+    </values>
+    <values>
+        <field>Progression_Tier2_Description__c</field>
+        <value xsi:type="xsd:string">Progression (1.2x) - Last 30 days</value>
     </values>
 </CustomMetadata>

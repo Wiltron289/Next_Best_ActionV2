@@ -1734,6 +1734,7 @@ public class NBAQueueManager {
         }
         
         // Progression recency multiplier based on Account.Last_Progression_Time__c with configurable tiers
+        String progressionDescription = '';
         if (item.Account__r != null && item.Account__r.Last_Progression_Time__c != null) {
             Datetime lastProg = item.Account__r.Last_Progression_Time__c;
             Datetime tier1DaysAgo = Datetime.now().addDays(-Integer.valueOf(config.Progression_Tier1_Days__c));
@@ -1744,11 +1745,13 @@ public class NBAQueueManager {
                 adjustedScore = adjustedScore * config.Progression_Tier1_Multiplier__c;
                 progressionApplied = true;
                 progressionMultiplier = config.Progression_Tier1_Multiplier__c;
+                progressionDescription = config.Progression_Tier1_Description__c;
                 System.debug('Applied Tier 1 progression multiplier: ' + config.Progression_Tier1_Multiplier__c + 'x');
             } else if (lastProg >= tier2DaysAgo) {
                 adjustedScore = adjustedScore * config.Progression_Tier2_Multiplier__c;
                 progressionApplied = true;
                 progressionMultiplier = config.Progression_Tier2_Multiplier__c;
+                progressionDescription = config.Progression_Tier2_Description__c;
                 System.debug('Applied Tier 2 progression multiplier: ' + config.Progression_Tier2_Multiplier__c + 'x');
             }
         }
@@ -1771,7 +1774,7 @@ public class NBAQueueManager {
             appliedMultipliers.add('Best Time (' + String.valueOf(config.Best_Time_Multiplier__c) + 'x)');
         }
         if (progressionApplied) {
-            appliedMultipliers.add('Progression (' + String.valueOf(progressionMultiplier) + 'x)');
+            appliedMultipliers.add(progressionDescription);
         }
         String multiplierDescription = appliedMultipliers.isEmpty() ? 'None' : String.join(appliedMultipliers, ', ');
         details.put('multiplierDescription', multiplierDescription);
@@ -1785,8 +1788,8 @@ public class NBAQueueManager {
             NBA_Multiplier_Config__mdt config = [
                 SELECT Web_Usage_Multiplier__c, Web_Usage_Hours__c,
                        Best_Time_Multiplier__c, Best_Time_Minutes__c,
-                       Progression_Tier1_Multiplier__c, Progression_Tier1_Days__c,
-                       Progression_Tier2_Multiplier__c, Progression_Tier2_Days__c
+                       Progression_Tier1_Multiplier__c, Progression_Tier1_Days__c, Progression_Tier1_Description__c,
+                       Progression_Tier2_Multiplier__c, Progression_Tier2_Days__c, Progression_Tier2_Description__c
                 FROM NBA_Multiplier_Config__mdt 
                 WHERE Is_Active__c = true 
                 LIMIT 1
@@ -1802,8 +1805,10 @@ public class NBAQueueManager {
                 Best_Time_Minutes__c = 30,
                 Progression_Tier1_Multiplier__c = 1.5,
                 Progression_Tier1_Days__c = 7,
+                Progression_Tier1_Description__c = 'Progression (1.5x) - Last 7 days',
                 Progression_Tier2_Multiplier__c = 1.2,
-                Progression_Tier2_Days__c = 30
+                Progression_Tier2_Days__c = 30,
+                Progression_Tier2_Description__c = 'Progression (1.2x) - Last 30 days'
             );
         }
     }
