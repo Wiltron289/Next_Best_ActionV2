@@ -4,7 +4,7 @@
     <label>Progression Tier 2 Description</label>
     <type>Text</type>
     <length>100</length>
-    <defaultValue>Progression (1.2x) - Last 30 days</defaultValue>
+    <defaultValue>"Progression (1.2x) - Last 30 days"</defaultValue>
     <externalId>false</externalId>
     <required>false</required>
 </CustomField>

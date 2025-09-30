@@ -962,10 +962,12 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     // Handle contact selection change
     handleContactChange(event) {
         this.selectedContactId = event.target.value;
+        console.log('Contact selection changed to:', this.selectedContactId);
         // Update contact name and phone options
         const selectedContact = this.availableContacts.find(contact => contact.id === this.selectedContactId);
         if (selectedContact) {
             this.selectedContactName = selectedContact.name;
+            console.log('Contact name updated to:', this.selectedContactName);
         }
         
         // Check if "Other" option is selected
@@ -985,6 +987,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     // Handle phone number selection change
     handlePhoneChange(event) {
         this.selectedPhoneNumber = event.target.value;
+        console.log('Phone selection changed to:', this.selectedPhoneNumber);
         this.updatePhoneDisplay();
     }
     
@@ -1111,15 +1114,17 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         // Show the contact confirmation modal again for contact/number selection
         this.showContactConfirmationModal = true;
         
-        // Keep the previously selected contact/phone for redial (don't reset to defaults)
-        // This allows users to redial the same contact they just called
-        if (!this.selectedContactId || !this.selectedPhoneNumber) {
-            // Only reset to defaults if no previous selection exists
-            this.selectedContactId = this.queueItem?.Best_Person_to_Call__c || '';
-            this.selectedPhoneNumber = this.queueItem?.Best_Number_to_Call__c || '';
-            this.selectedContactName = this.queueItem?.Best_Person_to_Call__r?.Name || '';
-            this.selectedPhoneDisplay = this.queueItem?.Best_Number_to_Call__c || '';
-        }
+        // For redial, start with the previously selected contact/phone as defaults
+        // but allow user to change selection (which will overwrite the previous Number_Dialed__c)
+        this.selectedContactId = this.selectedContactId || this.queueItem?.Best_Person_to_Call__c || '';
+        this.selectedPhoneNumber = this.selectedPhoneNumber || this.queueItem?.Best_Number_to_Call__c || '';
+        this.selectedContactName = this.selectedContactName || this.queueItem?.Best_Person_to_Call__r?.Name || '';
+        this.selectedPhoneDisplay = this.selectedPhoneNumber || this.queueItem?.Best_Number_to_Call__c || '';
+        
+        console.log('Redial - Starting with previous selection:');
+        console.log('selectedContactId:', this.selectedContactId);
+        console.log('selectedPhoneNumber:', this.selectedPhoneNumber);
+        console.log('selectedContactName:', this.selectedContactName);
         this.showManualPhoneInput = false;
         this.manualPhoneNumber = '';
     }
@@ -1216,15 +1221,17 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         }
         
         console.log('Updating database record for queue item:', this.queueItem.Id);
-        console.log('Person_Called__c:', this.queueItem.Person_Called__c);
-        console.log('Number_Dialed__c:', this.selectedPhoneNumber);
+        console.log('selectedContactName:', this.selectedContactName);
+        console.log('selectedPhoneNumber:', this.selectedPhoneNumber);
+        console.log('Person_Called__c (will be set to):', this.selectedContactName || this.queueItem.Person_Called__c);
+        console.log('Number_Dialed__c (will be set to):', this.selectedPhoneNumber);
         
         try {
             await updateQueueItem({
                 queueItemId: this.queueItem.Id,
                 bestPersonToCall: null, // Don't update the original Best fields
                 bestNumberToCall: null, // Don't update the original Best fields
-                personCalled: this.queueItem.Person_Called__c,
+                personCalled: this.selectedContactName || this.queueItem.Person_Called__c,
                 numberDialed: this.selectedPhoneNumber
             });
         } catch (error) {

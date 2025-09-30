@@ -4,7 +4,7 @@
     <label>Best Time Description</label>
     <type>Text</type>
     <length>100</length>
-    <defaultValue>Best Time (1.2x) - ±30 minutes</defaultValue>
+    <defaultValue>"Best Time (1.2x) - ±30 minutes"</defaultValue>
     <externalId>false</externalId>
     <required>false</required>
 </CustomField>

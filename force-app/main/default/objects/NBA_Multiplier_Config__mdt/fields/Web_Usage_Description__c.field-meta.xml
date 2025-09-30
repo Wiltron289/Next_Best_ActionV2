@@ -4,7 +4,7 @@
     <label>Web Usage Description</label>
     <type>Text</type>
     <length>100</length>
-    <defaultValue>Web Usage (1.25x) - Last 1 hour</defaultValue>
+    <defaultValue>"Web Usage (1.25x) - Last 1 hour"</defaultValue>
     <externalId>false</externalId>
     <required>false</required>
 </CustomField>
