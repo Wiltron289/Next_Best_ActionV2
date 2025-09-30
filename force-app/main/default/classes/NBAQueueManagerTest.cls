@@ -494,7 +494,6 @@ public class NBAQueueManagerTest {
 
         Test.startTest();
         NBAQueueManager.updateCallDispositionWithQueueId(
-            callTask.Id,
             item.Id,
             'Connected - DM',
             'Great conversation, they are interested'
@@ -530,7 +529,6 @@ public class NBAQueueManagerTest {
 
         Test.startTest();
         NBAQueueManager.updateCallDispositionWithQueueId(
-            callTask.Id,
             item.Id,
             'Connected - DM',
             'New call notes from this conversation'
@@ -606,7 +604,6 @@ public class NBAQueueManagerTest {
 
         Test.startTest();
         NBAQueueManager.updateCallDispositionWithQueueId(
-            callTask.Id,
             item.Id,
             'Connected - DM',
             'Call notes when no previous description'
@@ -648,7 +645,6 @@ public class NBAQueueManagerTest {
 
         Test.startTest();
         NBAQueueManager.updateCallDispositionWithQueueId(
-            callTask.Id,
             itemWithoutOpp.Id,
             'Connected - DM',
             'Call notes for item without opportunity'
@@ -677,18 +673,19 @@ public class NBAQueueManagerTest {
 
         Test.startTest();
         NBAQueueManager.updateCallDispositionWithQueueId(
-            t.Id,
             item.Id,
             'Connected - DM',
             'Good convo, they are interested'
         );
         Test.stopTest();
 
-        Task updated = [SELECT Id, CallDisposition, Description FROM Task WHERE Id = :t.Id];
+        // Since we now create a new task instead of updating existing one, look for the new task
+        List<Task> tasks = [SELECT Id, CallDisposition, Description FROM Task WHERE WhatId = :item.Opportunity__c ORDER BY CreatedDate DESC LIMIT 1];
         NBA_Queue__c updatedItem = [SELECT Id, Call_Disposition__c, Rep_Notes__c FROM NBA_Queue__c WHERE Id = :item.Id];
 
-        System.assertEquals('Connected - DM', updated.CallDisposition);
-        System.assert(updated.Description.contains('Call Notes'), 'Task description should include call notes');
+        System.assertEquals(1, tasks.size(), 'Should have created one task');
+        System.assertEquals('Connected - DM', tasks[0].CallDisposition);
+        System.assert(tasks[0].Description.contains('Call Notes'), 'Task description should include call notes');
         System.assertEquals('Connected - DM', updatedItem.Call_Disposition__c);
     }
     
@@ -846,7 +843,7 @@ public class NBAQueueManagerTest {
         System.assertEquals('In Progress', afterAccept.Status__c, 'Status should be In Progress');
         
         // Now complete the action (should set the multiplier)
-        NBAQueueManager.updateCallDispositionWithQueueId(taskId, servedItem.Id, 'Connected - DM', 'Test call notes');
+        NBAQueueManager.updateCallDispositionWithQueueId(servedItem.Id, 'Connected - DM', 'Test call notes');
         Test.stopTest();
         
         // Verify multiplier was set when action was completed

@@ -26,11 +26,16 @@ These criteria only apply to actions containing "Call" or "Payroll" in the Actio
 - **Logic**: If future follow-up date > today, skip call actions
 - **Exception**: In Progress items can still be completed
 
-### 3. Future Meeting Scheduled
+### 3. Next Step Date Set
+- **Field**: `Opportunity.Next_Step_Date__c`
+- **Logic**: If next step date > today, skip call actions
+- **Exception**: In Progress items can still be completed
+
+### 4. Future Meeting Scheduled
 - **Logic**: If opportunity has an Event starting > 15 minutes from now, skip call actions
 - **Exception**: In Progress items can still be completed
 
-### 4. Account Payroll Status
+### 5. Account Payroll Status
 - **Field**: `Account.Payroll_Status__c`
 - **Values**: "Pending", "Processing", "Paid"
 - **Logic**: Skip call actions for accounts in these payroll statuses

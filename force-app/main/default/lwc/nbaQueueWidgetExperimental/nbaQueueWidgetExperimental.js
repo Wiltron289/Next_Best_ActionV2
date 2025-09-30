@@ -26,6 +26,10 @@ import saveFutureFollowUp from '@salesforce/apex/NBAQueueManager.saveFutureFollo
 import getFutureFollowUpReasons from '@salesforce/apex/NBAQueueManager.getFutureFollowUpReasons';
 import getLeadStatusNames from '@salesforce/apex/NBAQueueManager.getLeadStatusNames';
 import finalizeQueueItem from '@salesforce/apex/NBAQueueManager.finalizeQueueItem';
+import handleEmailAccept from '@salesforce/apex/NBAQueueManager.handleEmailAccept';
+import handleEventAccept from '@salesforce/apex/NBAQueueManager.handleEventAccept';
+import saveMeetingDisposition from '@salesforce/apex/NBAQueueManager.saveMeetingDisposition';
+import completeEmailAction from '@salesforce/apex/NBAQueueManager.completeEmailAction';
 import userId from '@salesforce/user/Id';
 import OpportunityContextChannel from '@salesforce/messageChannel/NBA_OpportunityContext__c';
 
@@ -74,6 +78,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
 
     // Experimental: Contact confirmation modal state
     @track showContactConfirmationModal = false;
+    @track isInContactSelectionMode = false;
     @track selectedContactId = '';
     @track selectedPhoneNumber = '';
     @track availableContacts = [];
@@ -82,6 +87,13 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     @track selectedPhoneDisplay = '';
     @track showManualPhoneInput = false;
     @track manualPhoneNumber = '';
+
+    // Email and Event action modals
+    @track showEmailCompleteModal = false;
+    @track showMeetingDispositionModal = false;
+    @track meetingDisposition = '';
+    @track meetingNotes = '';
+    @track navigatedToEmailMessage = false;
 
     // Embedded flow state
     @track showEmbeddedFlow = false;
@@ -267,6 +279,10 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     async loadQueueItem() {
         console.log('=== NBA Queue Widget Debug ===');
         console.log('Current User ID:', this.currentUserId);
+        
+        // Reset contact selection mode when loading a new item
+        this.isInContactSelectionMode = false;
+        this.showContactConfirmationModal = false;
         
         // Update last refresh time
         this.lastRefreshTime = new Date();
@@ -534,9 +550,19 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         }
         this.selectedItem = this.queueItem;
         
-        // Experimental: Two-stage accept process
-        // Stage 1: Navigate to record and show contact confirmation
-        this.navigateToRecordAndShowConfirmation();
+        // Handle different action types
+        const actionType = this.queueItem?.Action_Type__c || '';
+        if (actionType === 'Event') {
+            this.handleEventAccept();
+        } else if (actionType === 'Email') {
+            this.handleEmailAccept();
+        } else if (actionType.toLowerCase().includes('call')) {
+            // Experimental: Two-stage accept process for calls only
+            // Stage 1: Call acceptAction to set status to In Progress, then show contact confirmation
+            this.executeAcceptActionForCall();
+        } else {
+            this.executeAcceptAction();
+        }
     }
 
     handleDismissAction(event) {
@@ -641,9 +667,9 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         acceptAction({ queueItemId: this.selectedItem.Id, additionalNotes: '' })
             .then((taskId) => {
                 console.log('Accept action successful, task ID:', taskId);
-                this.showToast('Success', 'Action accepted and task created', 'success');
+                this.showToast('Success', 'Action accepted', 'success');
                 try { this.dispatchEvent(new CustomEvent('nbaqueuechange', { detail: { queueItemId: this.selectedItem.Id } })); } catch (e) {}
-                this.currentTaskId = taskId;
+                // Task will be created when call disposition is saved
                 if (isCall) {
                     // Unified call behavior for Opp and Lead
                     try {
@@ -674,6 +700,23 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 try { if (this._acceptWatchdog) clearTimeout(this._acceptWatchdog); } catch (e) {}
                 this.isLoading = false;
             });
+    }
+
+    // Experimental: Execute accept action for call, then show contact confirmation
+    async executeAcceptActionForCall() {
+        console.log('executeAcceptActionForCall started');
+        
+        // First, call acceptAction to set status to In Progress
+        try {
+            await acceptAction({ queueItemId: this.selectedItem.Id, additionalNotes: '' });
+            console.log('Accept action successful for call');
+            
+            // Then navigate to record and show contact confirmation
+            this.navigateToRecordAndShowConfirmation();
+        } catch (error) {
+            console.error('Error in acceptAction for call:', error);
+            this.showToast('Error', 'Failed to accept action: ' + error.body?.message, 'error');
+        }
     }
 
     // Experimental: Navigate to record and show contact confirmation
@@ -713,7 +756,8 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         // Load available contacts and phone numbers
         this.loadContactOptions();
         
-        // Show the contact confirmation modal
+        // Set contact selection mode and show the modal
+        this.isInContactSelectionMode = true;
         this.showContactConfirmationModal = true;
     }
     
@@ -771,7 +815,8 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 id: defaultContactId,
                 name: defaultContactName,
                 phone: this.queueItem?.Best_Person_to_Call__r?.Phone || '',
-                mobilePhone: this.queueItem?.Best_Person_to_Call__r?.MobilePhone || ''
+                mobilePhone: this.queueItem?.Best_Person_to_Call__r?.MobilePhone || '',
+                otherPhone: this.queueItem?.Best_Person_to_Call__r?.OtherPhone || ''
             });
         }
         
@@ -782,17 +827,10 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                     id: this.opportunityPrimaryContact.contactId,
                     name: this.opportunityPrimaryContact.contactName,
                     phone: this.opportunityPrimaryContact.contactPhone,
-                    mobilePhone: ''
+                    mobilePhone: '',
+                    otherPhone: ''
                 });
             }
-            
-            // Add "Other" option for manual phone input
-            this.availableContacts.push({
-                id: 'other',
-                name: 'Other (Manual Entry)',
-                phone: '',
-                mobilePhone: ''
-            });
         
         // Fetch and add all account contacts if we have an account
         if (this.queueItem?.Account__c) {
@@ -808,6 +846,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                             name: contact.name,
                             phone: contact.phone || '',
                             mobilePhone: contact.mobilePhone || '',
+                            otherPhone: contact.otherPhone || '',
                             title: contact.title || '',
                             department: contact.department || ''
                         });
@@ -817,6 +856,15 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 console.error('Error fetching account contacts:', error);
             }
         }
+        
+        // Add "Other" option for manual phone input (always at the bottom)
+        this.availableContacts.push({
+            id: 'other',
+            name: 'Other (Manual Entry)',
+            phone: '',
+            mobilePhone: '',
+            otherPhone: ''
+        });
         
         // Update phone options for the selected contact
         this.updatePhoneOptionsForContact();
@@ -883,7 +931,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         if (selectedContact) {
             this.availablePhoneNumbers = [];
             
-            // Add selected contact's phone numbers only
+            // Add selected contact's phone numbers only (Phone is always first if available)
             if (selectedContact.phone) {
                 this.availablePhoneNumbers.push({
                     value: selectedContact.phone,
@@ -894,6 +942,12 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 this.availablePhoneNumbers.push({
                     value: selectedContact.mobilePhone,
                     label: selectedContact.mobilePhone + ' (Mobile)'
+                });
+            }
+            if (selectedContact.otherPhone) {
+                this.availablePhoneNumbers.push({
+                    value: selectedContact.otherPhone,
+                    label: selectedContact.otherPhone + ' (Other Phone)'
                 });
             }
             
@@ -926,8 +980,9 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     async handleCallNow() {
         console.log('Call Now clicked with contact:', this.selectedContactId, 'phone:', this.selectedPhoneNumber);
         
-        // Close the contact confirmation modal
+        // Close the contact confirmation modal and exit contact selection mode
         this.showContactConfirmationModal = false;
+        this.isInContactSelectionMode = false;
         
         // Update the queue item with selected contact and phone
         this.updateQueueItemWithSelectedContact();
@@ -946,12 +1001,21 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         this.executeAcceptAction();
     }
     
-    // Handle redial action
+    // Handle redial action - show contact selection modal
     handleRedial() {
-        if (this.selectedPhoneNumber) {
-            // Use the same redial logic as the original widget
-            this.redialNumber(this.selectedPhoneNumber);
-        }
+        // Close the call disposition form
+        this.showCallDispositionForm = false;
+        
+        // Show the contact confirmation modal again for contact/number selection
+        this.showContactConfirmationModal = true;
+        
+        // Reset the selected values to current defaults
+        this.selectedContactId = this.queueItem?.Best_Person_to_Call__c || '';
+        this.selectedPhoneNumber = this.queueItem?.Best_Number_to_Call__c || '';
+        this.selectedContactName = this.queueItem?.Best_Person_to_Call__r?.Name || '';
+        this.selectedPhoneDisplay = this.queueItem?.Best_Number_to_Call__c || '';
+        this.showManualPhoneInput = false;
+        this.manualPhoneNumber = '';
     }
     
     // Redial the specified phone number
@@ -1064,10 +1128,25 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     }
     
     // Handle canceling the contact confirmation
-    handleCancelContactConfirmation() {
+    async handleCancelContactConfirmation() {
+        // Close the modal and reset selections
         this.showContactConfirmationModal = false;
         this.selectedContactId = '';
         this.selectedPhoneNumber = '';
+        this.isInContactSelectionMode = false;
+        
+        // Revert the status back to Pending
+        if (this.selectedItem && this.selectedItem.Id) {
+            try {
+                await cancelCallDisposition({ queueItemId: this.selectedItem.Id });
+                console.log('Status reverted to Pending after cancel');
+                // Refresh the queue item to reflect the status change
+                await this.loadQueueItem();
+            } catch (error) {
+                console.error('Error reverting status to Pending:', error);
+                this.showToast('Error', 'Failed to revert status: ' + error.body?.message, 'error');
+            }
+        }
     }
 
     closeCallDispositionForm() {
@@ -1131,11 +1210,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
             this.showToast('Error', 'Please select a call disposition', 'error');
             return;
         }
-        if (!this.currentTaskId) {
-            console.error('CallDispositionSave: Missing currentTaskId');
-            this.showToast('Error', 'Missing task context. Click Accept to start the call, then save.', 'error');
-            return;
-        }
+        // Task will be created when disposition is saved
         if (!this.selectedItem || !this.selectedItem.Id) {
             console.error('CallDispositionSave: Missing selectedItem or Id');
             this.showToast('Error', 'Missing queue item context. Refresh and try again.', 'error');
@@ -1156,7 +1231,6 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
 
         this.isLoading = true;
         console.log('Saving call disposition payload', {
-            taskId: this.currentTaskId,
             queueItemId: this.selectedItem?.Id,
             disposition: this.callDisposition,
             notesLen: (this.callNotes || '').length,
@@ -1167,14 +1241,12 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
 
         const savePromise = flowRequired
             ? updateCallDispositionWithQueueIdOptions({
-                  taskId: this.currentTaskId,
                   queueItemId: this.selectedItem.Id,
                   disposition: this.callDisposition,
                   callNotes: this.callNotes,
                   finalize: false
               })
             : updateCallDisposition({
-                  taskId: this.currentTaskId,
                   queueItemId: this.selectedItem.Id,
                   disposition: this.callDisposition,
                   callNotes: this.callNotes
@@ -1264,6 +1336,7 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         const iconMap = {
             'Call': 'utility:call',
             'Email': 'utility:email',
+            'Event': 'utility:event',
             'Meeting': 'utility:event',
             'Follow_Up': 'utility:follow_up',
             'Demo': 'utility:screen_share',
@@ -1272,6 +1345,21 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
             'Payroll Prospecting Call': 'utility:currency'
         };
         return iconMap[actionType] || 'utility:task';
+    }
+
+    getActionEmoji(actionType) {
+        const emojiMap = {
+            'Call': '📞',
+            'Email': '✉️',
+            'Event': '📅',
+            'Meeting': '📅',
+            'Follow_Up': '📋',
+            'Demo': '🖥️',
+            'Proposal': '📄',
+            'Payroll Opportunity Call': '💰',
+            'Payroll Prospecting Call': '💵'
+        };
+        return emojiMap[actionType] || '📝';
     }
 
     formatDate(dateValue) {
@@ -1599,6 +1687,41 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         else actionShort = typeRaw.replace(/_/g, ' ');
         const prefix = `${objectType} ${actionShort} for`;
         return prefix;
+    }
+
+    get actionEmoji() {
+        if (!this.queueItem) return '📝';
+        const actionType = this.queueItem.Action_Type__c;
+        const emoji = this.getActionEmoji(actionType);
+        return emoji;
+    }
+
+    get isEmailAction() {
+        return this.queueItem?.Action_Type__c === 'Email';
+    }
+
+    get isEventAction() {
+        return this.queueItem?.Action_Type__c === 'Event';
+    }
+
+    get isCallAction() {
+        return this.queueItem?.Action_Type__c === 'Call' || 
+               this.queueItem?.Action_Type__c?.includes('Call');
+    }
+
+    get meetingDispositionOptions() {
+        return [
+            { label: 'Attended', value: 'Attended' },
+            { label: 'Missed', value: 'Missed' }
+        ];
+    }
+
+    get emailCompleteMessage() {
+        if (this.navigatedToEmailMessage) {
+            return 'You have been navigated to the Email Message record. Please complete your email action and then click the button below to mark this action as complete.';
+        } else {
+            return 'You have been navigated to the Opportunity record. Please complete your email action and then click the button below to mark this action as complete.';
+        }
     }
 
     get opportunityName() {
@@ -1975,12 +2098,10 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     // Helper to check if we should use NBA Queue contact info vs Account primary contact
     get shouldUseNBAQueueContact() {
         if (!this.queueItem?.Opportunity__c) {
-            console.log('No opportunity, using NBA Queue contact');
             return true; // No opportunity, use NBA Queue contact
         }
         const stage = this.queueItem?.Opportunity__r?.StageName;
         const shouldUse = stage === 'New Opportunity' || stage === 'Attempted';
-        console.log('Opportunity stage:', stage, 'Should use NBA Queue contact:', shouldUse);
         return shouldUse;
     }
 
@@ -1991,11 +2112,9 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         }
         if (this.shouldUseNBAQueueContact && this.queueItem?.Best_Person_to_Call__c) {
             const nbaContact = this.queueItem?.Best_Person_to_Call__r?.Name || '';
-            console.log('Using NBA Queue contact person:', nbaContact);
             return nbaContact;
         } else {
             const oppContact = this.opportunityPrimaryContact?.contactName || '';
-            console.log('Using Opportunity primary contact person:', oppContact);
             return oppContact;
         }
     }
@@ -2017,11 +2136,9 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
         }
         if (this.shouldUseNBAQueueContact && this.queueItem?.Best_Person_to_Call__c) {
             const nbaEmail = this.queueItem?.Best_Person_to_Call__r?.Email || '';
-            console.log('Using NBA Queue contact email:', nbaEmail);
             return nbaEmail;
         } else {
             const oppEmail = this.opportunityPrimaryContact?.contactEmail || '';
-            console.log('Using Opportunity primary contact email:', oppEmail);
             return oppEmail;
         }
     }
@@ -2039,27 +2156,22 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
                 if (this.queueItem?.Best_Person_to_Call__c) {
                     const nbaPhone = this.queueItem?.Best_Number_to_Call__c;
                     if (nbaPhone) {
-                        console.log('Using NBA Queue Best Number to Call:', nbaPhone);
                         return nbaPhone;
                     }
                 }
                 const oppPhone = this.opportunityPrimaryContact?.contactPhone || '';
-                console.log('Best Person not set or no NBA phone, using Opportunity primary contact phone:', oppPhone);
                 return oppPhone;
             } else {
                 const oppPhone = this.opportunityPrimaryContact?.contactPhone || '';
-                console.log('Using Opportunity primary contact phone (other stages):', oppPhone);
                 return oppPhone;
             }
         } else {
             if (this.queueItem?.Best_Person_to_Call__c) {
                 const nbaPhone = this.queueItem?.Best_Number_to_Call__c;
                 if (nbaPhone) {
-                    console.log('Using NBA Queue Best Number to Call (no opportunity):', nbaPhone);
                     return nbaPhone;
                 }
             }
-            console.log('Best Person not set or no NBA phone, using Account primary contact phone');
             return this.opportunityPrimaryContact?.contactPhone || '';
         }
     }
@@ -2211,5 +2323,108 @@ export default class NbaQueueWidgetExperimental extends NavigationMixin(Lightnin
     }
     get isUpNextAccount() {
         return !!(this.upNextItem && !this.upNextItem.Opportunity__c && !this.upNextItem.Lead__c && this.upNextItem.Account__c);
+    }
+
+    // Email action handlers
+    async handleEmailAccept() {
+        try {
+            this.isLoading = true;
+            const result = await handleEmailAccept({ queueItemId: this.queueItem.Id });
+            
+            if (result.success) {
+                // Store navigation info for dynamic message
+                this.navigatedToEmailMessage = !!result.emailMessageId;
+                
+                // Navigate to email message if available, otherwise opportunity
+                if (result.emailMessageId) {
+                    this.navigateToRecord(result.emailMessageId);
+                } else {
+                    this.navigateToRecord(result.opportunityId);
+                }
+                // Show complete modal
+                this.showEmailCompleteModal = true;
+            }
+        } catch (error) {
+            console.error('Error accepting email action:', error);
+            this.showToast('Error', 'Failed to accept email action', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    async handleEmailComplete() {
+        try {
+            this.isLoading = true;
+            await completeEmailAction({ queueItemId: this.queueItem.Id });
+            this.showEmailCompleteModal = false;
+            this.showToast('Success', 'Email action completed', 'success');
+            this.loadQueueItem();
+        } catch (error) {
+            console.error('Error completing email action:', error);
+            this.showToast('Error', 'Failed to complete email action', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    // Event action handlers
+    async handleEventAccept() {
+        try {
+            this.isLoading = true;
+            const result = await handleEventAccept({ queueItemId: this.queueItem.Id });
+            
+            if (result.success) {
+                // Navigate to event if available, otherwise opportunity
+                if (result.eventId) {
+                    this.navigateToRecord(result.eventId);
+                } else {
+                    this.navigateToRecord(result.opportunityId);
+                }
+                // Show meeting disposition modal directly (skip contact confirmation)
+                this.showMeetingDispositionModal = true;
+            }
+        } catch (error) {
+            console.error('Error accepting event action:', error);
+            this.showToast('Error', 'Failed to accept event action', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    async handleMeetingDispositionSave() {
+        try {
+            this.isLoading = true;
+            await saveMeetingDisposition({ 
+                queueItemId: this.queueItem.Id,
+                meetingDisposition: this.meetingDisposition,
+                meetingNotes: this.meetingNotes
+            });
+            this.showMeetingDispositionModal = false;
+            this.showToast('Success', 'Meeting disposition saved', 'success');
+            this.loadQueueItem();
+        } catch (error) {
+            console.error('Error saving meeting disposition:', error);
+            this.showToast('Error', 'Failed to save meeting disposition', 'error');
+        } finally {
+            this.isLoading = false;
+        }
+    }
+
+    handleMeetingDispositionChange(event) {
+        this.meetingDisposition = event.target.value;
+    }
+
+    handleMeetingNotesChange(event) {
+        this.meetingNotes = event.target.value;
+    }
+
+    handleEmailCompleteCancel() {
+        this.showEmailCompleteModal = false;
+    }
+
+    handleMeetingDispositionCancel() {
+        this.showMeetingDispositionModal = false;
+        this.meetingDisposition = '';
+        this.meetingNotes = '';
     }
 }

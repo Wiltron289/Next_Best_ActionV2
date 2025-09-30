@@ -24,7 +24,7 @@
             </div>
             <div class="nba-widget-body">
                 <div class="nba-widget-row nba-widget-main-row">
-                    <span class="nba-widget-icon">📞</span>
+                    <span class="nba-widget-icon">{actionEmoji}</span>
                     <span class="nba-widget-main-text">
                         {actionText}
                         <a href="javascript:void(0);" class="nba-widget-link" onclick={handleRecordClick}> {recordName}</a>
@@ -281,7 +281,7 @@
                 <template if:true={isUpNextTab}>
                     <div class="nba-widget-overview">
                         <div class="nba-widget-row nba-widget-main-row">
-                            <span class="nba-widget-icon">📞</span>
+                            <span class="nba-widget-icon">{actionEmoji}</span>
                             <span class="nba-widget-main-text">
                                 <template if:true={upNextItem}>
                                     <template if:true={isUpNextLead}>Lead Call for&nbsp;</template>
@@ -471,12 +471,7 @@
                             </div>
                         </template>
                         
-                        <div class="nba-widget-form-actions">
-                            <button class="nba-widget-form-cancel" onclick={handleCancelContactConfirmation}>Cancel</button>
-                            <button class="nba-widget-form-save" onclick={handleCallNow} disabled={isLoading}>
-                                Call Now
-                            </button>
-                        </div>
+                        <!-- Buttons are now handled by the footer when in contact selection mode -->
                     </div>
                 </div>
             </template>
@@ -526,18 +521,90 @@
                 </div>
             </template>
 
+            <!-- Email Complete Form (Embedded) - Above Action Buttons -->
+            <template if:true={showEmailCompleteModal}>
+                <div class="nba-widget-form-container">
+                    <div class="nba-widget-form-header">
+                        <h3>Email Action Complete</h3>
+                    </div>
+                    <div class="nba-widget-form-body">
+                        <p>{emailCompleteMessage}</p>
+                    </div>
+                    <div class="nba-widget-form-footer">
+                        <button class="nba-widget-form-cancel" onclick={handleEmailCompleteCancel}>Cancel</button>
+                        <button class="nba-widget-form-save" onclick={handleEmailComplete} disabled={isLoading}>
+                            Mark Complete
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Meeting Disposition Form (Embedded) - Above Action Buttons -->
+            <template if:true={showMeetingDispositionModal}>
+                <div class="nba-widget-form-section">
+                    <div class="nba-widget-form-header">
+                        <h3>Meeting Disposition</h3>
+                        <button class="nba-widget-form-close" onclick={handleMeetingDispositionCancel}>×</button>
+                    </div>
+                    <div class="nba-widget-form-content">
+                        <div class="nba-widget-form-field">
+                            <label for="meetingDisposition">Meeting Disposition *</label>
+                            <select id="meetingDisposition" class="nba-widget-form-select" onchange={handleMeetingDispositionChange} value={meetingDisposition} required>
+                                <option value="">Select disposition...</option>
+                                <template for:each={meetingDispositionOptions} for:item="option">
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                </template>
+                            </select>
+                        </div>
+                        <div class="nba-widget-form-field">
+                            <label for="meetingNotes">Meeting Notes</label>
+                            <textarea id="meetingNotes" class="nba-widget-form-textarea" onchange={handleMeetingNotesChange} value={meetingNotes} placeholder="Enter meeting notes..."></textarea>
+                        </div>
+                        <div class="nba-widget-form-actions">
+                            <button class="nba-widget-form-cancel" onclick={handleMeetingDispositionCancel}>Cancel</button>
+                            <button class="nba-widget-form-save" onclick={handleMeetingDispositionSave} disabled={isLoading}>
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
             <!-- Footer Actions (only show when no forms are active and flow not visible) -->
             <template if:false={showEmbeddedFlow}>
             <template if:false={showCallDispositionForm}>
                 <template if:false={showDismissForm}>
-                    <div class="nba-widget-footer">
-                        <button class="nba-widget-skip" data-id={queueItem.Id} onclick={handleDismissAction}>Skip</button>
-                        <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>Accept</button>
-                    </div>
+                    <template if:false={showEmailCompleteModal}>
+                        <template if:false={showMeetingDispositionModal}>
+                            <div class="nba-widget-footer">
+                                <!-- Show Skip/Accept buttons when NOT in contact selection mode -->
+                                <template if:false={isInContactSelectionMode}>
+                                    <button class="nba-widget-skip" data-id={queueItem.Id} onclick={handleDismissAction}>Skip</button>
+                                    <button class="nba-widget-call" data-id={queueItem.Id} onclick={handleAcceptAction}>
+                                        <template if:true={isCallAction}>Accept</template>
+                                        <template if:true={isEmailAction}>Open Email</template>
+                                        <template if:true={isEventAction}>Join Meeting</template>
+                                        <template if:false={isCallAction}>
+                                            <template if:false={isEmailAction}>
+                                                <template if:false={isEventAction}>Accept</template>
+                                            </template>
+                                        </template>
+                                    </button>
+                                </template>
+                                
+                                <!-- Show Cancel/Call Now buttons when in contact selection mode -->
+                                <template if:true={isInContactSelectionMode}>
+                                    <button class="nba-widget-skip" onclick={handleCancelContactConfirmation}>Cancel</button>
+                                    <button class="nba-widget-call" onclick={handleCallNow}>Call Now</button>
+                                </template>
+                            </div>
+                        </template>
+                    </template>
                 </template>
             </template>
             </template>
         </div>
     </template>
+
 
 </template>

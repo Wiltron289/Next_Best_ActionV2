@@ -83,6 +83,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
     @track showMeetingDispositionModal = false;
     @track meetingDisposition = '';
     @track meetingNotes = '';
+    @track navigatedToEmailMessage = false;
     @track futureFollowUpReason = '';
     @track selectedStage = '';
     @track stageOptions = [];
@@ -546,6 +547,14 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         ];
     }
 
+    get emailCompleteMessage() {
+        if (this.navigatedToEmailMessage) {
+            return 'You have been navigated to the Email Message record. Please complete your email action and then click the button below to mark this action as complete.';
+        } else {
+            return 'You have been navigated to the Opportunity record. Please complete your email action and then click the button below to mark this action as complete.';
+        }
+    }
+
 
 
     get callDispositionOptions() {
@@ -712,9 +721,9 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
         acceptAction({ queueItemId: this.selectedItem.Id, additionalNotes: '' })
             .then((taskId) => {
                 console.log('Accept action successful, task ID:', taskId);
-                this.showToast('Success', 'Action accepted and task created', 'success');
+                this.showToast('Success', 'Action accepted', 'success');
                 try { this.dispatchEvent(new CustomEvent('nbaqueuechange', { detail: { queueItemId: this.selectedItem.Id } })); } catch (e) {}
-                this.currentTaskId = taskId;
+                // Task will be created when call disposition is saved
                 if (isCall) {
                     // Unified call behavior for Opp and Lead
                     try {
@@ -809,11 +818,7 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             this.showToast('Error', 'Please select a call disposition', 'error');
             return;
         }
-        if (!this.currentTaskId) {
-            console.error('CallDispositionSave: Missing currentTaskId');
-            this.showToast('Error', 'Missing task context. Click Accept to start the call, then save.', 'error');
-            return;
-        }
+        // Task will be created when disposition is saved
         if (!this.selectedItem || !this.selectedItem.Id) {
             console.error('CallDispositionSave: Missing selectedItem or Id');
             this.showToast('Error', 'Missing queue item context. Refresh and try again.', 'error');
@@ -834,7 +839,6 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
 
         this.isLoading = true;
         console.log('Saving call disposition payload', {
-            taskId: this.currentTaskId,
             queueItemId: this.selectedItem?.Id,
             disposition: this.callDisposition,
             notesLen: (this.callNotes || '').length,
@@ -850,14 +854,12 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
 
         const savePromise = flowRequired
             ? updateCallDispositionWithQueueIdOptions({
-                  taskId: this.currentTaskId,
                   queueItemId: this.selectedItem.Id,
                   disposition: this.callDisposition,
                   callNotes: this.callNotes,
                   finalize: false
               })
             : updateCallDisposition({
-                  taskId: this.currentTaskId,
                   queueItemId: this.selectedItem.Id,
                   disposition: this.callDisposition,
                   callNotes: this.callNotes
@@ -2249,8 +2251,15 @@ export default class NbaQueueWidget extends NavigationMixin(LightningElement) {
             const result = await handleEmailAccept({ queueItemId: this.queueItem.Id });
             
             if (result.success) {
-                // Navigate to opportunity
-                this.navigateToRecord(result.opportunityId);
+                // Store navigation info for dynamic message
+                this.navigatedToEmailMessage = !!result.emailMessageId;
+                
+                // Navigate to email message if available, otherwise opportunity
+                if (result.emailMessageId) {
+                    this.navigateToRecord(result.emailMessageId);
+                } else {
+                    this.navigateToRecord(result.opportunityId);
+                }
                 // Show complete modal
                 this.showEmailCompleteModal = true;
             }

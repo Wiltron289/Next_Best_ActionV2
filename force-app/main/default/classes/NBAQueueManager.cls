@@ -149,7 +149,7 @@ public class NBAQueueManager {
                         Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Next_Step_Date__c, Opportunity__r.Time_Zone__c,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Start_Time__c, Event_Id__c,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
@@ -263,9 +263,9 @@ public class NBAQueueManager {
                        Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.Source__c, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Next_Step_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
-                       Start_Time__c, Event_Id__c,
+                       Start_Time__c, Event_Id__c, Email_Message_Id__c,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
                        Sales_Rep__c, First_Viewed_Date__c, Actioned_Date__c, Last_Viewed_Date__c, Priority_Multiplier_Applied__c, Person_Called__c,
@@ -501,7 +501,7 @@ public class NBAQueueManager {
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.StageName,
                        Status__c, Priority_Score__c, Subject__c, Action_Type__c,
                        Snoozed_Until__c, Account__r.Payroll_Status__c,
-                       Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c
+                       Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Next_Step_Date__c
                 FROM NBA_Queue__c
                 WHERE Sales_Rep__c = :userId
                 AND Status__c IN ('Pending', 'Snoozed')
@@ -551,7 +551,7 @@ public class NBAQueueManager {
                        Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
-                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
+                       Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Next_Step_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
                        Lead__c, Lead__r.Name, Lead__r.Email, Lead__r.Phone, Lead__r.MobilePhone, Lead__r.LeadSource, Lead__r.Status,
                        Payroll_Buyer_Stage__c, Rep_Notes__c, Close_Date__c,
                        Current_Payroll_Provider__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Best_Person_to_Call__c, Best_Person_to_Call__r.Name, Best_Person_to_Call__r.Phone, Best_Person_to_Call__r.Email,
@@ -1131,22 +1131,8 @@ public class NBAQueueManager {
                 }
             } catch (Exception e) {}
 
-            // Create standard Task
-            Task newTask = new Task(
-                Subject = 'Next Best Action: ' + queueItem.Action_Type__c,
-                Description = buildTaskDescription(queueItem, additionalNotes),
-                WhatId = (whoId == null) ? (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c) : (queueItem.Lead__c != null ? null : (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c)),
-                WhoId = whoId,
-                OwnerId = taskOwnerId,
-                ActivityDate = Date.today(),
-                Status = 'Completed',  // Mark as completed when accepted
-                Priority = mapPriorityToTask(queueItem.Priority_Score__c)
-            );
-            
-            System.debug('Task to be created: ' + newTask);
-            
-            insert newTask;
-            System.debug('Task created successfully: ' + newTask.Id);
+            // Task creation moved to saveCallDisposition method
+            // Task will be created only when call disposition is saved (status = 'Accepted')
             
             // Non-blocking: best-effort stamp dialed number after Task insert
             try {
@@ -1166,8 +1152,8 @@ public class NBAQueueManager {
             // Publish platform event for real-time updates
             // Event publishing removed
             
-            // Return task ID for call disposition tracking
-            return newTask.Id;
+            // Task will be created when call disposition is saved
+            return 'Task will be created on disposition save';
             
         } catch (Exception e) {
             System.debug('Error in acceptAction: ' + e.getMessage());
@@ -1227,64 +1213,92 @@ public class NBAQueueManager {
     }
     
     @AuraEnabled
-    public static void updateCallDispositionWithQueueId(Id taskId, Id queueItemId, String disposition, String callNotes) {
-        // Update the task
-        Task callTask = [SELECT Id, Description, CallDisposition FROM Task WHERE Id = :taskId];
+    public static void updateCallDispositionWithQueueId(Id queueItemId, String disposition, String callNotes) {
+        // Get the queue item details for task creation
+        NBA_Queue__c queueItem = [SELECT Id, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c,
+                                         Subject__c, Description__c, Due_Date__c, Action_Type__c,
+                                         Priority_Score__c, Sales_Rep__c, Opportunity__c, Lead__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Person_Called__c
+                                  FROM NBA_Queue__c 
+                                  WHERE Id = :queueItemId];
         
-        // Update CallDisposition field on Task
-        if (String.isNotBlank(disposition)) {
-            callTask.CallDisposition = disposition;
+        // Get primary contact from Opportunity
+        Id whoId = null;
+        if (queueItem.Opportunity__c != null) {
+            List<Opportunity> opportunities = [
+                SELECT Primary_Contact__c 
+                FROM Opportunity 
+                WHERE Id = :queueItem.Opportunity__c
+                LIMIT 1
+            ];
+            if (!opportunities.isEmpty() && opportunities[0].Primary_Contact__c != null) {
+                whoId = opportunities[0].Primary_Contact__c;
+            }
+        } else if (queueItem.Lead__c != null) {
+            whoId = queueItem.Lead__c;
         }
         
-        // Add call disposition and notes to description
-        String existingDescription = callTask.Description != null ? callTask.Description : '';
-        String updatedDescription = existingDescription;
+        // Use Sales_Rep__c directly
+        Id taskOwnerId = queueItem.Sales_Rep__c;
         
+        // Build task description with disposition and notes
+        String taskDescription = buildTaskDescription(queueItem, '');
         if (String.isNotBlank(disposition)) {
-            updatedDescription += '\n\nCall Disposition: ' + disposition;
+            taskDescription += '\n\nCall Disposition: ' + disposition;
         }
-        
         if (String.isNotBlank(callNotes)) {
-            updatedDescription += '\n\nCall Notes: ' + callNotes;
+            taskDescription += '\n\nCall Notes: ' + callNotes;
         }
         
-        callTask.Description = updatedDescription;
-        update callTask;
+        // Create new Task
+        Task newTask = new Task(
+            Subject = 'Next Best Action: ' + queueItem.Action_Type__c,
+            Description = taskDescription,
+            WhatId = (whoId == null) ? (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c) : (queueItem.Lead__c != null ? null : (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c)),
+            WhoId = whoId,
+            OwnerId = taskOwnerId,
+            ActivityDate = Date.today(),
+            Status = 'Completed',  // Mark as completed when disposition is saved
+            Priority = mapPriorityToTask(queueItem.Priority_Score__c),
+            CallDisposition = disposition
+        );
         
-        // Update the NBA Queue record with the disposition and notes
-        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, Lead__c,
-                                         Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Last_Progression_Time__c, 
-                                          Best_Time_to_Call__c, Next_Step_Date__c, Next_Steps__c
-                                  FROM NBA_Queue__c WHERE Id = :queueItemId];
+        insert newTask;
+        System.debug('Task created successfully: ' + newTask.Id);
+        
+        // Get additional fields needed for queue item update
+        NBA_Queue__c queueItemForUpdate = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, Lead__c,
+                                                 Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Last_Progression_Time__c, 
+                                                  Best_Time_to_Call__c, Next_Step_Date__c, Next_Steps__c
+                                          FROM NBA_Queue__c WHERE Id = :queueItemId];
         
         // Update Rep_Notes__c with call notes
         if (String.isNotBlank(callNotes)) {
-            String existingNotes = queueItem.Rep_Notes__c != null ? queueItem.Rep_Notes__c : '';
+            String existingNotes = queueItemForUpdate.Rep_Notes__c != null ? queueItemForUpdate.Rep_Notes__c : '';
             String combined = existingNotes + '\n\nCall Notes: ' + callNotes;
-            queueItem.Rep_Notes__c = truncateFromStart(combined, 32768);
+            queueItemForUpdate.Rep_Notes__c = truncateFromStart(combined, 32768);
         }
         
         // Update Call_Disposition__c with disposition
         if (String.isNotBlank(disposition)) {
-            queueItem.Call_Disposition__c = disposition;
+            queueItemForUpdate.Call_Disposition__c = disposition;
         }
         
         // Calculate priority score details to set multiplier indicator when action is completed
-        Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(queueItem);
+        Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(queueItemForUpdate);
         String multiplierDescription = (String) scoreDetails.get('multiplierDescription');
         
         // Update status to "Accepted", set completed date, and set multiplier indicator when disposition is saved
-        queueItem.Status__c = 'Accepted';
-        queueItem.Completed_Date__c = System.now();
-        queueItem.Priority_Multiplier_Applied__c = multiplierDescription;
+        queueItemForUpdate.Status__c = 'Accepted';
+        queueItemForUpdate.Completed_Date__c = System.now();
+        queueItemForUpdate.Priority_Multiplier_Applied__c = multiplierDescription;
         
-        update queueItem;
+        update queueItemForUpdate;
         System.debug('Queue item completed with multiplier: ' + multiplierDescription);
         
         // Update related Opportunity fields upon acceptance (Last/First Call timestamps and Description)
-        if (queueItem.Opportunity__c != null) {
+        if (queueItemForUpdate.Opportunity__c != null) {
             try {
-                Opportunity opp = [SELECT Id, Description, First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
+                Opportunity opp = [SELECT Id, Description, First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity WHERE Id = :queueItemForUpdate.Opportunity__c];
                 // Stamp Last Call now; seed First Call once
                 Datetime nowTs = System.now();
                 opp.Last_Call_Date_Time__c = nowTs;
@@ -1304,9 +1318,9 @@ public class NBAQueueManager {
             } catch (Exception e) {
                 System.debug('Error updating Opportunity on acceptance: ' + e.getMessage());
             }
-        } else if (queueItem.Lead__c != null) {
+        } else if (queueItemForUpdate.Lead__c != null) {
             try {
-                Lead l = [SELECT Id, Description FROM Lead WHERE Id = :queueItem.Lead__c LIMIT 1];
+                Lead l = [SELECT Id, Description FROM Lead WHERE Id = :queueItemForUpdate.Lead__c LIMIT 1];
                 if (String.isNotBlank(callNotes)) {
                     String currentDescription = l.Description != null ? l.Description : '';
                     String timestamp = DateTime.now().format('MM/dd/yyyy HH:mm:ss');
@@ -1322,54 +1336,89 @@ public class NBAQueueManager {
 
     // New: Update call disposition with option to finalize the NBA Queue item later (two-phase submit)
     @AuraEnabled
-    public static void updateCallDispositionWithQueueIdOptions(Id taskId, Id queueItemId, String disposition, String callNotes, Boolean finalize) {
-        // Update the task same as existing method
-        Task callTask = [SELECT Id, Description, CallDisposition FROM Task WHERE Id = :taskId];
-        if (String.isNotBlank(disposition)) {
-            callTask.CallDisposition = disposition;
+    public static void updateCallDispositionWithQueueIdOptions(Id queueItemId, String disposition, String callNotes, Boolean finalize) {
+        // Get the queue item details for task creation
+        NBA_Queue__c queueItem = [SELECT Id, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c,
+                                         Subject__c, Description__c, Due_Date__c, Action_Type__c,
+                                         Priority_Score__c, Sales_Rep__c, Opportunity__c, Lead__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Person_Called__c
+                                  FROM NBA_Queue__c 
+                                  WHERE Id = :queueItemId];
+        
+        // Get primary contact from Opportunity
+        Id whoId = null;
+        if (queueItem.Opportunity__c != null) {
+            List<Opportunity> opportunities = [
+                SELECT Primary_Contact__c 
+                FROM Opportunity 
+                WHERE Id = :queueItem.Opportunity__c
+                LIMIT 1
+            ];
+            if (!opportunities.isEmpty() && opportunities[0].Primary_Contact__c != null) {
+                whoId = opportunities[0].Primary_Contact__c;
+            }
+        } else if (queueItem.Lead__c != null) {
+            whoId = queueItem.Lead__c;
         }
-        String existingDescription = callTask.Description != null ? callTask.Description : '';
-        String updatedDescription = existingDescription;
+        
+        // Use Sales_Rep__c directly
+        Id taskOwnerId = queueItem.Sales_Rep__c;
+        
+        // Build task description with disposition and notes
+        String taskDescription = buildTaskDescription(queueItem, '');
         if (String.isNotBlank(disposition)) {
-            updatedDescription += '\n\nCall Disposition: ' + disposition;
+            taskDescription += '\n\nCall Disposition: ' + disposition;
         }
         if (String.isNotBlank(callNotes)) {
-            updatedDescription += '\n\nCall Notes: ' + callNotes;
+            taskDescription += '\n\nCall Notes: ' + callNotes;
         }
-        callTask.Description = updatedDescription;
-        update callTask;
+        
+        // Create new Task
+        Task newTask = new Task(
+            Subject = 'Next Best Action: ' + queueItem.Action_Type__c,
+            Description = taskDescription,
+            WhatId = (whoId == null) ? (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c) : (queueItem.Lead__c != null ? null : (queueItem.Opportunity__c != null ? queueItem.Opportunity__c : queueItem.Account__c)),
+            WhoId = whoId,
+            OwnerId = taskOwnerId,
+            ActivityDate = Date.today(),
+            Status = 'Completed',  // Mark as completed when disposition is saved
+            Priority = mapPriorityToTask(queueItem.Priority_Score__c),
+            CallDisposition = disposition
+        );
+        
+        insert newTask;
+        System.debug('Task created successfully: ' + newTask.Id);
 
-        // Update the NBA Queue record with the disposition and notes
-        NBA_Queue__c queueItem = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, Lead__c,
-                                          Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Last_Progression_Time__c, 
-                                           Best_Time_to_Call__c, Next_Step_Date__c, Next_Steps__c
-                                   FROM NBA_Queue__c WHERE Id = :queueItemId];
+        // Get additional fields needed for queue item update
+        NBA_Queue__c queueItemForUpdate = [SELECT Id, Rep_Notes__c, Call_Disposition__c, Status__c, Completed_Date__c, Opportunity__c, Lead__c,
+                                                 Priority_Score__c, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Last_Progression_Time__c, 
+                                                  Best_Time_to_Call__c, Next_Step_Date__c, Next_Steps__c
+                                          FROM NBA_Queue__c WHERE Id = :queueItemId];
 
         if (String.isNotBlank(callNotes)) {
-            String existingNotes = queueItem.Rep_Notes__c != null ? queueItem.Rep_Notes__c : '';
+            String existingNotes = queueItemForUpdate.Rep_Notes__c != null ? queueItemForUpdate.Rep_Notes__c : '';
             String combined = existingNotes + '\n\nCall Notes: ' + callNotes;
-            queueItem.Rep_Notes__c = truncateFromStart(combined, 32768);
+            queueItemForUpdate.Rep_Notes__c = truncateFromStart(combined, 32768);
         }
         if (String.isNotBlank(disposition)) {
-            queueItem.Call_Disposition__c = disposition;
+            queueItemForUpdate.Call_Disposition__c = disposition;
         }
 
         // Calculate multiplier description for when we later finalize
-        Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(queueItem);
+        Map<String, Object> scoreDetails = calculateAdjustedPriorityScoreWithDetails(queueItemForUpdate);
         String multiplierDescription = (String) scoreDetails.get('multiplierDescription');
 
         // If finalize requested, mark Accepted/Completed; else leave In Progress
         if (finalize == true) {
-            queueItem.Status__c = 'Accepted';
-            queueItem.Completed_Date__c = System.now();
-            queueItem.Priority_Multiplier_Applied__c = multiplierDescription;
+            queueItemForUpdate.Status__c = 'Accepted';
+            queueItemForUpdate.Completed_Date__c = System.now();
+            queueItemForUpdate.Priority_Multiplier_Applied__c = multiplierDescription;
         }
-        update queueItem;
+        update queueItemForUpdate;
 
         // Update related Opportunity fields upon acceptance only when finalizing
-        if (finalize == true && queueItem.Opportunity__c != null) {
+        if (finalize == true && queueItemForUpdate.Opportunity__c != null) {
             try {
-                Opportunity opp = [SELECT Id, Description, First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity WHERE Id = :queueItem.Opportunity__c];
+                Opportunity opp = [SELECT Id, Description, First_Call_Date_Time__c, Last_Call_Date_Time__c FROM Opportunity WHERE Id = :queueItemForUpdate.Opportunity__c];
                 Datetime nowTs = System.now();
                 opp.Last_Call_Date_Time__c = nowTs;
                 if (opp.First_Call_Date_Time__c == null) {
@@ -1387,9 +1436,9 @@ public class NBAQueueManager {
             } catch (Exception e) {
                 System.debug('Error updating Opportunity on acceptance (options): ' + e.getMessage());
             }
-        } else if (finalize == true && queueItem.Lead__c != null) {
+        } else if (finalize == true && queueItemForUpdate.Lead__c != null) {
             try {
-                Lead l = [SELECT Id, Description FROM Lead WHERE Id = :queueItem.Lead__c LIMIT 1];
+                Lead l = [SELECT Id, Description FROM Lead WHERE Id = :queueItemForUpdate.Lead__c LIMIT 1];
                 if (String.isNotBlank(callNotes)) {
                     String currentDescription = l.Description != null ? l.Description : '';
                     String timestamp = DateTime.now().format('MM/dd/yyyy HH:mm:ss');
@@ -1567,6 +1616,17 @@ public class NBAQueueManager {
                 }
             }
             
+            // Skip if Opportunity Next_Step_Date__c is in the future
+            if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Next_Step_Date__c != null) {
+                Date nextStepDate = item.Opportunity__r.Next_Step_Date__c;
+                Date today = Date.today();
+                
+                if (nextStepDate > today) {
+                    System.debug('Skipping call item due to future next step date: ' + nextStepDate);
+                    return 'Next step date is set to ' + String.valueOf(nextStepDate);
+                }
+            }
+            
             // Skip if this opportunity has a future Event beyond the 15-minute window
             if (item.Opportunity__c != null && blockedOppIds != null && blockedOppIds.contains(item.Opportunity__c)) {
                 System.debug('Skipping call item due to future scheduled Event > 15 minutes for Opp: ' + item.Opportunity__c);
@@ -1736,10 +1796,10 @@ public class NBAQueueManager {
         
         try {
             List<Contact> accountContacts = [
-                SELECT Id, Name, Phone, MobilePhone, Email, Title, Department
+                SELECT Id, Name, Phone, MobilePhone, OtherPhone, Email, Title, Department
                 FROM Contact 
                 WHERE AccountId = :accountId 
-                AND (Phone != null OR MobilePhone != null)
+                AND (Phone != null OR MobilePhone != null OR OtherPhone != null)
                 ORDER BY Name
                 LIMIT 50
             ];
@@ -1750,6 +1810,7 @@ public class NBAQueueManager {
                 contactMap.put('name', contact.Name);
                 contactMap.put('phone', contact.Phone);
                 contactMap.put('mobilePhone', contact.MobilePhone);
+                contactMap.put('otherPhone', contact.OtherPhone);
                 contactMap.put('email', contact.Email);
                 contactMap.put('title', contact.Title);
                 contactMap.put('department', contact.Department);
@@ -1787,13 +1848,14 @@ public class NBAQueueManager {
             );
             update queueItem;
             
-            // Get the related opportunity for navigation
-            NBA_Queue__c updatedItem = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            // Get the related opportunity and email message for navigation
+            NBA_Queue__c updatedItem = [SELECT Id, Opportunity__c, Email_Message_Id__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
             
             Map<String, Object> result = new Map<String, Object>();
             result.put('success', true);
             result.put('opportunityId', updatedItem.Opportunity__c);
             result.put('actionType', 'Email');
+            result.put('emailMessageId', updatedItem.Email_Message_Id__c);
             
             System.debug('Email action accepted for queue item: ' + queueItemId);
             return result;
@@ -1835,21 +1897,37 @@ public class NBAQueueManager {
     @AuraEnabled
     public static void saveMeetingDisposition(Id queueItemId, String meetingDisposition, String meetingNotes) {
         try {
+            // Get current Rep_Notes__c to append meeting notes
+            NBA_Queue__c existingItem = [SELECT Id, Rep_Notes__c, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
+            
+            String updatedRepNotes = existingItem.Rep_Notes__c != null ? existingItem.Rep_Notes__c : '';
+            
+            // Add meeting notes to Rep_Notes__c with date and disposition
+            if (String.isNotBlank(meetingNotes)) {
+                String meetingEntry = '\n\nMeeting Notes (' + System.now().format('MM/dd/yyyy HH:mm') + '):\n';
+                meetingEntry += 'Disposition: ' + meetingDisposition + '\n';
+                meetingEntry += 'Notes: ' + meetingNotes;
+                updatedRepNotes += meetingEntry;
+            }
+            
             NBA_Queue__c queueItem = new NBA_Queue__c(
                 Id = queueItemId,
                 Meeting_Disposition__c = meetingDisposition,
-                Meeting_Notes__c = meetingNotes,
-                Status__c = 'Completed',
+                Rep_Notes__c = truncateFromStart(updatedRepNotes, 32768),
+                Status__c = 'Accepted',
                 Actioned_Date__c = System.now()
             );
             update queueItem;
             
-            // If there's a related opportunity, update it with meeting notes
-            NBA_Queue__c updatedItem = [SELECT Id, Opportunity__c FROM NBA_Queue__c WHERE Id = :queueItemId LIMIT 1];
-            if (updatedItem.Opportunity__c != null && String.isNotBlank(meetingNotes)) {
+            // If there's a related opportunity, update it with meeting notes (same format as call notes)
+            if (existingItem.Opportunity__c != null && String.isNotBlank(meetingNotes)) {
+                Opportunity existingOpp = [SELECT Id, Description FROM Opportunity WHERE Id = :existingItem.Opportunity__c LIMIT 1];
+                String updatedDescription = existingOpp.Description != null ? existingOpp.Description : '';
+                updatedDescription += '\n\nMeeting Notes: ' + meetingNotes;
+                
                 Opportunity opp = new Opportunity(
-                    Id = updatedItem.Opportunity__c,
-                    Description = meetingNotes
+                    Id = existingItem.Opportunity__c,
+                    Description = updatedDescription
                 );
                 update opp;
             }
@@ -1866,7 +1944,7 @@ public class NBAQueueManager {
         try {
             NBA_Queue__c queueItem = new NBA_Queue__c(
                 Id = queueItemId,
-                Status__c = 'Completed',
+                Status__c = 'Accepted',
                 Actioned_Date__c = System.now()
             );
             update queueItem;

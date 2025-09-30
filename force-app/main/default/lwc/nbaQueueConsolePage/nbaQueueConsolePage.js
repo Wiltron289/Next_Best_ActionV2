@@ -356,8 +356,8 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
         if (!this.queueItem) return;
         this.isLoading = true;
         try {
-            const taskId = await acceptAction({ queueItemId: this.queueItem.Id, additionalNotes: '' });
-            this.currentTaskId = taskId;
+            await acceptAction({ queueItemId: this.queueItem.Id, additionalNotes: '' });
+            // Task will be created when call disposition is saved
             if (this.queueItem.Action_Type__c && this.queueItem.Action_Type__c.includes('Call')) {
                 // Launch the call with resolved number
                 const phone = this.getPhoneForCurrentItem();
@@ -433,13 +433,12 @@ export default class NbaQueueConsolePage extends NavigationMixin(LightningElemen
     }
 
     handleSaveDisposition = async () => {
-        if (!this.currentTaskId || !this.queueItem) return;
+        if (!this.queueItem) return;
         if (!this.callDisposition) return;
         this.isLoading = true;
         try {
-            await updateCallDisposition({ taskId: this.currentTaskId, queueItemId: this.queueItem.Id, disposition: this.callDisposition, callNotes: this.callNotes });
+            await updateCallDisposition({ queueItemId: this.queueItem.Id, disposition: this.callDisposition, callNotes: this.callNotes });
             this.showCallDispositionForm = false;
-            this.currentTaskId = null;
             this.callDisposition = '';
             this.callNotes = '';
             // Deprecated: embedded flow host path removed; flows launched directly from widget
