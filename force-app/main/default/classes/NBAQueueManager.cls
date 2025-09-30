@@ -1692,16 +1692,18 @@ public class NBAQueueManager {
         Decimal bestTimeMultiplier = 1;
         Decimal progressionMultiplier = 1;
 
-        // Check if Last_Web_Usage_Timestamp__c is within the last hour
+        // Check if Last_Web_Usage_Timestamp__c is within the last hour OF TODAY
         if (item.Account__r.Last_Web_Usage_Timestamp__c != null) {
             DateTime webUsageTime = item.Account__r.Last_Web_Usage_Timestamp__c;
+            DateTime today = DateTime.now().date();
             DateTime oneHourAgo = DateTime.now().addHours(-1);
             
-            if (webUsageTime >= oneHourAgo) {
+            // Only apply if web usage was today AND within the last hour
+            if (webUsageTime.date() == today && webUsageTime >= oneHourAgo) {
                 adjustedScore = adjustedScore * 1.25;
                 webUsageApplied = true;
                 webUsageMultiplier = 1.25;
-                System.debug('Applied 1.25x multiplier for recent web usage. Original: ' + item.Priority_Score__c + ', Adjusted: ' + adjustedScore);
+                System.debug('Applied 1.25x multiplier for recent web usage today. Original: ' + item.Priority_Score__c + ', Adjusted: ' + adjustedScore);
             }
         }
         
