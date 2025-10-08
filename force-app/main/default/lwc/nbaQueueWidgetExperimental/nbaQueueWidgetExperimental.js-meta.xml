@@ -2,7 +2,7 @@
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>58.0</apiVersion>
     <isExposed>true</isExposed>
-    <masterLabel>Next Best Action EX</masterLabel>
+    <masterLabel>Next Best Action V2</masterLabel>
     <targets>
         <target>lightning__AppPage</target>
         <target>lightning__HomePage</target>

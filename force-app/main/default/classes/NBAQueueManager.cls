@@ -555,7 +555,7 @@ public class NBAQueueManager {
                        Account__r.Phone, Account__r.Last_Web_Usage_Timestamp__c, Account__r.Payroll_Status__c, Account__r.Last_Progression_Time__c,
                        Account__r.Check_Console_Link__c, Account__r.Admin_Link__c, Account__r.Reactive_Admin_Link__c, Account__r.Time_Zone__c,
                        Action_Type__c, Priority_Score__c, Subject__c, Description__c, Due_Date__c, Status__c, CreatedDate,
-                       Company_Age_Days__c, Action_Context__c, Snoozed_Until__c,
+                       Company_Age_Days__c, Action_Context__c, Snoozed_Until__c, Start_Time__c,
                        Opportunity__c, Opportunity__r.Name, Opportunity__r.StageName, 
                        Opportunity__r.Payroll_Buyer_Stage__c, Opportunity__r.Implementation_Status__c, Opportunity__r.Account_Product_Switcher_Data__c,
                        Opportunity__r.Account_Current_Payroll__c, Opportunity__r.Last_Call_Date_Time__c, Opportunity__r.Future_Follow_Up_Date__c, Opportunity__r.Next_Step_Date__c, Opportunity__r.Time_Zone__c, Opportunity__r.Description,
@@ -585,16 +585,24 @@ public class NBAQueueManager {
             for (NBA_Queue__c item : items) if (item.Opportunity__c != null) oppIds.add(item.Opportunity__c);
             Set<Id> blockedOppIds = getOpportunitiesBlockedByFutureEvents(oppIds);
 
-            // Apply same filtering rules
+            // Apply same filtering rules as main queue
             List<NBA_Queue__c> filteredItems = new List<NBA_Queue__c>();
             for (NBA_Queue__c item : items) {
-                if (getSkipReason(item, blockedOppIds) != null) {
+                String skipReason = getSkipReason(item, blockedOppIds);
+                if (skipReason != null) {
+                    System.debug('Up Next: Skipping item ' + item.Id + ' due to: ' + skipReason);
                     continue;
                 }
                 filteredItems.add(item);
             }
 
+            System.debug('Up Next: Total items after filtering: ' + filteredItems.size());
+            for (NBA_Queue__c item : filteredItems) {
+                System.debug('Up Next: Filtered item ' + item.Id + ' - Priority: ' + item.Priority_Score__c + ' - Subject: ' + item.Subject__c);
+            }
+
             if (filteredItems.isEmpty()) {
+                System.debug('Up Next: No eligible items found');
                 result.put('upNext', null);
                 return result;
             }
@@ -605,9 +613,13 @@ public class NBAQueueManager {
             // Pick the first item that is not the currently displayed one
             NBA_Queue__c nextItem = null;
             for (NBA_Queue__c item : filteredItems) {
+                System.debug('Up Next: Checking item ' + item.Id + ' (exclude: ' + excludeQueueItemId + ')');
                 if (excludeQueueItemId == null || item.Id != excludeQueueItemId) {
                     nextItem = item;
+                    System.debug('Up Next: Selected item ' + item.Id + ' as up next');
                     break;
+                } else {
+                    System.debug('Up Next: Skipping item ' + item.Id + ' because it matches excludeQueueItemId');
                 }
             }
 
@@ -1022,20 +1034,31 @@ public class NBAQueueManager {
     @AuraEnabled
     public static void updateQueueItem(Id queueItemId, String bestPersonToCall, String bestNumberToCall, String personCalled, String numberDialed) {
         try {
+            System.debug('=== updateQueueItem Apex Debug ===');
+            System.debug('queueItemId: ' + queueItemId);
+            System.debug('bestPersonToCall: ' + bestPersonToCall);
+            System.debug('bestNumberToCall: ' + bestNumberToCall);
+            System.debug('personCalled: ' + personCalled);
+            System.debug('numberDialed: ' + numberDialed);
+            
             NBA_Queue__c queueItem = new NBA_Queue__c(Id = queueItemId);
             
             // Only update Best fields if they are provided (not null)
             if (bestPersonToCall != null && String.isNotBlank(bestPersonToCall)) {
                 queueItem.Best_Person_to_Call__c = bestPersonToCall;
+                System.debug('Setting Best_Person_to_Call__c to: ' + bestPersonToCall);
             }
             if (bestNumberToCall != null && String.isNotBlank(bestNumberToCall)) {
                 queueItem.Best_Number_to_Call__c = bestNumberToCall;
+                System.debug('Setting Best_Number_to_Call__c to: ' + bestNumberToCall);
             }
             if (String.isNotBlank(personCalled)) {
                 queueItem.Person_Called__c = personCalled;
+                System.debug('Setting Person_Called__c to: ' + personCalled);
             }
             if (String.isNotBlank(numberDialed)) {
                 queueItem.Number_Dialed__c = numberDialed;
+                System.debug('Setting Number_Dialed__c to: ' + numberDialed);
             }
             
             update queueItem;
@@ -1055,7 +1078,7 @@ public class NBAQueueManager {
             
             NBA_Queue__c queueItem = [SELECT Id, Account__c, Account__r.Payroll_Status__c, Account__r.Last_Web_Usage_Timestamp__c,
                                              Subject__c, Description__c, Due_Date__c, Action_Type__c,
-                                             Priority_Score__c, Sales_Rep__c, Opportunity__c, Lead__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Person_Called__c
+                                             Priority_Score__c, Sales_Rep__c, Opportunity__c, Lead__c, Best_Time_to_Call__c, Best_Number_to_Call__c, Person_Called__c, Number_Dialed__c
                                       FROM NBA_Queue__c 
                                       WHERE Id = :queueItemId];
             
@@ -1135,9 +1158,13 @@ public class NBAQueueManager {
                     }
                 }
                 // Best-effort pre-insert stamp of dialed number (non-blocking)
+                // Only update if Number_Dialed__c is not already set by user selection
                 try {
-                    if (dialed != null) {
+                    if (dialed != null && String.isBlank(queueItem.Number_Dialed__c)) {
+                        System.debug('Setting Number_Dialed__c from extracted phone: ' + dialed);
                         update new NBA_Queue__c(Id = queueItem.Id, Number_Dialed__c = dialed);
+                    } else if (String.isNotBlank(queueItem.Number_Dialed__c)) {
+                        System.debug('Number_Dialed__c already set by user selection: ' + queueItem.Number_Dialed__c + ', skipping overwrite');
                     }
                 } catch (Exception ePre) {
                     System.debug('Pre-insert dialed update skipped: ' + ePre.getMessage());
@@ -1148,9 +1175,13 @@ public class NBAQueueManager {
             // Task will be created only when call disposition is saved (status = 'Accepted')
             
             // Non-blocking: best-effort stamp dialed number after Task insert
+            // Only update if Number_Dialed__c is not already set by user selection
             try {
-                if (dialed != null) {
+                if (dialed != null && String.isBlank(queueItem.Number_Dialed__c)) {
+                    System.debug('Setting Number_Dialed__c from extracted phone (post-insert): ' + dialed);
                     update new NBA_Queue__c(Id = queueItem.Id, Number_Dialed__c = dialed);
+                } else if (String.isNotBlank(queueItem.Number_Dialed__c)) {
+                    System.debug('Number_Dialed__c already set by user selection (post-insert): ' + queueItem.Number_Dialed__c + ', skipping overwrite');
                 }
             } catch (Exception e2) {
                 System.debug('Dialed number update failed (non-blocking): ' + e2.getMessage());
@@ -1608,15 +1639,14 @@ public class NBAQueueManager {
         
         // 4) Soft blocks only apply to call-based actions
         if (isCallAction) {
-            // Skip if Opportunity Last_Call_Date_Time__c is today
+            // Skip if Opportunity Last_Call_Date_Time__c is within the last 48 hours
             if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Last_Call_Date_Time__c != null) {
                 DateTime lastCallTime = item.Opportunity__r.Last_Call_Date_Time__c;
-                Date today = Date.today();
-                Date lastCallDate = lastCallTime.date();
+                DateTime fortyEightHoursAgo = DateTime.now().addHours(-48);
                 
-                if (lastCallDate == today) {
-                    System.debug('Skipping call item due to last call being today: ' + lastCallTime);
-                    return 'Already called today';
+                if (lastCallTime >= fortyEightHoursAgo) {
+                    System.debug('Skipping call item due to last call being within 48 hours: ' + lastCallTime);
+                    return 'Already called within 48 hours';
                 }
             }
             

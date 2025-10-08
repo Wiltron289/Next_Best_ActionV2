@@ -441,7 +441,10 @@
                     <div class="nba-widget-form-content">
                         <div class="nba-widget-form-field">
                             <label for="contact-select">Contact to Call</label>
-                            <select id="contact-select" class="nba-widget-form-select" value={selectedContactId} onchange={handleContactChange}>
+                            <select id="contact-select" class="nba-widget-form-select" onchange={handleContactChange}>
+                                <template if:true={isRedialMode}>
+                                    <option value="">Select New Contact</option>
+                                </template>
                                 <template for:each={availableContacts} for:item="contact">
                                     <option key={contact.id} value={contact.id}>{contact.name}</option>
                                 </template>
@@ -450,7 +453,10 @@
                     <div class="nba-widget-form-field">
                         <label for="phone-select">Phone Number to Dial</label>
                         <template if:false={showManualPhoneInput}>
-                            <select id="phone-select" class="nba-widget-form-select" value={selectedPhoneNumber} onchange={handlePhoneChange}>
+                            <select id="phone-select" class="nba-widget-form-select" onchange={handlePhoneChange}>
+                                <template if:true={isRedialMode}>
+                                    <option value="">Select Phone Number</option>
+                                </template>
                                 <template for:each={availablePhoneNumbers} for:item="phone">
                                     <option key={phone.value} value={phone.value}>{phone.label}</option>
                                 </template>
@@ -464,19 +470,15 @@
                     </div>
                         
                         <!-- Display selected contact and phone -->
-                        <template if:true={selectedContactName}>
-                            <div class="nba-widget-form-summary">
-                                <div class="nba-widget-form-summary-title">Call Summary:</div>
-                                <div class="nba-widget-form-summary-item">
-                                    <strong>Contact:</strong> {selectedContactName}
-                                </div>
-                                <template if:true={selectedPhoneDisplay}>
-                                    <div class="nba-widget-form-summary-item">
-                                        <strong>Phone:</strong> {selectedPhoneDisplay}
-                                    </div>
-                                </template>
+                        <div class="nba-widget-form-summary">
+                            <div class="nba-widget-form-summary-title">Call Summary:</div>
+                            <div class="nba-widget-form-summary-item">
+                                <strong>Contact:</strong> {selectedContactName}
                             </div>
-                        </template>
+                            <div class="nba-widget-form-summary-item">
+                                <strong>Phone:</strong> {selectedPhoneDisplay}
+                            </div>
+                        </div>
                         
                         <!-- Buttons are now handled by the footer when in contact selection mode -->
                     </div>

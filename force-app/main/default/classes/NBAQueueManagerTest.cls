@@ -1176,4 +1176,108 @@ public class NBAQueueManagerTest {
         Test.stopTest();
         System.assert(act != null && act.containsKey('upcoming') && act.containsKey('past'), 'Should return upcoming and past');
     }
+
+    // Test 48-hour exclusion logic for call-based actions
+    @isTest
+    static void testCallExclusionWithin48Hours() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Opportunity opp = [SELECT Id FROM Opportunity WHERE AccountId = :acct.Id LIMIT 1];
+        
+        // Create a call-based NBA item
+        NBA_Queue__c callItem = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 100,
+            Subject__c = 'NBA: Call - Test Account',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id,
+            Opportunity__c = opp.Id
+        );
+        insert callItem;
+        
+        Test.startTest();
+        
+        // Set last call time to 25 hours ago (should be excluded - within 48 hours)
+        opp.Last_Call_Date_Time__c = DateTime.now().addHours(-25);
+        update opp;
+        
+        // Try to get the next queue item - should be excluded
+        NBA_Queue__c returnedItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        
+        Test.stopTest();
+        
+        // Should return null because the call item is excluded due to recent call
+        System.assertEquals(null, returnedItem, 'Call item should be excluded when last call was within 48 hours');
+    }
+
+    // Test 48-hour exclusion logic - call should be allowed after 48+ hours
+    @isTest
+    static void testCallAllowedAfter48Hours() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Opportunity opp = [SELECT Id FROM Opportunity WHERE AccountId = :acct.Id LIMIT 1];
+        
+        // Create a call-based NBA item
+        NBA_Queue__c callItem = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Call',
+            Priority_Score__c = 100,
+            Subject__c = 'NBA: Call - Test Account',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id,
+            Opportunity__c = opp.Id
+        );
+        insert callItem;
+        
+        Test.startTest();
+        
+        // Set last call time to 49 hours ago (should be allowed - outside 48 hours)
+        opp.Last_Call_Date_Time__c = DateTime.now().addHours(-49);
+        update opp;
+        
+        // Try to get the next queue item - should be allowed
+        NBA_Queue__c returnedItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        
+        Test.stopTest();
+        
+        // Should return the call item because last call was more than 48 hours ago
+        System.assertNotEquals(null, returnedItem, 'Call item should be allowed when last call was more than 48 hours ago');
+        System.assertEquals(callItem.Id, returnedItem.Id, 'Should return the call item');
+    }
+
+    // Test that non-call actions are not affected by 48-hour exclusion
+    @isTest
+    static void testNonCallActionsNotAffectedBy48HourExclusion() {
+        User salesRep = [SELECT Id FROM User WHERE IsActive = TRUE LIMIT 1];
+        Account acct = [SELECT Id FROM Account LIMIT 1];
+        Opportunity opp = [SELECT Id FROM Opportunity WHERE AccountId = :acct.Id LIMIT 1];
+        
+        // Create a non-call NBA item
+        NBA_Queue__c emailItem = new NBA_Queue__c(
+            Account__c = acct.Id,
+            Action_Type__c = 'Email',
+            Priority_Score__c = 100,
+            Subject__c = 'NBA: Email - Test Account',
+            Status__c = 'Pending',
+            Sales_Rep__c = salesRep.Id,
+            Opportunity__c = opp.Id
+        );
+        insert emailItem;
+        
+        Test.startTest();
+        
+        // Set last call time to 1 hour ago (within 48 hours)
+        opp.Last_Call_Date_Time__c = DateTime.now().addHours(-1);
+        update opp;
+        
+        // Try to get the next queue item - should be allowed (email not affected by call exclusion)
+        NBA_Queue__c returnedItem = NBAQueueManager.getNextQueueItem(salesRep.Id);
+        
+        Test.stopTest();
+        
+        // Should return the email item because call exclusion doesn't apply to non-call actions
+        System.assertNotEquals(null, returnedItem, 'Email item should be allowed regardless of last call time');
+        System.assertEquals(emailItem.Id, returnedItem.Id, 'Should return the email item');
+    }
 }
