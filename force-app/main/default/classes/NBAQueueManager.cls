@@ -1,5 +1,38 @@
 public class NBAQueueManager {
     
+    // Cache for exclusion configuration to avoid repeated queries
+    private static NBA_Exclusion_Config__mdt exclusionConfig;
+    
+    // Helper method to get exclusion configuration
+    private static NBA_Exclusion_Config__mdt getExclusionConfig() {
+        if (exclusionConfig == null) {
+            List<NBA_Exclusion_Config__mdt> configs = [
+                SELECT Hours_Since_Last_Call__c, 
+                       Payroll_Status_Values_Excluded__c, 
+                       Opp_Status_Values_Excluded__c, 
+                       Time_Till_Event_Min__c, 
+                       Enable_Future_Follow_Up_Date__c, 
+                       Enable_Next_Step_Date__c
+                FROM NBA_Exclusion_Config__mdt 
+                LIMIT 1
+            ];
+            if (!configs.isEmpty()) {
+                exclusionConfig = configs[0];
+            } else {
+                // Fallback to default values if no config found
+                exclusionConfig = new NBA_Exclusion_Config__mdt(
+                    Hours_Since_Last_Call__c = 48,
+                    Payroll_Status_Values_Excluded__c = 'pending,processing,paid',
+                    Opp_Status_Values_Excluded__c = 'closed won - pending implementation,closed lost,ran payroll',
+                    Time_Till_Event_Min__c = 15,
+                    Enable_Future_Follow_Up_Date__c = true,
+                    Enable_Next_Step_Date__c = true
+                );
+            }
+        }
+        return exclusionConfig;
+    }
+    
     // Wrapper classes for invocable methods
     public class QueueRequest {
         @InvocableVariable(required=true)
@@ -1615,14 +1648,20 @@ public class NBAQueueManager {
 
     // Return a human-readable reason why an item should be skipped; null if eligible
     @TestVisible private static String getSkipReason(NBA_Queue__c item, Set<Id> blockedOppIds) {
+        NBA_Exclusion_Config__mdt config = getExclusionConfig();
+        
         // 1) Hard blocks: these always exclude, even if the item is In Progress
         if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.StageName != null) {
             String stage = item.Opportunity__r.StageName.toLowerCase();
-            if (stage == 'closed won - pending implementation' || 
-                stage == 'closed lost' || 
-                stage == 'ran payroll') {
-                System.debug('Skipping item due to Opportunity stage (hard block): ' + item.Opportunity__r.StageName);
-                return 'Opportunity stage is ' + item.Opportunity__r.StageName;
+            String excludedStages = config.Opp_Status_Values_Excluded__c;
+            if (excludedStages != null) {
+                List<String> excludedStageList = excludedStages.toLowerCase().split(',');
+                for (String excludedStage : excludedStageList) {
+                    if (stage == excludedStage.trim()) {
+                        System.debug('Skipping item due to Opportunity stage (hard block): ' + item.Opportunity__r.StageName);
+                        return 'Opportunity stage is ' + item.Opportunity__r.StageName;
+                    }
+                }
             }
         }
 
@@ -1639,19 +1678,21 @@ public class NBAQueueManager {
         
         // 4) Soft blocks only apply to call-based actions
         if (isCallAction) {
-            // Skip if Opportunity Last_Call_Date_Time__c is within the last 48 hours
+            // Skip if Opportunity Last_Call_Date_Time__c is within the configured hours
             if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Last_Call_Date_Time__c != null) {
                 DateTime lastCallTime = item.Opportunity__r.Last_Call_Date_Time__c;
-                DateTime fortyEightHoursAgo = DateTime.now().addHours(-48);
+                Decimal hoursSinceLastCall = config.Hours_Since_Last_Call__c != null ? config.Hours_Since_Last_Call__c : 48;
+                DateTime cutoffTime = DateTime.now().addHours(-Integer.valueOf(hoursSinceLastCall));
                 
-                if (lastCallTime >= fortyEightHoursAgo) {
-                    System.debug('Skipping call item due to last call being within 48 hours: ' + lastCallTime);
-                    return 'Already called within 48 hours';
+                if (lastCallTime >= cutoffTime) {
+                    System.debug('Skipping call item due to last call being within ' + hoursSinceLastCall + ' hours: ' + lastCallTime);
+                    return 'Already called within ' + hoursSinceLastCall + ' hours';
                 }
             }
             
-            // Skip if Opportunity Future_Follow_Up_Date__c is in the future
-            if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Future_Follow_Up_Date__c != null) {
+            // Skip if Opportunity Future_Follow_Up_Date__c is in the future (if enabled)
+            if (config.Enable_Future_Follow_Up_Date__c && 
+                item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Future_Follow_Up_Date__c != null) {
                 Date futureFollowUpDate = item.Opportunity__r.Future_Follow_Up_Date__c;
                 Date today = Date.today();
                 
@@ -1661,8 +1702,9 @@ public class NBAQueueManager {
                 }
             }
             
-            // Skip if Opportunity Next_Step_Date__c is in the future
-            if (item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Next_Step_Date__c != null) {
+            // Skip if Opportunity Next_Step_Date__c is in the future (if enabled)
+            if (config.Enable_Next_Step_Date__c && 
+                item.Opportunity__c != null && item.Opportunity__r != null && item.Opportunity__r.Next_Step_Date__c != null) {
                 Date nextStepDate = item.Opportunity__r.Next_Step_Date__c;
                 Date today = Date.today();
                 
@@ -1672,20 +1714,25 @@ public class NBAQueueManager {
                 }
             }
             
-            // Skip if this opportunity has a future Event beyond the 15-minute window
+            // Skip if this opportunity has a future Event beyond the configured time window
             if (item.Opportunity__c != null && blockedOppIds != null && blockedOppIds.contains(item.Opportunity__c)) {
-                System.debug('Skipping call item due to future scheduled Event > 15 minutes for Opp: ' + item.Opportunity__c);
-                return 'Future meeting scheduled (>15 minutes)';
+                Decimal timeTillEventMin = config.Time_Till_Event_Min__c != null ? config.Time_Till_Event_Min__c : 15;
+                System.debug('Skipping call item due to future scheduled Event > ' + timeTillEventMin + ' minutes for Opp: ' + item.Opportunity__c);
+                return 'Future meeting scheduled (>' + timeTillEventMin + ' minutes)';
             }
             
-            // Skip if Account Payroll_Status__c contains specific values
+            // Skip if Account Payroll_Status__c contains configured excluded values
             if (item.Account__r != null && item.Account__r.Payroll_Status__c != null) {
                 String payrollStatus = item.Account__r.Payroll_Status__c.toLowerCase();
-                if (payrollStatus == 'pending' || 
-                    payrollStatus == 'processing' || 
-                    payrollStatus == 'paid') {
-                    System.debug('Skipping call item due to payroll status: ' + item.Account__r.Payroll_Status__c);
-                    return 'Account is in payroll status: ' + item.Account__r.Payroll_Status__c;
+                String excludedPayrollStatuses = config.Payroll_Status_Values_Excluded__c;
+                if (excludedPayrollStatuses != null) {
+                    List<String> excludedStatusList = excludedPayrollStatuses.toLowerCase().split(',');
+                    for (String excludedStatus : excludedStatusList) {
+                        if (payrollStatus == excludedStatus.trim()) {
+                            System.debug('Skipping call item due to payroll status: ' + item.Account__r.Payroll_Status__c);
+                            return 'Account is in payroll status: ' + item.Account__r.Payroll_Status__c;
+                        }
+                    }
                 }
             }
         }
@@ -1693,10 +1740,14 @@ public class NBAQueueManager {
         return null;
     }
 
-    // Helper: get Opportunity IDs that have an Event starting later than now + 15 minutes
+    // Helper: get Opportunity IDs that have an Event starting later than now + configured minutes
     @TestVisible private static Set<Id> getOpportunitiesBlockedByFutureEvents(Set<Id> opportunityIds) {
         Set<Id> blocked = new Set<Id>();
         if (opportunityIds == null || opportunityIds.isEmpty()) return blocked;
+        
+        NBA_Exclusion_Config__mdt config = getExclusionConfig();
+        Decimal timeTillEventMin = config.Time_Till_Event_Min__c != null ? config.Time_Till_Event_Min__c : 15;
+        
         // Query Events in bulk; use grouping to keep it efficient
         for (AggregateResult ar : [
             SELECT WhatId wid, MIN(StartDateTime) minStart
@@ -1706,7 +1757,7 @@ public class NBAQueueManager {
         ]) {
             Id wid = (Id) ar.get('wid');
             Datetime minStart = (Datetime) ar.get('minStart');
-            if (minStart != null && minStart > System.now().addMinutes(120)) {
+            if (minStart != null && minStart > System.now().addMinutes(Integer.valueOf(timeTillEventMin))) {
                 blocked.add(wid);
             }
         }

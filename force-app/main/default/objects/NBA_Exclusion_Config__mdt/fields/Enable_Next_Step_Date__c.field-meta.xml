@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Enable_Next_Step_Date__c</fullName>
+    <label>Enable Next Step Date Exclusion</label>
+    <defaultValue>true</defaultValue>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+    <description>If true, items with future next step dates will be excluded from the NBA queue.</description>
+</CustomField>
